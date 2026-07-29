@@ -1,0 +1,269 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-07-29 13:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "student_details_section",
+  "naming_series",
+  "admission_number",
+  "student_name",
+  "admission_date",
+  "column_break_1",
+  "date_of_birth",
+  "gender",
+  "status",
+  "academic_details_section",
+  "academic_year",
+  "standard",
+  "column_break_2",
+  "current_batch",
+  "fee_details_section",
+  "starting_payment",
+  "column_break_3",
+  "monthly_fee",
+  "parent_details_section",
+  "father_name",
+  "mother_name",
+  "column_break_4",
+  "parent_mobile",
+  "whatsapp_number",
+  "school_details_section",
+  "school_name",
+  "address_section",
+  "address"
+ ],
+ "fields": [
+  {
+   "fieldname": "student_details_section",
+   "fieldtype": "Section Break",
+   "label": "Student Details"
+  },
+  {
+   "default": "BB-STU-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "BB-STU-.YYYY.-.#####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "admission_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Admission Number",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "student_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Student Name",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "admission_date",
+   "fieldtype": "Date",
+   "label": "Admission Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "options": "Male\nFemale\nOther"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nCompleted\nDropped",
+   "reqd": 1
+  },
+  {
+   "fieldname": "academic_details_section",
+   "fieldtype": "Section Break",
+   "label": "Academic Details"
+  },
+  {
+   "fieldname": "academic_year",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Academic Year",
+   "options": "Academic Year",
+   "reqd": 1
+  },
+  {
+   "fieldname": "standard",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Standard",
+   "options": "Standard",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "current_batch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Current Batch",
+   "options": "Batch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fee_details_section",
+   "fieldtype": "Section Break",
+   "label": "Fee Details"
+  },
+  {
+   "fieldname": "starting_payment",
+   "fieldtype": "Currency",
+   "label": "Starting Payment",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "monthly_fee",
+   "fieldtype": "Currency",
+   "label": "Monthly Fee",
+   "read_only": 1
+  },
+  {
+   "fieldname": "parent_details_section",
+   "fieldtype": "Section Break",
+   "label": "Parent Details"
+  },
+  {
+   "fieldname": "father_name",
+   "fieldtype": "Data",
+   "label": "Father Name"
+  },
+  {
+   "fieldname": "mother_name",
+   "fieldtype": "Data",
+   "label": "Mother Name"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "parent_mobile",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Parent Mobile",
+   "reqd": 1
+  },
+  {
+   "fieldname": "whatsapp_number",
+   "fieldtype": "Data",
+   "label": "WhatsApp Number"
+  },
+  {
+   "fieldname": "school_details_section",
+   "fieldtype": "Section Break",
+   "label": "School Details"
+  },
+  {
+   "fieldname": "school_name",
+   "fieldtype": "Data",
+   "label": "School Name"
+  },
+  {
+   "fieldname": "address_section",
+   "fieldtype": "Section Break",
+   "label": "Address"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-29 13:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "Student",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Receptionist",
+   "select": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Teacher",
+   "select": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accountant",
+   "select": 1
+  }
+ ],
+ "search_fields": "student_name, parent_mobile, admission_number",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "student_name",
+ "track_changes": 1
+}

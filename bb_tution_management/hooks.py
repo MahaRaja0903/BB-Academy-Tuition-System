@@ -84,6 +84,8 @@ app_license = "mit"
 
 # before_install = "bb_tution_management.install.before_install"
 # after_install = "bb_tution_management.install.after_install"
+after_migrate = "bb_tution_management.bb_academy.setup.setup_bb_academy"
+
 
 # Uninstallation
 # ------------
@@ -242,3 +244,9 @@ app_license = "mit"
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+fixtures = [
+
+    {"doctype": "Workspace", "filters": {"module": "Bb Tution Management"}},
+
+
+]

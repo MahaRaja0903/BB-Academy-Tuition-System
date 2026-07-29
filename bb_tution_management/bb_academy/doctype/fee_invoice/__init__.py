@@ -1,0 +1,1 @@
+# Fee Invoice DocType

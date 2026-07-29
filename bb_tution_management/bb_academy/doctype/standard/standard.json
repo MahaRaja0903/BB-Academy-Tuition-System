@@ -1,0 +1,129 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:standard_name",
+ "creation": "2026-07-29 13:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "standard_details_section",
+  "standard_name",
+  "group",
+  "column_break_1",
+  "academic_order",
+  "starting_payment",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "fieldname": "standard_details_section",
+   "fieldtype": "Section Break",
+   "label": "Standard Details"
+  },
+  {
+   "fieldname": "standard_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Standard Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "General",
+   "fieldname": "group",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Group",
+   "options": "General\nCommerce\nScience",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "academic_order",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Academic Order",
+   "reqd": 1
+  },
+  {
+   "fieldname": "starting_payment",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Starting Payment",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-29 13:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "Standard",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Receptionist",
+   "select": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Teacher",
+   "select": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accountant",
+   "select": 1
+  }
+ ],
+ "search_fields": "standard_name",
+ "sort_field": "academic_order",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "standard_name",
+ "track_changes": 1
+}
