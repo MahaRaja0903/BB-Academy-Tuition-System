@@ -150,23 +150,15 @@ after_migrate = "bb_tution_management.bb_academy.setup.setup_bb_academy"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"bb_tution_management.tasks.all"
-# 	],
-# 	"daily": [
-# 		"bb_tution_management.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"bb_tution_management.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"bb_tution_management.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"bb_tution_management.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": [
+		"bb_tution_management.bb_academy.sms.send_birthday_wishes",
+		"bb_tution_management.bb_academy.sms.send_fee_reminders"
+	],
+	"monthly": [
+		"bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice.auto_generate_monthly_invoices"
+	]
+}
 
 # Testing
 # -------
@@ -244,9 +236,12 @@ after_migrate = "bb_tution_management.bb_academy.setup.setup_bb_academy"
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+
 fixtures = [
 
     {"doctype": "Workspace", "filters": {"module": "Bb Tution Management"}},
 
 
 ]
+
+website_route_rules = [{'from_route': '/tuition_app/<path:app_path>', 'to_route': 'tuition_app'},]

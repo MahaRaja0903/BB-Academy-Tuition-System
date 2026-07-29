@@ -8,10 +8,36 @@ from frappe import _
 def setup_bb_academy():
 	"""Setup roles and initial dummy records for BB Academy Module."""
 	create_roles()
+	seed_sms_settings()
 	seed_academic_years()
+	seed_schools()
 	seed_standards()
 	seed_batches()
 	seed_fee_structures()
+
+
+def seed_sms_settings():
+	doc = frappe.get_single("BB SMS Settings")
+	doc.enabled = 1
+	doc.enable_birthday_sms = 1
+	doc.enable_fee_reminder_sms = 1
+	doc.enable_payment_sms = 1
+	doc.save(ignore_permissions=True)
+
+
+def seed_schools():
+	schools = [
+		{"school_name": "St. Xavier's High School", "board": "CBSE"},
+		{"school_name": "Delhi Public School", "board": "CBSE"},
+		{"school_name": "Kendriya Vidyalaya", "board": "CBSE"},
+		{"school_name": "National Public School", "board": "ICSE"},
+		{"school_name": "DAV Model School", "board": "State Board"},
+	]
+	for data in schools:
+		if not frappe.db.exists("School", data["school_name"]):
+			doc = frappe.get_doc({"doctype": "School", **data})
+			doc.insert(ignore_permissions=True)
+	frappe.db.commit()
 
 
 def seed_academic_years():

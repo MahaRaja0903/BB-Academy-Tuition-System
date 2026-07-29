@@ -40,6 +40,11 @@ class PaymentEntry(Document):
 
 	def on_submit(self):
 		self.update_invoice_status(is_submit=True)
+		self.send_receipt_sms()
+
+	def send_receipt_sms(self):
+		from bb_tution_management.bb_academy.sms import send_payment_confirmation
+		send_payment_confirmation(self)
 
 	def on_cancel(self):
 		self.update_invoice_status(is_submit=False)

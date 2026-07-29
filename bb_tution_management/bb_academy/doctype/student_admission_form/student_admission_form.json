@@ -121,8 +121,9 @@
   },
   {
    "fieldname": "school_name",
-   "fieldtype": "Data",
-   "label": "School Name"
+   "fieldtype": "Link",
+   "label": "School Name",
+   "options": "School"
   },
   {
    "fieldname": "academic_allocation_section",

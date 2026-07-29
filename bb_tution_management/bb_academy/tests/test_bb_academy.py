@@ -11,6 +11,16 @@ class TestBBAcademy(FrappeTestCase):
 		from bb_tution_management.bb_academy.setup import setup_bb_academy
 		setup_bb_academy()
 
+	def test_school_creation(self):
+		sch_name = f"Test School {frappe.generate_hash(length=6)}"
+		sch = frappe.get_doc({
+			"doctype": "School",
+			"school_name": sch_name,
+			"board": "CBSE"
+		})
+		sch.insert(ignore_permissions=True)
+		self.assertTrue(frappe.db.exists("School", sch_name))
+
 	def test_academic_year_validation(self):
 		ay = frappe.get_doc({
 			"doctype": "Academic Year",
@@ -235,3 +245,56 @@ class TestBBAcademy(FrappeTestCase):
 		self.assertEqual(student.standard, "6")
 		self.assertEqual(student.current_batch, "Batch 1")
 		self.assertEqual(student.status, "Active")
+
+	def test_auto_generate_monthly_invoices(self):
+		from bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice import auto_generate_monthly_invoices
+		res = auto_generate_monthly_invoices(fee_month="March", fee_year=2026, auto_submit=True)
+		self.assertIn("created_count", res)
+		self.assertGreaterEqual(res["created_count"], 1)
+
+	def test_birthday_sms_trigger(self):
+		sms_settings = frappe.get_single("BB SMS Settings")
+		sms_settings.enabled = 1
+		sms_settings.enable_birthday_sms = 1
+		sms_settings.save()
+
+		adm_no = f"ADM-BDAY-{frappe.generate_hash(length=6)}"
+		today_str = frappe.utils.today()
+		student = frappe.get_doc({
+			"doctype": "Student",
+			"admission_number": adm_no,
+			"student_name": "Birthday Boy",
+			"admission_date": "2026-01-01",
+			"parent_mobile": "9988776655",
+			"academic_year": "2025-2026",
+			"standard": "6",
+			"current_batch": "Batch 1",
+			"date_of_birth": today_str,
+			"status": "Active"
+		})
+		student.insert(ignore_permissions=True)
+
+		from bb_tution_management.bb_academy.sms import send_birthday_wishes
+		res = send_birthday_wishes()
+		self.assertEqual(res["status"], "success")
+		self.assertGreaterEqual(res["sent_count"], 1)
+
+	def test_fee_reminder_sms_trigger(self):
+		sms_settings = frappe.get_single("BB SMS Settings")
+		sms_settings.enabled = 1
+		sms_settings.enable_fee_reminder_sms = 1
+		sms_settings.save()
+
+		from bb_tution_management.bb_academy.sms import send_fee_reminders
+		res = send_fee_reminders()
+		self.assertEqual(res["status"], "success")
+
+	def test_batch_change_sms_trigger(self):
+		sms_settings = frappe.get_single("BB SMS Settings")
+		sms_settings.enabled = 1
+		sms_settings.enable_batch_change_sms = 1
+		sms_settings.save()
+
+		from bb_tution_management.bb_academy.sms import send_batch_change_sms
+		res = send_batch_change_sms("Test Student", "9988776655", "Batch 3", "Batch 2", "10 Commerce")
+		self.assertTrue(res)

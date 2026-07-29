@@ -1,0 +1,167 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-07-29 16:30:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sms_gateway_section",
+  "enabled",
+  "sms_gateway_url",
+  "column_break_1",
+  "api_key",
+  "sender_id",
+  "birthday_sms_section",
+  "enable_birthday_sms",
+  "birthday_sms_template",
+  "fee_reminder_section",
+  "enable_fee_reminder_sms",
+  "fee_reminder_sms_template",
+  "payment_sms_section",
+  "enable_payment_sms",
+  "payment_sms_template",
+  "batch_change_sms_section",
+  "enable_batch_change_sms",
+  "batch_change_sms_template"
+ ],
+ "fields": [
+  {
+   "fieldname": "sms_gateway_section",
+   "fieldtype": "Section Break",
+   "label": "SMS Gateway Configuration"
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enable SMS Notifications"
+  },
+  {
+   "default": "https://api.sms-provider.com/send",
+   "fieldname": "sms_gateway_url",
+   "fieldtype": "Data",
+   "label": "SMS Gateway URL"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "API Key / Token"
+  },
+  {
+   "default": "BBACAD",
+   "fieldname": "sender_id",
+   "fieldtype": "Data",
+   "label": "Sender ID"
+  },
+  {
+   "fieldname": "birthday_sms_section",
+   "fieldtype": "Section Break",
+   "label": "Birthday SMS Settings"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_birthday_sms",
+   "fieldtype": "Check",
+   "label": "Enable Birthday SMS"
+  },
+  {
+   "default": "Happy Birthday {student_name}! BB Academy wishes you a bright future and success in your studies.",
+   "fieldname": "birthday_sms_template",
+   "fieldtype": "Small Text",
+   "label": "Birthday SMS Template"
+  },
+  {
+   "fieldname": "fee_reminder_section",
+   "fieldtype": "Section Break",
+   "label": "Fee Reminder SMS Settings"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_fee_reminder_sms",
+   "fieldtype": "Check",
+   "label": "Enable Fee Reminder SMS"
+  },
+  {
+   "default": "Dear Parent, tuition fee of ₹{outstanding_amount} for {student_name} ({fee_month} {fee_year}) is due. Please pay at the earliest. - BB Academy",
+   "fieldname": "fee_reminder_sms_template",
+   "fieldtype": "Small Text",
+   "label": "Fee Reminder SMS Template"
+  },
+  {
+   "fieldname": "payment_sms_section",
+   "fieldtype": "Section Break",
+   "label": "Payment Success SMS Settings"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_payment_sms",
+   "fieldtype": "Check",
+   "label": "Enable Payment Receipt SMS"
+  },
+  {
+   "default": "Dear Parent, payment of ₹{amount} for {student_name} received successfully via {payment_mode} for Invoice {fee_invoice}. Thank you! - BB Academy",
+   "fieldname": "payment_sms_template",
+   "fieldtype": "Small Text",
+   "label": "Payment Receipt SMS Template"
+  },
+  {
+   "fieldname": "batch_change_sms_section",
+   "fieldtype": "Section Break",
+   "label": "Batch Promotion/Demotion SMS Settings"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_batch_change_sms",
+   "fieldtype": "Check",
+   "label": "Enable Batch Promotion/Demotion SMS"
+  },
+  {
+   "default": "Dear Parent, student {student_name} has been moved from {previous_batch} to {new_batch} in Standard {standard}. - BB Academy",
+   "fieldname": "batch_change_sms_template",
+   "fieldtype": "Small Text",
+   "label": "Batch Promotion/Demotion SMS Template"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-29 16:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "BB SMS Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

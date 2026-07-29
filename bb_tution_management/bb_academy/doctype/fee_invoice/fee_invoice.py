@@ -73,3 +73,50 @@ class FeeInvoice(Document):
 
 	def on_submit(self):
 		self.update_status()
+
+
+@frappe.whitelist()
+def auto_generate_monthly_invoices(fee_month=None, fee_year=None, auto_submit=True):
+	"""Generates Fee Invoices for all active students for the target month and year."""
+	if not fee_month or not fee_year:
+		today = frappe.utils.getdate()
+		fee_month = today.strftime("%B")
+		fee_year = today.year
+	else:
+		fee_year = int(fee_year)
+
+	active_students = frappe.get_all(
+		"Student",
+		filters={"status": "Active"},
+		fields=["name", "student_name", "standard", "current_batch", "monthly_fee"]
+	)
+
+	created_count = 0
+	for student in active_students:
+		existing = frappe.db.exists(
+			"Fee Invoice",
+			{
+				"student": student.name,
+				"fee_month": fee_month,
+				"fee_year": fee_year,
+				"docstatus": ["!=", 2]
+			}
+		)
+		if not existing:
+			invoice = frappe.get_doc({
+				"doctype": "Fee Invoice",
+				"student": student.name,
+				"fee_month": fee_month,
+				"fee_year": fee_year,
+				"invoice_date": frappe.utils.today(),
+				"due_date": frappe.utils.add_days(frappe.utils.today(), 10)
+			})
+			invoice.insert(ignore_permissions=True)
+			if auto_submit:
+				invoice.submit()
+			created_count += 1
+
+	frappe.db.commit()
+	msg = _("Generated {0} Fee Invoices for {1} {2}.").format(created_count, fee_month, fee_year)
+	frappe.msgprint(msg)
+	return {"created_count": created_count, "fee_month": fee_month, "fee_year": fee_year}

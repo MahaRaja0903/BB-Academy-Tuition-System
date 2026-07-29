@@ -16,6 +16,20 @@ class StudentBatchHistory(Document):
 
 	def after_insert(self):
 		self.update_student_current_batch()
+		self.send_batch_change_sms_notification()
+
+	def send_batch_change_sms_notification(self):
+		if self.student and self.previous_batch and self.new_batch:
+			student = frappe.db.get_value("Student", self.student, ["student_name", "parent_mobile", "standard"], as_dict=True)
+			if student:
+				from bb_tution_management.bb_academy.sms import send_batch_change_sms
+				send_batch_change_sms(
+					student_name=student.student_name,
+					parent_mobile=student.parent_mobile,
+					previous_batch=self.previous_batch,
+					new_batch=self.new_batch,
+					standard=student.standard
+				)
 
 	def update_student_current_batch(self):
 		if getattr(self.flags, "ignore_student_update", False):

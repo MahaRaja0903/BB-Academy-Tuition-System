@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:school_name",
+ "creation": "2026-07-29 15:36:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "school_details_section",
+  "school_name",
+  "board",
+  "column_break_1",
+  "is_active",
+  "address_section",
+  "address"
+ ],
+ "fields": [
+  {
+   "fieldname": "school_details_section",
+   "fieldtype": "Section Break",
+   "label": "School Details"
+  },
+  {
+   "fieldname": "school_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "School Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "CBSE",
+   "fieldname": "board",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Board",
+   "options": "CBSE\nICSE\nState Board\nIB\nIGCSE\nOther"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "address_section",
+   "fieldtype": "Section Break",
+   "label": "Address"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-29 15:36:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "School",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Receptionist",
+   "select": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Teacher",
+   "select": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accountant",
+   "select": 1
+  }
+ ],
+ "search_fields": "school_name",
+ "sort_field": "school_name",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "school_name",
+ "track_changes": 1
+}
