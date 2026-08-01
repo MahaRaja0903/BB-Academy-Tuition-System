@@ -27,7 +27,7 @@ class Student(Document):
 				{
 					"standard": self.standard,
 					"batch": self.current_batch,
-					"is_active": 1,
+					# "is_active": 1,
 				},
 				"monthly_fee"
 			)

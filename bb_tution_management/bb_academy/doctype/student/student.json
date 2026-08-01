@@ -1,20 +1,23 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "naming_series:",
+ "autoname": "BB-STU-.YYYY.-.#####",
  "creation": "2026-07-29 13:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "student_details_section",
-  "naming_series",
   "admission_number",
   "student_name",
   "admission_date",
+  "image",
   "column_break_1",
   "date_of_birth",
   "gender",
   "status",
+  "discontinued_reason",
+  "referred_by",
+  "suspended_reason",
   "academic_details_section",
   "academic_year",
   "standard",
@@ -28,8 +31,10 @@
   "parent_details_section",
   "father_name",
   "mother_name",
-  "column_break_4",
   "parent_mobile",
+  "column_break_4",
+  "father_occupation",
+  "mother_occupation",
   "whatsapp_number",
   "school_details_section",
   "school_name",
@@ -38,17 +43,14 @@
  ],
  "fields": [
   {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Photo"
+  },
+  {
    "fieldname": "student_details_section",
    "fieldtype": "Section Break",
    "label": "Student Details"
-  },
-  {
-   "default": "BB-STU-.YYYY.-.#####",
-   "fieldname": "naming_series",
-   "fieldtype": "Select",
-   "label": "Naming Series",
-   "options": "BB-STU-.YYYY.-.#####",
-   "reqd": 1
   },
   {
    "fieldname": "admission_number",
@@ -93,7 +95,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "Active\nCompleted\nDropped",
+   "options": "Active\nCompleted\nDiscontinued\nSuspended",
    "reqd": 1
   },
   {
@@ -206,15 +208,46 @@
    "fieldname": "fees_due_date",
    "fieldtype": "Int",
    "label": "Fees Due Date"
+  },
+  {
+   "fieldname": "father_occupation",
+   "fieldtype": "Data",
+   "label": "Father Occupation"
+  },
+  {
+   "fieldname": "mother_occupation",
+   "fieldtype": "Data",
+   "label": "Mother Occupation"
+  },
+  {
+   "fieldname": "referred_by",
+   "fieldtype": "Link",
+   "label": "Referred By",
+   "options": "Student"
+  },
+  {
+   "depends_on": "eval:doc.status == \"Discontinued\"",
+   "fieldname": "discontinued_reason",
+   "fieldtype": "Small Text",
+   "label": "Discontinued Reason",
+   "mandatory_depends_on": "eval:doc.status == \"Discontinued\""
+  },
+  {
+   "depends_on": "eval:doc.status == \"Suspended\"",
+   "fieldname": "suspended_reason",
+   "fieldtype": "Small Text",
+   "label": "Suspended Reason",
+   "mandatory_depends_on": "eval:doc.status == \"Suspended\""
   }
  ],
+ "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-29 15:42:53.701963",
+ "modified": "2026-07-31 22:49:08.277329",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",
- "naming_rule": "By \"Naming Series\" field",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {

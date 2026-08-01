@@ -156,7 +156,7 @@ scheduler_events = {
 		"bb_tution_management.bb_academy.sms.send_fee_reminders"
 	],
 	"monthly": [
-		"bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice.auto_generate_monthly_invoices"
+		# "bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice.auto_generate_monthly_invoices"
 	]
 }
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2026, BB Academy and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Payment Entry", {
+frappe.ui.form.on("Fees Payment Entry", {
 	setup(frm) {
 		frm.set_query("fee_invoice", () => {
 			return {
@@ -32,5 +32,31 @@ frappe.ui.form.on("Payment Entry", {
 				}
 			);
 		}
+	},
+
+	calculate_totals(frm) {
+		let amount = flt(frm.doc.amount);
+		let discount = flt(frm.doc.discount_amount);
+		let net_amount = amount - discount;
+		
+		let tax = 0;
+		if (frm.doc.include_gst) {
+			tax = net_amount * 0.18;
+		}
+		
+		frm.set_value("tax_amount", tax);
+		frm.set_value("grand_total", net_amount + tax);
+	},
+
+	amount(frm) {
+		frm.trigger("calculate_totals");
+	},
+
+	discount_amount(frm) {
+		frm.trigger("calculate_totals");
+	},
+
+	include_gst(frm) {
+		frm.trigger("calculate_totals");
 	}
 });

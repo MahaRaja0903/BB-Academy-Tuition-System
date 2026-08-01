@@ -2,7 +2,7 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "prompt",
- "creation": "2026-07-29 13:00:00.000000",
+ "creation": "2026-07-29 13:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -10,9 +10,7 @@
   "standard",
   "batch",
   "column_break_1",
-  "monthly_fee",
-  "effective_from",
-  "is_active"
+  "monthly_fee"
  ],
  "fields": [
   {
@@ -22,10 +20,9 @@
   },
   {
    "fieldname": "standard",
-   "fieldtype": "Link",
-   "in_list_view": 1,
+   "fieldtype": "Table MultiSelect",
    "label": "Standard",
-   "options": "Standard",
+   "options": "Standard Detail",
    "reqd": 1
   },
   {
@@ -46,25 +43,11 @@
    "in_list_view": 1,
    "label": "Monthly Fee",
    "reqd": 1
-  },
-  {
-   "fieldname": "effective_from",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "label": "Effective From",
-   "reqd": 1
-  },
-  {
-   "default": "1",
-   "fieldname": "is_active",
-   "fieldtype": "Check",
-   "in_list_view": 1,
-   "label": "Is Active"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-29 13:00:00.000000",
+ "modified": "2026-07-30 23:48:02.581913",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Structure",
@@ -118,10 +101,10 @@
    "select": 1
   }
  ],
- "search_fields": "standard, batch",
+ "row_format": "Dynamic",
+ "search_fields": "batch",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "title_field": "standard",
  "track_changes": 1
 }

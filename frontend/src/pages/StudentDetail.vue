@@ -24,7 +24,10 @@
       <!-- Main Profile Box (2 cols) -->
       <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6 shadow-2xs space-y-6">
         <div class="flex items-center gap-4 pb-6 border-b border-gray-100">
-          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-500 text-white font-bold text-2xl flex items-center justify-center shadow-lg">
+          <div v-if="student.doc.image" class="w-16 h-16 rounded-full overflow-hidden shadow-lg border border-gray-100">
+            <img :src="student.doc.image" alt="Student Photo" class="w-full h-full object-cover" />
+          </div>
+          <div v-else class="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-500 text-white font-bold text-2xl flex items-center justify-center shadow-lg">
             {{ (student.doc.student_name || 'S').charAt(0).toUpperCase() }}
           </div>
           <div>

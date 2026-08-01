@@ -1,8 +1,9 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "field:school_name",
- "creation": "2026-07-29 15:36:00.000000",
+ "creation": "2026-07-29 15:36:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -60,7 +61,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-29 15:36:00.000000",
+ "modified": "2026-07-30 22:48:36.946983",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "School",
@@ -117,6 +118,7 @@
    "select": 1
   }
  ],
+ "row_format": "Dynamic",
  "search_fields": "school_name",
  "sort_field": "school_name",
  "sort_order": "ASC",

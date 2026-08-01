@@ -6,10 +6,23 @@ from frappe.model.document import Document
 from frappe import _
 
 
-class PaymentEntry(Document):
+class FeesPaymentEntry(Document):
 	def validate(self):
+		self.calculate_totals()
 		self.validate_amount()
 		self.validate_fee_invoice()
+
+	def calculate_totals(self):
+		amount = float(self.amount or 0)
+		discount = float(self.discount_amount or 0)
+		net_amount = amount - discount
+		
+		tax = 0.0
+		if self.include_gst:
+			tax = net_amount * 0.18
+			
+		self.tax_amount = tax
+		self.grand_total = net_amount + tax
 
 	def validate_amount(self):
 		if self.amount is None or float(self.amount) <= 0:
@@ -60,7 +73,7 @@ class PaymentEntry(Document):
 			paid_amount = max(0.0, paid_amount - payment_amount)
 
 		invoice.paid_amount = paid_amount
-		invoice.outstanding_amount = max(0.0, float(invoice.monthly_fee or 0) - paid_amount)
+		invoice.outstanding_amount = max(0.0, float(invoice.grand_total or 0) - paid_amount)
 
 		if invoice.outstanding_amount <= 0:
 			invoice.status = "Paid"

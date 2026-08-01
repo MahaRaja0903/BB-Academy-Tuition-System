@@ -2,6 +2,13 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Student Enquiry Form", {
+	setup(frm) {
+		frm.set_query("standard", function() {
+			return {
+				order_by: "academic_order asc"
+			};
+		});
+	},
 	refresh(frm) {
 		if (!frm.is_new() && frm.doc.status !== "Converted") {
 			frm.add_custom_button(__("Create Admission Form"), () => {

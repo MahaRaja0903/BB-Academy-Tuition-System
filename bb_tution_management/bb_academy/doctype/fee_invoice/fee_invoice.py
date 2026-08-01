@@ -5,7 +5,6 @@ import frappe
 from frappe.model.document import Document
 from frappe import _
 
-
 class FeeInvoice(Document):
 	def validate(self):
 		self.fetch_student_details()
@@ -20,8 +19,6 @@ class FeeInvoice(Document):
 			if self.is_new():
 				self.standard = student_doc.standard
 				self.batch = student_doc.current_batch
-				if not self.monthly_fee:
-					self.monthly_fee = student_doc.monthly_fee or 0
 
 	def validate_immutability(self):
 		if not self.is_new():
@@ -31,17 +28,16 @@ class FeeInvoice(Document):
 					frappe.throw(_("Standard cannot be changed once Fee Invoice is created."))
 				if doc_before_save.batch != self.batch:
 					frappe.throw(_("Batch cannot be changed once Fee Invoice is created."))
-				if float(doc_before_save.monthly_fee or 0) != float(self.monthly_fee or 0):
-					frappe.throw(_("Monthly Fee cannot be changed once Fee Invoice is created."))
 
 	def validate_duplicate_invoice(self):
-		if self.student and self.fee_month and self.fee_year:
+		if self.student and self.fee_month and self.fee_year and not self.is_starting_fee:
 			existing = frappe.db.exists(
 				"Fee Invoice",
 				{
 					"student": self.student,
 					"fee_month": self.fee_month,
 					"fee_year": self.fee_year,
+					"is_starting_fee": 0,
 					"docstatus": ["!=", 2],
 					"name": ["!=", self.name or ""]
 				}
@@ -54,9 +50,9 @@ class FeeInvoice(Document):
 				)
 
 	def calculate_outstanding(self):
-		monthly_fee = float(self.monthly_fee or 0)
+		self.grand_total = sum([float(item.amount or 0) for item in self.get("items", [])])
 		paid_amount = float(self.paid_amount or 0)
-		self.outstanding_amount = max(0.0, monthly_fee - paid_amount)
+		self.outstanding_amount = max(0.0, self.grand_total - paid_amount)
 
 	def update_status(self):
 		if self.docstatus == 2:
@@ -73,50 +69,3 @@ class FeeInvoice(Document):
 
 	def on_submit(self):
 		self.update_status()
-
-
-@frappe.whitelist()
-def auto_generate_monthly_invoices(fee_month=None, fee_year=None, auto_submit=True):
-	"""Generates Fee Invoices for all active students for the target month and year."""
-	if not fee_month or not fee_year:
-		today = frappe.utils.getdate()
-		fee_month = today.strftime("%B")
-		fee_year = today.year
-	else:
-		fee_year = int(fee_year)
-
-	active_students = frappe.get_all(
-		"Student",
-		filters={"status": "Active"},
-		fields=["name", "student_name", "standard", "current_batch", "monthly_fee"]
-	)
-
-	created_count = 0
-	for student in active_students:
-		existing = frappe.db.exists(
-			"Fee Invoice",
-			{
-				"student": student.name,
-				"fee_month": fee_month,
-				"fee_year": fee_year,
-				"docstatus": ["!=", 2]
-			}
-		)
-		if not existing:
-			invoice = frappe.get_doc({
-				"doctype": "Fee Invoice",
-				"student": student.name,
-				"fee_month": fee_month,
-				"fee_year": fee_year,
-				"invoice_date": frappe.utils.today(),
-				"due_date": frappe.utils.add_days(frappe.utils.today(), 10)
-			})
-			invoice.insert(ignore_permissions=True)
-			if auto_submit:
-				invoice.submit()
-			created_count += 1
-
-	frappe.db.commit()
-	msg = _("Generated {0} Fee Invoices for {1} {2}.").format(created_count, fee_month, fee_year)
-	frappe.msgprint(msg)
-	return {"created_count": created_count, "fee_month": fee_month, "fee_year": fee_year}

@@ -9,6 +9,7 @@
   "invoice_details_section",
   "naming_series",
   "student",
+  "student_name",
   "standard",
   "batch",
   "column_break_1",
@@ -21,6 +22,7 @@
   "fee_year",
   "payment_amounts_section",
   "monthly_fee",
+  "arrears_amount",
   "paid_amount",
   "column_break_3",
   "outstanding_amount"
@@ -46,6 +48,14 @@
    "label": "Student",
    "options": "Student",
    "reqd": 1
+  },
+  {
+   "fieldname": "student_name",
+   "fieldtype": "Data",
+   "fetch_from": "student.student_name",
+   "in_list_view": 1,
+   "label": "Student Name",
+   "read_only": 1
   },
   {
    "fieldname": "standard",
@@ -125,6 +135,12 @@
    "label": "Monthly Fee",
    "read_only": 1,
    "reqd": 1
+  },
+  {
+   "fieldname": "arrears_amount",
+   "fieldtype": "Currency",
+   "label": "Arrears Amount",
+   "read_only": 1
   },
   {
    "default": "0",

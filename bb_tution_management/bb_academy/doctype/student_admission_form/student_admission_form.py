@@ -22,8 +22,7 @@ class StudentAdmissionForm(Document):
 				"Fee Structure",
 				{
 					"standard": self.standard,
-					"batch": self.assigned_batch,
-					"is_active": 1
+					"batch": self.assigned_batch
 				},
 				"monthly_fee"
 			)
@@ -48,6 +47,52 @@ class StudentAdmissionForm(Document):
 				"doctype": "Student",
 				"admission_number": self.admission_number,
 				"student_name": self.student_name,
+				"image": self.image,
+				"admission_date": self.application_date or frappe.utils.today(),
+				"academic_year": self.academic_year,
+				"standard": self.standard,
+				"current_batch": self.assigned_batch,
+				"date_of_birth": self.date_of_birth,
+				"gender": self.gender,
+				"father_name": self.father_name,
+				"mother_name": self.mother_name,
+				"parent_mobile": self.parent_mobile,
+				"whatsapp_number": self.whatsapp_number or self.parent_mobile,
+				"school_name": self.school_name,
+				"address": self.address,
+				"status": "Active"
+			})
+			student.insert(ignore_permissions=True)
+			
+			# Generate Starting Fee Invoice
+			from frappe.utils import today, add_days, getdate
+			ad_date = getdate(self.application_date or today())
+			invoice = frappe.get_doc({
+				"doctype": "Fee Invoice",
+				"student": student.name,
+				"fee_month": ad_date.strftime("%B"),
+				"fee_year": ad_date.year,
+				"invoice_date": today(),
+				"due_date": add_days(today(), 10),
+				"is_starting_fee": 1,
+				"items": [
+					{"description": "Starting Payment (First & Last Month)", "amount": self.starting_payment}
+				]
+			})
+			invoice.insert(ignore_permissions=True)
+			invoice.submit()
+			
+			frappe.msgprint(frappe._("Student record {0} and Starting Fee Invoice created.").format(student.name))
+			return
+
+	def original_create_student_record(self):
+		existing_student = frappe.db.exists("Student", {"admission_number": self.admission_number})
+		if not existing_student:
+			student = frappe.get_doc({
+				"doctype": "Student",
+				"admission_number": self.admission_number,
+				"student_name": self.student_name,
+				"image": self.image,
 				"admission_date": self.application_date or frappe.utils.today(),
 				"academic_year": self.academic_year,
 				"standard": self.standard,

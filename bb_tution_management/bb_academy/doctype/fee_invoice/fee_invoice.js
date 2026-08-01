@@ -2,6 +2,13 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Fee Invoice", {
+	setup(frm) {
+		frm.set_query("standard", function() {
+			return {
+				order_by: "academic_order asc"
+			};
+		});
+	},
 	student(frm) {
 		if (frm.doc.student) {
 			frappe.db.get_value(

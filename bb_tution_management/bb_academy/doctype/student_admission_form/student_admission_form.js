@@ -2,6 +2,13 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Student Admission Form", {
+	setup(frm) {
+		frm.set_query("standard", function() {
+			return {
+				order_by: "academic_order asc"
+			};
+		});
+	},
 	standard(frm) {
 		if (frm.doc.standard) {
 			frappe.db.get_value("Standard", frm.doc.standard, "starting_payment", (r) => {
