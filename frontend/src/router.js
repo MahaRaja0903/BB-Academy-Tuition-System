@@ -11,6 +11,8 @@ import StudentBatchHistoryList from '@/pages/StudentBatchHistoryList.vue'
 import StudentAdmissionFormsList from '@/pages/StudentAdmissionFormsList.vue'
 import CreateStudent from '@/pages/CreateStudent.vue'
 import CreatePaymentEntry from '@/pages/CreatePaymentEntry.vue'
+import PromotionDemotionReport from '@/pages/PromotionDemotionReport.vue'
+import StudentWiseReport from '@/pages/StudentWiseReport.vue'
 import Login from '@/pages/Login.vue'
 import { sessionUser } from '@/data/session'
 import { userResource } from '@/data/user'
@@ -86,6 +88,18 @@ const routes = [
         name: 'StudentAdmissionFormsList',
         component: StudentAdmissionFormsList,
         meta: { title: 'Student Admission Forms' },
+      },
+      {
+        path: 'promotion-demotion-report',
+        name: 'PromotionDemotionReport',
+        component: PromotionDemotionReport,
+        meta: { title: 'Promotion & Demotion Report' },
+      },
+      {
+        path: 'student-wise-report',
+        name: 'StudentWiseReport',
+        component: StudentWiseReport,
+        meta: { title: 'Student Wise Report' },
       },
     ],
   },

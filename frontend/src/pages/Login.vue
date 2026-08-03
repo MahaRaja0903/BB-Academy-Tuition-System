@@ -1,21 +1,19 @@
 <template>
-  <div class="min-h-screen w-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-800 flex items-center justify-center p-4 relative overflow-hidden">
-    <!-- Animated Background Gradients -->
-    <div class="absolute -top-40 -left-40 w-96 h-96 bg-blue-500/30 rounded-full blur-3xl animate-pulse"></div>
-    <div class="absolute top-1/2 left-1/2 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s"></div>
-    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-pink-500/30 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s"></div>
+  <div class="min-h-screen w-screen bg-cover bg-center flex items-center justify-center p-4 relative overflow-hidden" style="background-image: url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop');">
+    <!-- Overlay for better readability -->
+    <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-[2px]"></div>
 
     <!-- Login Card Container -->
-    <div class="w-full max-w-md bg-white/95 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl relative z-10">
+    <div class="w-full max-w-md bg-white/95 backdrop-blur-xl border border-white/40 rounded-[2rem] p-10 shadow-2xl relative z-10 transition-all duration-500 hover:shadow-purple-500/20">
       
       <!-- Brand Logo & Header -->
-      <div class="text-center space-y-3 mb-8">
-        <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white font-extrabold text-3xl shadow-2xl shadow-purple-500/40 tracking-wider animate-pulse">
+      <div class="text-center space-y-4 mb-10">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white font-extrabold text-4xl shadow-xl shadow-indigo-500/30 tracking-wider">
           🎓
         </div>
         <div>
-          <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent tracking-tight">Black Building Academy</h1>
-          <p class="text-sm font-semibold text-purple-600 mt-2 uppercase tracking-wider">Tuition Management Portal</p>
+          <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">BB Academy</h1>
+          <p class="text-sm font-bold text-indigo-600 mt-2 uppercase tracking-widest">Tuition Portal</p>
         </div>
       </div>
 

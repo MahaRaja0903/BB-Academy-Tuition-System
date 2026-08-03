@@ -128,7 +128,7 @@ class TestBBAcademy(FrappeTestCase):
 			"doctype": "Fee Invoice",
 			"student": student.name,
 			"fee_month": "January",
-			"fee_year": 2026
+			
 		})
 		invoice.insert(ignore_permissions=True)
 
@@ -160,7 +160,7 @@ class TestBBAcademy(FrappeTestCase):
 			"doctype": "Fee Invoice",
 			"student": student.name,
 			"fee_month": "February",
-			"fee_year": 2026
+			
 		})
 		invoice.insert(ignore_permissions=True)
 		invoice.submit()
@@ -248,7 +248,7 @@ class TestBBAcademy(FrappeTestCase):
 
 	def test_auto_generate_monthly_invoices(self):
 		from bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice import auto_generate_monthly_invoices
-		res = auto_generate_monthly_invoices(fee_month="March", fee_year=2026, auto_submit=True)
+		res = auto_generate_monthly_invoices(fee_month="March",  auto_submit=True)
 		self.assertIn("created_count", res)
 		self.assertGreaterEqual(res["created_count"], 1)
 

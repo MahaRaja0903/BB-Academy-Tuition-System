@@ -11,9 +11,9 @@ class BulkFeeInvoiceTool(Document):
 	pass
 
 @frappe.whitelist()
-def generate_invoices(academic_year, fee_month, fee_year):
-	if not academic_year or not fee_month or not fee_year:
-		frappe.throw(_("Academic Year, Fee Month, and Fee Year are mandatory."))
+def generate_invoices(academic_year, fee_month):
+	if not academic_year or not fee_month:
+		frappe.throw(_("Academic Year and Fee Month are mandatory."))
 
 	ay_doc = frappe.get_doc("Academic Year", academic_year)
 	ay_start_month = ay_doc.start_month
@@ -32,7 +32,7 @@ def generate_invoices(academic_year, fee_month, fee_year):
 		ad_date_str = student.admission_date
 		if ad_date_str:
 			ad_date = getdate(ad_date_str)
-			if ad_date.strftime("%B") == fee_month and ad_date.year == int(fee_year):
+			if ad_date.strftime("%B") == fee_month:
 				continue # Handled by starting fee invoice!
 
 		existing = frappe.db.exists(
@@ -40,7 +40,6 @@ def generate_invoices(academic_year, fee_month, fee_year):
 			{
 				"student": student.name,
 				"fee_month": fee_month,
-				"fee_year": fee_year,
 				"is_starting_fee": 0,
 				"docstatus": ["!=", 2]
 			}
@@ -61,7 +60,8 @@ def generate_invoices(academic_year, fee_month, fee_year):
 		if starting_balance > 0:
 			items.append({"description": "Starting Fee Balance", "amount": starting_balance})
 			# 1b. If starting fee not fully paid, we must charge for the first month since they lose the waiver.
-			if ad_date:
+			if ad_date_str:
+				ad_date = getdate(ad_date_str)
 				# Calculate first month fee
 				first_month_fee = 0
 				if ad_date.day <= 10:
@@ -89,11 +89,12 @@ def generate_invoices(academic_year, fee_month, fee_year):
 
 		# 3. Current Month Fee
 		# Is current month the last month? If so, and starting fee fully paid, it's waived.
+		waived = False
 		if fee_month == ay_end_month and starting_balance <= 0:
-			# Waived
-			pass
-		else:
-			items.append({"description": f"{fee_month} {fee_year} Monthly Fee", "amount": flt(student.monthly_fee)})
+			waived = True
+		
+		if not waived:
+			items.append({"description": f"{fee_month} Monthly Fee", "amount": flt(student.monthly_fee)})
 			
 		if not items:
 			# Nothing to charge?
@@ -103,7 +104,6 @@ def generate_invoices(academic_year, fee_month, fee_year):
 			"doctype": "Fee Invoice",
 			"student": student.name,
 			"fee_month": fee_month,
-			"fee_year": fee_year,
 			"invoice_date": today(),
 			"due_date": add_days(today(), 10),
 			"is_starting_fee": 0,

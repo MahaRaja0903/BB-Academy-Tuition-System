@@ -14,15 +14,29 @@ frappe.ui.form.on("Fee Invoice", {
 			frappe.db.get_value(
 				"Student",
 				frm.doc.student,
-				["standard", "current_batch", "monthly_fee"],
+				["standard", "current_batch", "monthly_fee", "starting_payment"],
 				(r) => {
 					if (r) {
 						frm.set_value("standard", r.standard);
 						frm.set_value("batch", r.current_batch);
-						frm.set_value("monthly_fee", r.monthly_fee || 0);
+						
+						let monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+						let currentMonth = monthNames[new Date().getMonth()];
+						frm.set_value("fee_month", currentMonth);
+
+						if (frm.doc.is_starting_fee) {
+							frm.set_value("monthly_fee", r.starting_payment || 0);
+						} else {
+							frm.set_value("monthly_fee", r.monthly_fee || 0);
+						}
 					}
 				}
 			);
+		}
+	},
+	is_starting_fee(frm) {
+		if (frm.doc.student) {
+			frm.trigger("student");
 		}
 	}
 });

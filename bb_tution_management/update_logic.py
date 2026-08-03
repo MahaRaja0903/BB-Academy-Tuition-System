@@ -40,7 +40,6 @@ new_saf = saf_content.replace(
 				"doctype": "Fee Invoice",
 				"student": student.name,
 				"fee_month": ad_date.strftime("%B"),
-				"fee_year": ad_date.year,
 				"invoice_date": today(),
 				"due_date": add_days(today(), 10),
 				"is_starting_fee": 1,
@@ -94,13 +93,12 @@ class FeeInvoice(Document):
 					frappe.throw(_("Batch cannot be changed once Fee Invoice is created."))
 
 	def validate_duplicate_invoice(self):
-		if self.student and self.fee_month and self.fee_year and not self.is_starting_fee:
+		if self.student and self.fee_month and not self.is_starting_fee:
 			existing = frappe.db.exists(
 				"Fee Invoice",
 				{
 					"student": self.student,
 					"fee_month": self.fee_month,
-					"fee_year": self.fee_year,
 					"is_starting_fee": 0,
 					"docstatus": ["!=", 2],
 					"name": ["!=", self.name or ""]
@@ -108,8 +106,8 @@ class FeeInvoice(Document):
 			)
 			if existing:
 				frappe.throw(
-					_("A Fee Invoice ({0}) already exists for Student {1} for {2} {3}.").format(
-						existing, self.student, self.fee_month, self.fee_year
+					_("A Fee Invoice ({0}) already exists for Student {1} for {2}.").format(
+						existing, self.student, self.fee_month
 					)
 				)
 
@@ -166,9 +164,9 @@ class BulkFeeInvoiceTool(Document):
 	pass
 
 @frappe.whitelist()
-def generate_invoices(academic_year, fee_month, fee_year):
-	if not academic_year or not fee_month or not fee_year:
-		frappe.throw(_("Academic Year, Fee Month, and Fee Year are mandatory."))
+def generate_invoices(academic_year, fee_month):
+	if not academic_year or not fee_month:
+		frappe.throw(_("Academic Year and Fee Month are mandatory."))
 
 	ay_doc = frappe.get_doc("Academic Year", academic_year)
 	ay_start_month = ay_doc.start_month
@@ -187,7 +185,7 @@ def generate_invoices(academic_year, fee_month, fee_year):
 		ad_date_str = student.admission_date
 		if ad_date_str:
 			ad_date = getdate(ad_date_str)
-			if ad_date.strftime("%B") == fee_month and ad_date.year == int(fee_year):
+			if ad_date.strftime("%B") == fee_month:
 				continue # Handled by starting fee invoice!
 
 		existing = frappe.db.exists(
@@ -195,7 +193,6 @@ def generate_invoices(academic_year, fee_month, fee_year):
 			{
 				"student": student.name,
 				"fee_month": fee_month,
-				"fee_year": fee_year,
 				"is_starting_fee": 0,
 				"docstatus": ["!=", 2]
 			}
@@ -245,10 +242,10 @@ def generate_invoices(academic_year, fee_month, fee_year):
 		# 3. Current Month Fee
 		# Is current month the last month? If so, and starting fee fully paid, it's waived.
 		if fee_month == ay_end_month and starting_balance <= 0:
-			# Waived
-			pass
-		else:
-			items.append({"description": f"{fee_month} {fee_year} Monthly Fee", "amount": flt(student.monthly_fee)})
+			waived = True
+			
+		if not waived:
+			items.append({"description": f"{fee_month} Monthly Fee", "amount": flt(student.monthly_fee)})
 			
 		if not items:
 			# Nothing to charge?
@@ -258,7 +255,6 @@ def generate_invoices(academic_year, fee_month, fee_year):
 			"doctype": "Fee Invoice",
 			"student": student.name,
 			"fee_month": fee_month,
-			"fee_year": fee_year,
 			"invoice_date": today(),
 			"due_date": add_days(today(), 10),
 			"is_starting_fee": 0,

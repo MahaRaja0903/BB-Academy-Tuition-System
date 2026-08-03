@@ -14,6 +14,41 @@ class Student(Document):
 	def before_save(self):
 		self.track_batch_change()
 
+	def after_insert(self):
+		self.create_starting_fee_invoice()
+
+	def create_starting_fee_invoice(self):
+		if not self.starting_payment:
+			return
+
+		# Check if starting fee invoice already exists
+		existing = frappe.db.exists(
+			"Fee Invoice",
+			{
+				"student": self.name,
+				"is_starting_fee": 1,
+				"docstatus": ["!=", 2]
+			}
+		)
+		if existing:
+			return
+
+		from frappe.utils import today, add_days, getdate
+		ad_date = getdate(self.admission_date or today())
+		invoice = frappe.get_doc({
+			"doctype": "Fee Invoice",
+			"student": self.name,
+			"fee_month": ad_date.strftime("%B"),
+			"invoice_date": today(),
+			"due_date": add_days(today(), 10),
+			"is_starting_fee": 1,
+			"items": [
+				{"description": "Starting Payment", "amount": self.starting_payment}
+			]
+		})
+		invoice.insert(ignore_permissions=True)
+		invoice.submit()
+
 	def fetch_starting_payment(self):
 		if self.standard:
 			starting_payment = frappe.db.get_value("Standard", self.standard, "starting_payment")

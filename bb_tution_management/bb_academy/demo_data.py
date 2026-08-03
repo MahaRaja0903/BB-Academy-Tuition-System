@@ -118,35 +118,35 @@ def create_demo_data():
 	print("Creating Demo Fee Invoices & Payment Entries...")
 
 	# 1. Rahul Sharma - Jan Invoice (Paid)
-	inv_rahul_jan = create_or_get_invoice(created_students["ADM-2026-001"].name, "January", 2026)
+	inv_rahul_jan = create_or_get_invoice(created_students["ADM-2026-001"].name, "January")
 	if inv_rahul_jan.docstatus == 0:
 		inv_rahul_jan.submit()
 	create_payment_if_not_exists(created_students["ADM-2026-001"].name, inv_rahul_jan.name, 3000.0, "Cash", "REC-2026-001")
 
 	# 2. Rahul Sharma - Feb Invoice (Partially Paid)
-	inv_rahul_feb = create_or_get_invoice(created_students["ADM-2026-001"].name, "February", 2026)
+	inv_rahul_feb = create_or_get_invoice(created_students["ADM-2026-001"].name, "February")
 	if inv_rahul_feb.docstatus == 0:
 		inv_rahul_feb.submit()
 	create_payment_if_not_exists(created_students["ADM-2026-001"].name, inv_rahul_feb.name, 1500.0, "UPI", "UPI/2026/98214")
 
 	# 3. Ananya Verma - Jan Invoice (Unpaid)
-	inv_ananya = create_or_get_invoice(created_students["ADM-2026-002"].name, "January", 2026)
+	inv_ananya = create_or_get_invoice(created_students["ADM-2026-002"].name, "January")
 	if inv_ananya.docstatus == 0:
 		inv_ananya.submit()
 
 	# 4. Vikram Patel - Jan Invoice (Paid)
-	inv_vikram = create_or_get_invoice(created_students["ADM-2026-003"].name, "January", 2026)
+	inv_vikram = create_or_get_invoice(created_students["ADM-2026-003"].name, "January")
 	if inv_vikram.docstatus == 0:
 		inv_vikram.submit()
 	create_payment_if_not_exists(created_students["ADM-2026-003"].name, inv_vikram.name, 6000.0, "Bank", "NEFT/2026/001928")
 
 	# 5. Priya Nair - Jan Invoice (Unpaid)
-	inv_priya = create_or_get_invoice(created_students["ADM-2026-004"].name, "January", 2026)
+	inv_priya = create_or_get_invoice(created_students["ADM-2026-004"].name, "January")
 	if inv_priya.docstatus == 0:
 		inv_priya.submit()
 
 	# 6. Rohan Gupta - Jan Invoice (Draft)
-	create_or_get_invoice(created_students["ADM-2026-005"].name, "January", 2026)
+	create_or_get_invoice(created_students["ADM-2026-005"].name, "January")
 
 	# Create Demo Enquiries
 	print("Creating Demo Student Enquiries...")
@@ -242,13 +242,12 @@ def create_admission_form(data):
 	return adm
 
 
-def create_or_get_invoice(student_name, month, year):
+def create_or_get_invoice(student_name, month):
 	existing = frappe.db.exists(
 		"Fee Invoice",
 		{
 			"student": student_name,
 			"fee_month": month,
-			"fee_year": year,
 			"docstatus": ["!=", 2]
 		}
 	)
@@ -259,7 +258,6 @@ def create_or_get_invoice(student_name, month, year):
 		"doctype": "Fee Invoice",
 		"student": student_name,
 		"fee_month": month,
-		"fee_year": year,
 		"invoice_date": "2026-01-05" if month == "January" else "2026-02-05",
 		"due_date": "2026-01-15" if month == "January" else "2026-02-15"
 	})

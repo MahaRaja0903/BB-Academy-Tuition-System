@@ -12,8 +12,7 @@ def create():
 		"issingle": 1,
 		"fields": [
 			{"fieldname": "academic_year", "fieldtype": "Link", "label": "Academic Year", "options": "Academic Year", "reqd": 1},
-			{"fieldname": "fee_month", "fieldtype": "Select", "label": "Fee Month", "options": "January\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember", "reqd": 1},
-			{"fieldname": "fee_year", "fieldtype": "Int", "label": "Fee Year", "reqd": 1}
+			{"fieldname": "fee_month", "fieldtype": "Select", "label": "Fee Month", "options": "January\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember", "reqd": 1}
 		],
 		"permissions": [{"role": "System Manager", "read": 1, "write": 1}]
 	})

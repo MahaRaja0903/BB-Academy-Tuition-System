@@ -86,7 +86,7 @@
    "label": "Enable Fee Reminder SMS"
   },
   {
-   "default": "Dear Parent, tuition fee of ₹{outstanding_amount} for {student_name} ({fee_month} {fee_year}) is due. Please pay at the earliest. - BB Academy",
+   "default": "Dear Parent, tuition fee of \u20b9{outstanding_amount} for {student_name} ({fee_month}) is due. Please pay at the earliest. - BB Academy",
    "fieldname": "fee_reminder_sms_template",
    "fieldtype": "Small Text",
    "label": "Fee Reminder SMS Template"
@@ -103,7 +103,7 @@
    "label": "Enable Payment Receipt SMS"
   },
   {
-   "default": "Dear Parent, payment of ₹{amount} for {student_name} received successfully via {payment_mode} for Invoice {fee_invoice}. Thank you! - BB Academy",
+   "default": "Dear Parent, payment of \u20b9{amount} for {student_name} received successfully via {payment_mode} for Invoice {fee_invoice}. Thank you! - BB Academy",
    "fieldname": "payment_sms_template",
    "fieldtype": "Small Text",
    "label": "Payment Receipt SMS Template"

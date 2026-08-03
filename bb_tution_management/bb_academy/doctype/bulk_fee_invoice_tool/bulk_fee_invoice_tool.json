@@ -8,7 +8,6 @@
  "field_order": [
   "academic_year",
   "fee_month",
-  "fee_year",
   "generate_invoices"
  ],
  "fields": [
@@ -26,13 +25,6 @@
    "in_list_view": 1,
    "label": "Fee Month",
    "options": "January\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember",
-   "reqd": 1
-  },
-  {
-   "fieldname": "fee_year",
-   "fieldtype": "Int",
-   "in_list_view": 1,
-   "label": "Fee Year",
    "reqd": 1
   },
   {

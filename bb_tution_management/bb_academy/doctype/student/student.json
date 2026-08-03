@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "BB-STU-.YYYY.-.#####",
  "creation": "2026-07-29 13:00:00",
@@ -30,7 +31,9 @@
   "monthly_fee",
   "parent_details_section",
   "father_name",
+  "father_mobile_number",
   "mother_name",
+  "mother_mobile_number",
   "parent_mobile",
   "column_break_4",
   "father_occupation",
@@ -221,9 +224,8 @@
   },
   {
    "fieldname": "referred_by",
-   "fieldtype": "Link",
-   "label": "Referred By",
-   "options": "Student"
+   "fieldtype": "Data",
+   "label": "Referred By"
   },
   {
    "depends_on": "eval:doc.status == \"Discontinued\"",
@@ -238,12 +240,22 @@
    "fieldtype": "Small Text",
    "label": "Suspended Reason",
    "mandatory_depends_on": "eval:doc.status == \"Suspended\""
+  },
+  {
+   "fieldname": "father_mobile_number",
+   "fieldtype": "Data",
+   "label": "Father MOBILE NUMBER"
+  },
+  {
+   "fieldname": "mother_mobile_number",
+   "fieldtype": "Data",
+   "label": "MOTHER MOBILE NUMBER"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-31 22:49:08.277329",
+ "modified": "2026-08-03 00:02:31.818212",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

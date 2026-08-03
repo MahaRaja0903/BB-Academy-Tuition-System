@@ -30,13 +30,12 @@ class FeeInvoice(Document):
 					frappe.throw(_("Batch cannot be changed once Fee Invoice is created."))
 
 	def validate_duplicate_invoice(self):
-		if self.student and self.fee_month and self.fee_year and not self.is_starting_fee:
+		if self.student and self.fee_month and not self.is_starting_fee:
 			existing = frappe.db.exists(
 				"Fee Invoice",
 				{
 					"student": self.student,
 					"fee_month": self.fee_month,
-					"fee_year": self.fee_year,
 					"is_starting_fee": 0,
 					"docstatus": ["!=", 2],
 					"name": ["!=", self.name or ""]
@@ -44,8 +43,8 @@ class FeeInvoice(Document):
 			)
 			if existing:
 				frappe.throw(
-					_("A Fee Invoice ({0}) already exists for Student {1} for {2} {3}.").format(
-						existing, self.student, self.fee_month, self.fee_year
+					_("A Fee Invoice ({0}) already exists for Student {1} for {2}.").format(
+						existing, self.student, self.fee_month
 					)
 				)
 

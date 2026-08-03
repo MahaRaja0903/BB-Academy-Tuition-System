@@ -13,7 +13,7 @@ export default defineConfig({
     port: 8080,
     proxy: {
       '^/(app|api|assets|files)': {
-        target: 'http://localhost:8900',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         ws: true,
       },

@@ -82,7 +82,7 @@ def send_fee_reminders():
 
 	invoices = frappe.db.sql(
 		"""
-		SELECT inv.name, inv.student, inv.fee_month, inv.fee_year, inv.outstanding_amount, inv.due_date,
+		SELECT inv.name, inv.student, inv.fee_month, inv.outstanding_amount, inv.due_date,
 		       stu.student_name, stu.parent_mobile
 		FROM `tabFee Invoice` inv
 		JOIN `tabStudent` stu ON stu.name = inv.student
@@ -101,7 +101,6 @@ def send_fee_reminders():
 			student_name=inv.student_name,
 			outstanding_amount=inv.outstanding_amount,
 			fee_month=inv.fee_month,
-			fee_year=inv.fee_year,
 			due_date=inv.due_date or ""
 		)
 		if send_sms(inv.parent_mobile, message, receiver_name=inv.student_name):
