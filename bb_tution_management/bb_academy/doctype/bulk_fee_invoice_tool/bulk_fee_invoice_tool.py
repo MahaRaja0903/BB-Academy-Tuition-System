@@ -22,7 +22,7 @@ def generate_invoices(academic_year, fee_month):
 	active_students = frappe.get_all(
 		"Student",
 		filters={"status": "Active", "academic_year": academic_year},
-		fields=["name", "student_name", "standard", "current_batch", "monthly_fee", "admission_date"]
+		fields=["name", "student_name", "standard", "current_batch", "monthly_fee", "admission_date", "fees_due_date"]
 	)
 
 	created_count = 0
@@ -100,12 +100,20 @@ def generate_invoices(academic_year, fee_month):
 			# Nothing to charge?
 			continue
 
+		due_date_val = add_days(today(), 10)
+		if student.fees_due_date:
+			current_date = getdate(today())
+			try:
+				due_date_val = current_date.replace(day=student.fees_due_date)
+			except ValueError:
+				pass
+
 		invoice = frappe.get_doc({
 			"doctype": "Fee Invoice",
 			"student": student.name,
 			"fee_month": fee_month,
 			"invoice_date": today(),
-			"due_date": add_days(today(), 10),
+			"due_date": due_date_val,
 			"is_starting_fee": 0,
 			"items": items
 		})

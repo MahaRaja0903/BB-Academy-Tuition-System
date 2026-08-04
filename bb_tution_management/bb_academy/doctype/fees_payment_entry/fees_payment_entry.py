@@ -53,6 +53,7 @@ class FeesPaymentEntry(Document):
 
 	def on_submit(self):
 		self.update_invoice_status(is_submit=True)
+		self.update_student_payment_detail(is_submit=True)
 		self.send_receipt_sms()
 
 	def send_receipt_sms(self):
@@ -61,6 +62,7 @@ class FeesPaymentEntry(Document):
 
 	def on_cancel(self):
 		self.update_invoice_status(is_submit=False)
+		self.update_student_payment_detail(is_submit=False)
 
 	def update_invoice_status(self, is_submit=True):
 		invoice = frappe.get_doc("Fee Invoice", self.fee_invoice)
@@ -83,3 +85,36 @@ class FeesPaymentEntry(Document):
 			invoice.status = "Unpaid"
 
 		invoice.save(ignore_permissions=True)
+
+	def update_student_payment_detail(self, is_submit=True):
+		invoice = frappe.get_doc("Fee Invoice", self.fee_invoice)
+		student = frappe.get_doc("Student", self.student)
+
+		existing_row = None
+		for row in student.get("payment_details", []):
+			if row.month == invoice.fee_month:
+				existing_row = row
+				break
+
+		if not existing_row:
+			existing_row = student.append("payment_details", {
+				"month": invoice.fee_month,
+				"amount_paid": 0.0
+			})
+
+		if is_submit:
+			existing_row.amount_paid = float(existing_row.amount_paid or 0) + float(self.amount or 0)
+		else:
+			existing_row.amount_paid = max(0.0, float(existing_row.amount_paid or 0) - float(self.amount or 0))
+
+		existing_row.date = self.payment_date
+		existing_row.pending = invoice.outstanding_amount
+
+		if existing_row.pending <= 0:
+			existing_row.status = "Paid"
+		elif existing_row.amount_paid > 0:
+			existing_row.status = "Partial"
+		else:
+			existing_row.status = "Not Paid"
+
+		student.save(ignore_permissions=True)

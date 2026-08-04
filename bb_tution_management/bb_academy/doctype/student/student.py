@@ -14,8 +14,8 @@ class Student(Document):
 	def before_save(self):
 		self.track_batch_change()
 
-	def after_insert(self):
-		self.create_starting_fee_invoice()
+	# def after_insert(self):
+	# 	self.create_starting_fee_invoice()
 
 	def create_starting_fee_invoice(self):
 		if not self.starting_payment:

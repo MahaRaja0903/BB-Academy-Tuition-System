@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"R9qsxw-Uj6\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}}]",
- "creation": "2026-08-01 00:55:07.133391",
+ "content": "[{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"MLzG1SBSB9\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}}]",
+ "creation": "2026-08-03 23:19:20.189313",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -104,25 +104,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Tools",
-   "link_count": 1,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Bulk Fee Invoice Tool",
-   "link_count": 0,
-   "link_to": "Bulk Fee Invoice Tool",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Short Cut",
    "link_count": 4,
    "link_type": "DocType",
@@ -168,9 +149,71 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Report",
+   "link_count": 5,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Birthday Report",
+   "link_count": 0,
+   "link_to": "Birthday Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Pending Balance Report",
+   "link_count": 0,
+   "link_to": "Pending Balance Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Fee Invoice",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Student Wise Report",
+   "link_count": 0,
+   "link_to": "Student Wise Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Student",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Payment Wise Report",
+   "link_count": 0,
+   "link_to": "Payment Wise Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Fees Payment Entry",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Promote and Demote Report",
+   "link_count": 0,
+   "link_to": "Promote and Demote Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-08-01 08:30:59.443396",
+ "modified": "2026-08-03 23:33:25.081987",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "BB Academy",

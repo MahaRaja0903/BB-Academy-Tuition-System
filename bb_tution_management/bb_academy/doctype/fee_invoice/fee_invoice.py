@@ -11,7 +11,7 @@ class FeeInvoice(Document):
 		self.validate_immutability()
 		self.validate_duplicate_invoice()
 		self.calculate_outstanding()
-		self.update_status()
+		# self.update_status()
 
 	def fetch_student_details(self):
 		if self.student:
@@ -53,18 +53,44 @@ class FeeInvoice(Document):
 		paid_amount = float(self.paid_amount or 0)
 		self.outstanding_amount = max(0.0, self.grand_total - paid_amount)
 
-	def update_status(self):
-		if self.docstatus == 2:
-			self.status = "Cancelled"
-		elif self.docstatus == 1:
-			if self.outstanding_amount <= 0:
-				self.status = "Paid"
-			elif float(self.paid_amount or 0) > 0:
-				self.status = "Partially Paid"
-			else:
-				self.status = "Unpaid"
-		else:
-			self.status = "Draft"
+	# def update_status(self):
+	# 	if self.docstatus == 2:
+	# 		self.status = "Cancelled"
+	# 	elif self.docstatus == 1:
+	# 		if self.outstanding_amount <= 0:
+	# 			self.status = "Paid"
+	# 		elif float(self.paid_amount or 0) > 0:
+	# 			self.status = "Partially Paid"
+	# 		# else:
+	# 		# 	self.status = "Unpaid"
+	# 	else:
+	# 		if not self.status:
+	# 			self.status = "Draft"
 
 	def on_submit(self):
-		self.update_status()
+		intended_payment = 0
+		if self.status == "Paid":
+			intended_payment = self.grand_total
+		elif self.status == "Partially Paid":
+			intended_payment = self.paid_amount
+
+		self.paid_amount = 0
+		self.outstanding_amount = self.grand_total
+		self.status = "Unpaid"
+		self.db_update()
+
+		if intended_payment > 0:
+			self.create_payment_entry(intended_payment)
+			self.reload()
+
+	def create_payment_entry(self, amount):
+		payment = frappe.get_doc({
+			"doctype": "Fees Payment Entry",
+			"student": self.student,
+			"fee_invoice": self.name,
+			"amount": amount,
+			"payment_date": frappe.utils.today(),
+			"payment_mode": "Cash",
+		})
+		payment.insert(ignore_permissions=True)
+		payment.submit()

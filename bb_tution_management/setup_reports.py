@@ -20,5 +20,6 @@ def create_all_reports():
     create_report("Payment Wise Report", "Fees Payment Entry")
     create_report("Birthday Report", "Student")
     create_report("Pending Balance Report", "Fee Invoice")
+    create_report("Promote and Demote Report", "Student Batch History")
 
     frappe.db.commit()
