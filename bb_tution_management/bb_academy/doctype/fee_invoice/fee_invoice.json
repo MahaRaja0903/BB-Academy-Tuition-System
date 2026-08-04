@@ -2,10 +2,11 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "naming_series:",
- "creation": "2026-07-29 13:00:00.000000",
+ "creation": "2026-07-29 13:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "tab_break_k8wg",
   "invoice_details_section",
   "naming_series",
   "student",
@@ -24,7 +25,11 @@
   "arrears_amount",
   "paid_amount",
   "column_break_3",
-  "outstanding_amount"
+  "outstanding_amount",
+  "student_details_tab",
+  "student_html",
+  "student_detail_json",
+  "amended_from"
  ],
  "fields": [
   {
@@ -49,9 +54,9 @@
    "reqd": 1
   },
   {
+   "fetch_from": "student.student_name",
    "fieldname": "student_name",
    "fieldtype": "Data",
-   "fetch_from": "student.student_name",
    "in_list_view": 1,
    "label": "Student Name",
    "read_only": 1
@@ -90,14 +95,14 @@
    "label": "Due Date"
   },
   {
+   "allow_on_submit": 1,
    "default": "Draft",
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
    "options": "Draft\nUnpaid\nPartially Paid\nPaid\nCancelled",
-   "reqd": 1,
-   "allow_on_submit": 1
+   "reqd": 1
   },
   {
    "fieldname": "billing_period_section",
@@ -135,30 +140,60 @@
    "read_only": 1
   },
   {
+   "allow_on_submit": 1,
    "default": "0",
    "fieldname": "paid_amount",
    "fieldtype": "Currency",
    "label": "Paid Amount",
-   "read_only": 1,
-   "allow_on_submit": 1
+   "read_only": 1
   },
   {
    "fieldname": "column_break_3",
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "outstanding_amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Outstanding Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tab_break_k8wg",
+   "fieldtype": "Tab Break",
+   "label": "Fees Details"
+  },
+  {
+   "fieldname": "student_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Student Details"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Fee Invoice",
+   "print_hide": 1,
    "read_only": 1,
-   "allow_on_submit": 1
+   "search_index": 1
+  },
+  {
+   "fieldname": "student_html",
+   "fieldtype": "HTML",
+   "label": "student_html"
+  },
+  {
+   "fieldname": "student_detail_json",
+   "fieldtype": "JSON",
+   "label": "student Detail json"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-29 13:00:00.000000",
+ "modified": "2026-08-04 23:48:39.172256",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",
@@ -231,6 +266,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "search_fields": "student, fee_month",
  "sort_field": "modified",
  "sort_order": "DESC",

@@ -7,44 +7,42 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "image",
   "student_details_section",
   "admission_number",
   "student_name",
   "admission_date",
-  "image",
   "column_break_1",
   "date_of_birth",
   "gender",
   "status",
-  "discontinued_reason",
-  "referred_by",
-  "suspended_reason",
   "academic_details_section",
   "academic_year",
   "standard",
   "column_break_2",
   "current_batch",
-  "group",
   "fee_details_section",
   "starting_payment",
-  "fees_due_date",
   "column_break_3",
   "monthly_fee",
   "parent_details_section",
   "father_name",
-  "father_mobile_number",
   "mother_name",
-  "mother_mobile_number",
-  "parent_mobile",
   "column_break_4",
-  "father_occupation",
-  "mother_occupation",
-  "whatsapp_number",
   "school_details_section",
   "school_name",
   "address_section",
   "address",
-  "payment_details"
+  "fees_due_date",
+  "father_occupation",
+  "mother_occupation",
+  "referred_by",
+  "discontinued_reason",
+  "suspended_reason",
+  "father_mobile_number",
+  "mother_mobile_number",
+  "payment_details",
+  "group"
  ],
  "fields": [
   {
@@ -176,17 +174,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "parent_mobile",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Parent Mobile"
-  },
-  {
-   "fieldname": "whatsapp_number",
-   "fieldtype": "Data",
-   "label": "WhatsApp Number"
-  },
-  {
    "fieldname": "school_details_section",
    "fieldtype": "Section Break",
    "label": "School Details"
@@ -244,12 +231,12 @@
   {
    "fieldname": "father_mobile_number",
    "fieldtype": "Data",
-   "label": "Father MOBILE NUMBER"
+   "label": "Father Mobile Number"
   },
   {
    "fieldname": "mother_mobile_number",
    "fieldtype": "Data",
-   "label": "MOTHER MOBILE NUMBER"
+   "label": "Mother Mobile Number"
   },
   {
    "fieldname": "payment_details",
@@ -267,7 +254,7 @@
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-03 23:59:57.118431",
+ "modified": "2026-08-04 23:05:22.106278",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",
@@ -325,7 +312,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "student_name, parent_mobile, admission_number",
+ "search_fields": "student_name, admission_number",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

@@ -37,7 +37,7 @@ frappe.query_reports["Payment Wise Report"] = {
 			"fieldname": "gender",
 			"label": __("Gender"),
 			"fieldtype": "Select",
-			"options": "\nMale\nFemale\nOther"
+			"options": "\nMale\nFemale"
 		}
 	]
 };

@@ -9,7 +9,6 @@
   "standard_details_section",
   "standard_name",
   "group",
-  "commerce_group_type",
   "column_break_1",
   "academic_order",
   "starting_payment",
@@ -69,17 +68,11 @@
    "fieldtype": "Link",
    "label": "Default Batch",
    "options": "Batch"
-  },
-  {
-   "fieldname": "commerce_group_type",
-   "fieldtype": "Select",
-   "label": "Commerce Group Type",
-   "options": "\nBM\nCA\nStatistics\nHistory"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-03 23:51:58.411288",
+ "modified": "2026-08-04 23:26:51.729516",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Standard",

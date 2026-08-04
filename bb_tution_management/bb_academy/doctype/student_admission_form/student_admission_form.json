@@ -2,7 +2,7 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "naming_series:",
- "creation": "2026-07-29 15:15:00.000000",
+ "creation": "2026-07-29 15:15:00",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -34,12 +34,14 @@
   "parent_mobile",
   "whatsapp_number",
   "address_section",
-  "address"
+  "address",
+  "amended_from"
  ],
  "fields": [
   {
    "fieldname": "image",
    "fieldtype": "Attach Image",
+   "hidden": 1,
    "label": "Photo"
   },
   {
@@ -89,7 +91,8 @@
    "in_list_view": 1,
    "label": "Academic Year",
    "options": "Academic Year",
-   "reqd": 1
+   "reqd": 0,
+   "hidden": 1
   },
   {
    "fieldname": "student_details_section",
@@ -101,7 +104,8 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Admission Number",
-   "reqd": 1
+   "reqd": 0,
+   "hidden": 1
   },
   {
    "fieldname": "student_name",
@@ -145,12 +149,18 @@
    "reqd": 1
   },
   {
+   "fieldname": "group",
+   "fieldtype": "Link",
+   "label": "Group",
+   "options": "Group",
+   "in_list_view": 1
+  },
+  {
    "fieldname": "assigned_batch",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Assigned Batch",
-   "options": "Batch",
-   "reqd": 1
+   "options": "Batch"
   },
   {
    "fieldname": "column_break_3",
@@ -179,9 +189,19 @@
    "label": "Father Name"
   },
   {
+   "fieldname": "father_mobile_number",
+   "fieldtype": "Data",
+   "label": "Father Mobile Number"
+  },
+  {
    "fieldname": "mother_name",
    "fieldtype": "Data",
    "label": "Mother Name"
+  },
+  {
+   "fieldname": "mother_mobile_number",
+   "fieldtype": "Data",
+   "label": "Mother Mobile Number"
   },
   {
    "fieldname": "column_break_4",
@@ -208,13 +228,23 @@
    "fieldname": "address",
    "fieldtype": "Small Text",
    "label": "Address"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Student Admission Form",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-29 15:15:00.000000",
+ "modified": "2026-08-04 23:25:15.793711",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",
@@ -280,6 +310,7 @@
    "select": 1
   }
  ],
+ "row_format": "Dynamic",
  "search_fields": "student_name, parent_mobile, standard",
  "sort_field": "modified",
  "sort_order": "DESC",

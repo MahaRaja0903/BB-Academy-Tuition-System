@@ -8,8 +8,10 @@ frappe.ui.form.on("Student Admission Form", {
 				order_by: "academic_order asc"
 			};
 		});
+
 	},
 	standard(frm) {
+		frm.set_value('assigned_batch', '');
 		if (frm.doc.standard) {
 			frappe.db.get_value("Standard", frm.doc.standard, "starting_payment", (r) => {
 				if (r && r.starting_payment !== undefined) {

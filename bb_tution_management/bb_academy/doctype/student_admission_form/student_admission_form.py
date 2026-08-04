@@ -41,6 +41,10 @@ class StudentAdmissionForm(Document):
 		self.update_enquiry_status()
 
 	def create_student_record(self):
+		if not self.admission_number:
+			self.admission_number = self.name
+			self.db_set("admission_number", self.name)
+			
 		existing_student = frappe.db.exists("Student", {"admission_number": self.admission_number})
 		if not existing_student:
 			student = frappe.get_doc({
@@ -51,11 +55,14 @@ class StudentAdmissionForm(Document):
 				"admission_date": self.application_date or frappe.utils.today(),
 				"academic_year": self.academic_year,
 				"standard": self.standard,
+				"group": self.group,
 				"current_batch": self.assigned_batch,
 				"date_of_birth": self.date_of_birth,
 				"gender": self.gender,
 				"father_name": self.father_name,
+				"father_mobile_number": self.father_mobile_number,
 				"mother_name": self.mother_name,
+				"mother_mobile_number": self.mother_mobile_number,
 				"parent_mobile": self.parent_mobile,
 				"whatsapp_number": self.whatsapp_number or self.parent_mobile,
 				"school_name": self.school_name,

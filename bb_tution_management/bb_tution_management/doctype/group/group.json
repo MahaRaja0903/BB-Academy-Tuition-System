@@ -6,7 +6,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "group_name"
+  "group_name",
+  "standard_detail"
  ],
  "fields": [
   {
@@ -14,12 +15,18 @@
    "fieldtype": "Data",
    "label": "Group Name",
    "unique": 1
+  },
+  {
+   "fieldname": "standard_detail",
+   "fieldtype": "Table MultiSelect",
+   "label": "Standard Detail",
+   "options": "Standard Detail"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-03 23:55:26.361094",
+ "modified": "2026-08-04 23:01:10.417804",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Group",

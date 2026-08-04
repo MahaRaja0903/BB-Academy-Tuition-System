@@ -3,7 +3,7 @@
 
 frappe.ui.form.on("Fee Structure", {
 	setup(frm) {
-		frm.set_query("standard", "standard", function() {
+		frm.set_query("standard", function() {
 			return {
 				order_by: "academic_order asc"
 			};
