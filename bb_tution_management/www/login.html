@@ -1,0 +1,491 @@
+{% extends "templates/web.html" %}
+
+{% macro email_login_body() -%}
+{% if not disable_user_pass_login or (ldap_settings and ldap_settings.enabled) %}
+<div class="page-card-body">
+	<div class="form-group">
+		<label class="form-label sr-only" for="login_email">{{ login_label or _("Email")}}</label>
+		<div class="email-field">
+			<input type="text" id="login_email" class="form-control"
+				placeholder="{% if login_name_placeholder %}{{ login_name_placeholder  }}{% else %}{{ _('jane@example.com') }}{% endif %}"
+				required autofocus autocomplete="username">
+
+			<svg class="field-icon email-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
+				xmlns="http://www.w3.org/2000/svg">
+				<use class="es-lock" href="#es-line-email"></use>
+			</svg>
+		</div>
+	</div>
+
+	<div class="form-group">
+		<label class="form-label sr-only" for="login_password">{{ _("Password") }}</label>
+		<div class="password-field">
+			<input type="password" id="login_password" class="form-control" placeholder="•••••"
+				autocomplete="current-password" required>
+
+			<svg class="field-icon password-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
+				xmlns="http://www.w3.org/2000/svg">
+					<use class="es-lock" href="#es-line-lock"></use>
+			</svg>
+			<span toggle="#login_password" class="toggle-password text-muted">{{ _('Show') }}</span>
+		</div>
+	</div>
+
+	{% if not disable_user_pass_login %}
+	<p class="forgot-password-message">
+		<a href="#forgot">{{ _("Forgot Password?") }}</a>
+	</p>
+	{% endif %}
+</div>
+{% endif %}
+<div class="page-card-actions">
+	{% if not disable_user_pass_login %}
+	<button class="btn btn-sm btn-primary btn-block btn-login" type="submit">
+		{{ _("Login") }}</button>
+	{% endif %}
+	{% if ldap_settings and ldap_settings.enabled %}
+	<button class="btn btn-sm {{ "btn-primary" if disable_user_pass_login else "btn-default" }} btn-block btn-login btn-ldap-login">
+		{{ _("Login with LDAP") }}</button>
+	{% endif %}
+</div>
+{% endmacro %}
+
+{% block head_include %}
+{{ include_style('login.bundle.css') }}
+<style>
+	/* Global Resets */
+	html, body {
+		margin: 0; padding: 0;
+		font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+		height: 100vh;
+		overflow: hidden;
+	}
+	
+	/* Hide Frappe default navbar & footer */
+	.navbar, header, footer, .web-footer { display: none !important; }
+
+	.login-container {
+		display: flex;
+		height: 100vh;
+		width: 100vw;
+		position: fixed;
+		top: 0; left: 0;
+		z-index: 1050;
+	}
+
+	/* LEFT SIDE (40%) */
+	.login-left {
+		flex: 0 0 40%;
+		background: linear-gradient(135deg, rgba(30, 60, 114, 0.92), rgba(42, 82, 152, 0.95)), 
+					url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+		background-size: cover;
+		background-position: center;
+		color: white;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		padding: 4rem;
+		position: relative;
+	}
+
+	.left-content {
+		position: relative;
+		z-index: 2;
+	}
+
+	.login-left h1 {
+		font-size: 2.5rem;
+		font-weight: 800;
+		margin-bottom: 1rem;
+		color: #ffffff;
+		line-height: 1.2;
+	}
+
+	.login-left p {
+		font-size: 1.2rem;
+		color: rgba(255,255,255,0.9);
+		line-height: 1.5;
+	}
+
+	/* Background Illustration Elements */
+	.left-bg-icons {
+		position: absolute;
+		top: 0; left: 0; right: 0; bottom: 0;
+		overflow: hidden;
+		pointer-events: none;
+		opacity: 0.1;
+		z-index: 1;
+	}
+	.left-bg-icons svg {
+		position: absolute;
+		fill: currentColor;
+	}
+	.icon-book { top: 15%; right: 10%; width: 120px; height: 120px; transform: rotate(15deg); }
+	.icon-cap { bottom: 15%; left: -5%; width: 200px; height: 200px; transform: rotate(-15deg); }
+	.icon-pencil { top: 45%; left: 20%; width: 80px; height: 80px; transform: rotate(45deg); }
+
+	/* RIGHT SIDE (60%) */
+	.login-right {
+		flex: 0 0 60%;
+		background: linear-gradient(135deg, #e8f0fe 0%, #f4f7f6 100%);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+	}
+
+	.login-wrapper {
+		width: 100%;
+		max-width: 450px;
+		z-index: 10;
+		padding: 2rem;
+	}
+
+	/* Glassmorphism Login Card (Deep Blue) */
+	.page-card {
+		background: #1e3c72 !important; /* Deep Blue */
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+		border-radius: 20px;
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+		color: #ffffff;
+		transition: transform 0.3s ease, box-shadow 0.3s ease;
+	}
+
+	.page-card:hover {
+		transform: translateY(-3px);
+		box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+	}
+
+	.page-card-body {
+		padding: 2.5rem 2.5rem 1.5rem 2.5rem;
+	}
+
+	/* User provided logo CSS */
+	.page-card-head img.app-logo {
+		width: 160px;
+		max-height: 80px;
+		margin-bottom: 1rem;
+		object-fit: contain;
+		transition: transform 0.5s ease;
+	}
+
+	.page-card-head {
+		padding-top: 2.5rem;
+		text-align: center;
+	}
+
+	.page-card-head h4 {
+		color: #fff !important;
+		font-weight: 700;
+		font-size: 1.4rem;
+		margin-bottom: 0.5rem;
+		letter-spacing: 0.5px;
+	}
+
+	.welcome-text {
+		font-size: 0.95rem;
+		color: rgba(255,255,255,0.8);
+		margin-bottom: 1rem;
+	}
+
+	/* Inputs */
+	.form-control {
+		background: rgba(255, 255, 255, 0.1) !important;
+		border: 1px solid rgba(255, 255, 255, 0.2) !important;
+		color: #fff !important;
+		border-radius: 10px;
+		padding: 0.75rem 1rem 0.75rem 2.5rem;
+		height: 45px;
+		transition: all 0.3s ease;
+	}
+
+	.form-control:focus {
+		background: rgba(255, 255, 255, 0.15) !important;
+		border-color: #ffd700 !important; /* Academic Gold */
+		box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.2) !important;
+	}
+
+	.form-control::placeholder {
+		color: rgba(255, 255, 255, 0.6) !important;
+	}
+
+	/* Primary Button */
+	.btn-primary {
+		background: #ffd700 !important; /* Academic Gold */
+		color: #1e3c72 !important;
+		border: none !important;
+		border-radius: 10px;
+		font-weight: 700;
+		font-size: 1rem;
+		height: 45px;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+		transition: all 0.3s ease !important;
+		box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+	}
+
+	.btn-primary:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4) !important;
+		background: #ffc107 !important;
+	}
+
+	.btn-login.loading {
+		pointer-events: none;
+		opacity: 0.8;
+	}
+
+	/* Links & Icons */
+	.text-muted, .text-center a { color: rgba(255, 255, 255, 0.8) !important; }
+	.text-center a:hover, .forgot-password-message a:hover { color: #ffd700 !important; text-decoration: underline; }
+	.forgot-password-message a { color: rgba(255,255,255,0.8); font-size: 0.9rem; }
+	.field-icon { stroke: rgba(255, 255, 255, 0.7) !important; }
+	
+	.login-footer {
+		position: absolute;
+		bottom: 20px;
+		width: 100%;
+		text-align: center;
+		color: #64748b;
+		font-size: 0.85rem;
+	}
+	
+	.role-hint {
+		text-align: center;
+		color: rgba(255, 255, 255, 0.6);
+		font-size: 0.8rem;
+		margin-top: 10px;
+	}
+
+	/* Mobile Responsive */
+	@media (max-width: 768px) {
+		.login-left { display: none; }
+		.login-right { flex: 0 0 100%; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); }
+		.login-footer { color: rgba(255,255,255,0.6); }
+		.page-card {
+			background: rgba(255, 255, 255, 0.1) !important;
+			backdrop-filter: blur(10px);
+			-webkit-backdrop-filter: blur(10px);
+		}
+	}
+</style>
+{% endblock %}
+
+{% macro logo_section(title=null) %}
+<div class="page-card-head">
+	{% set ws = frappe.get_doc('Website Settings', 'Website Settings') %}
+	{% set custom_logo = ws.app_logo if ws else '' %}
+	<img class="app-logo" src="{{ custom_logo or logo or '/files/bb_logo.jpeg' }}" alt="Logo" onerror="this.src='/files/bb_logo.jpeg'">
+	<h4>{{ title if title else _("Student Management Portal") }}</h4>
+	{% if not title %}
+	<p class="welcome-text">Access your academic dashboard securely</p>
+	{% endif %}
+</div>
+{% endmacro %}
+
+{% block page_content %}
+<div class="login-container">
+	
+	<div class="login-left">
+		<div class="left-bg-icons">
+			<!-- Book SVG -->
+			<svg class="icon-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+				<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+			</svg>
+			<!-- Cap SVG -->
+			<svg class="icon-cap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+				<path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+			</svg>
+			<!-- Pencil SVG -->
+			<svg class="icon-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+				<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+			</svg>
+		</div>
+		<div class="left-content">
+			<h1>Welcome to {{ app_name or "BB Tuition Academy" }}</h1>
+			<p>Manage students, fees, and academic progress effortlessly</p>
+		</div>
+	</div>
+
+	<div class="login-right">
+		<div class="login-wrapper">
+			<noscript>
+				<div class="text-center my-5">
+					<h4>{{ _("Javascript is disabled on your browser") }}</h4>
+					<p class="text-muted">
+						{{ _("You need to enable JavaScript for your app to work.") }}<br>{{ _("To enable it follow the instructions in the following link: {0}").format("<a href='https://enable-javascript.com/'>enable-javascript.com</a></p>") }}
+				</div>
+			</noscript>
+
+			<section class='for-login'>
+				<div class="login-content page-card">
+					{{ logo_section() }}
+					<form class="form-signin form-login" role="form">
+						{%- if social_login or login_with_email_link -%}
+						<div class="page-card-body">
+							<form class="form-signin form-login" role="form">
+								{{ email_login_body() }}
+							</form>
+							<div class="social-logins text-center">
+								{% if not disable_user_pass_login or (ldap_settings and ldap_settings.enabled) %}
+								<p class="text-muted login-divider">{{ _("or") }}</p>
+								{% endif %}
+								<div class="social-login-buttons">
+									{% for provider in provider_logins %}
+									<div class="login-button-wrapper">
+										<a href="{{ provider.auth_url }}"
+											class="btn btn-block btn-default btn-sm btn-login-option btn-{{ provider.name }}">
+											{% if provider.icon %}
+												{{ provider.icon }}
+											{% endif %}
+											{{ _("Login with {0}").format(provider.provider_name) }}</a>
+									</div>
+									{% endfor %}
+								</div>
+
+								{% if login_with_frappe_cloud_url %}
+								<div class="social-login-buttons">
+									<div class="login-button-wrapper">
+										<a href="{{ login_with_frappe_cloud_url }}"
+											class="btn btn-block btn-default btn-sm btn-login-option btn-login-with-frappe-cloud">
+											<svg class="mr-2" width="24" height="20" viewBox="0 5 23 23" fill="none"
+												xmlns="http://www.w3.org/2000/svg">
+												<path d="M24.5011 14.1124C23.3954 12.4873 21.532 11.5477 19.594 11.6747C18.7616 10.1384 17.2211 9.12267 15.4198 9.0084C14.1651 8.93222 12.8979 9.3766 11.9165 10.24C11.2456 10.8367 10.7611 11.5223 10.463 12.2968C10.289 12.7539 9.89151 13.0459 9.46912 13.0459H6.5V15.5852H9.46912C10.9226 15.5852 12.2271 14.6584 12.7737 13.2237C12.9227 12.8301 13.1712 12.4873 13.5439 12.1571C14.0284 11.7255 14.662 11.4969 15.2583 11.535C16.1528 11.5985 16.7863 12.0175 17.1839 12.538C17.6063 13.0205 17.8423 13.7696 17.979 14.5187C18.774 14.2902 19.6437 14.0997 20.476 14.2394C21.1593 14.3536 21.7929 14.7218 22.2525 15.2678C22.327 15.3567 22.4016 15.4456 22.4637 15.5471C23.06 16.4232 23.1718 17.5024 22.7743 18.5689C22.414 19.5592 21.0847 20.4607 19.9791 20.4607H11.3326C10.1524 20.4607 9.18339 19.5592 9.03432 18.4038H6.54969C6.71119 20.9686 8.78585 23 11.3326 23H19.9915C22.1283 23 24.3769 21.451 25.1098 19.4704C25.7931 17.6167 25.5695 15.6614 24.5135 14.0997L24.5011 14.1124Z" fill="currentColor" />
+											</svg>
+											{{ _("Login with Frappe Cloud") }}</a>
+									</div>
+								</div>
+								{% endif %}
+
+								{% if login_with_email_link %}
+								<div class="login-with-email-link social-login-buttons">
+									<div class="login-button-wrapper">
+										<a href="#login-with-email-link"
+											class="btn btn-block btn-default btn-sm btn-login-option btn-login-with-email-link">
+											{{ _("Login with Email Link") }}</a>
+									</div>
+								</div>
+								{% endif %}
+							</div>
+						</div>
+						{% else %}
+							{{ email_login_body() }}
+						{%- endif -%}
+					</form>
+					<div class="role-hint">Student / Parent / Admin</div>
+				</div>
+				{%- if not disable_signup and not disable_user_pass_login -%}
+				<div class="text-center sign-up-message mt-3">
+					{{ _("Don't have an account?") }}
+					<a href="#signup" style="color: #1e3c72;">{{ _("Sign up") }}</a>
+				</div>
+				{%- endif -%}
+			</section>
+
+			{%- if social_login -%}
+			<section class='for-email-login'>
+				<div class="login-content page-card">
+					{{ logo_section() }}
+					<form class="form-signin form-login" role="form">
+					{{ email_login_body() }}
+					</form>
+				</div>
+				{%- if not disable_signup and not disable_user_pass_login -%}
+				<div class="text-center sign-up-message mt-3">
+					{{ _("Don't have an account?") }}
+					<a href="#signup" style="color: #1e3c72;">{{ _("Sign up") }}</a>
+				</div>
+				{%- endif -%}
+			</section>
+			{%- endif -%}
+
+			<section class='for-signup {{ "signup-disabled" if disable_signup else "" }}'>
+				<div class="login-content page-card">
+					{{ logo_section(_('Create Account')) }}
+					{%- if not disable_signup -%}
+					{{ signup_form_template }}
+					{%- else -%}
+					<div class='page-card-body mb-2 text-center'>
+						<span class='indicator gray'>{{_("Signup Disabled")}}</span>
+						<p class="text-muted text-normal sign-up-message mt-1 mb-8">{{_("Signups have been disabled for this website.")}}</p>
+						<div><a href='/' class='btn btn-primary btn-md'>{{ _("Home") }}</a></div>
+					</div>
+					{%- endif -%}
+				</div>
+			</section>
+
+			<section class='for-forgot'>
+				<div class="login-content page-card">
+					{{ logo_section('Forgot Password') }}
+					<form class="form-signin form-forgot hide" role="form">
+						<div class="page-card-body">
+							<div class="email-field">
+								<input type="email" id="forgot_email" class="form-control"
+									placeholder="{{ _('Email Address') }}" required autofocus autocomplete="username">
+							</div>
+						</div>
+						<div class="page-card-actions">
+							<button class="btn btn-sm btn-primary btn-block btn-forgot"
+								type="submit">{{ _("Reset Password") }}</button>
+							<p class="text-center sign-up-message mt-3">
+								<a href="#login">{{ _("Back to Login") }}</a>
+							</p>
+						</div>
+					</form>
+				</div>
+			</section>
+
+			<section class='for-login-with-email-link'>
+				<div class="login-content page-card">
+					{{ logo_section(_('Login with Email Link')) }}
+					<form class="form-signin form-login-with-email-link hide" role="form">
+						<div class="page-card-body">
+							<div class="email-field">
+								<input type="email" id="login_with_email_link_email" class="form-control"
+									placeholder="{{ _('Email Address') }}" required autofocus autocomplete="username">
+							</div>
+						</div>
+						<div class="page-card-actions">
+							<button class="btn btn-sm btn-primary btn-block btn-login-with-email-link"
+								type="submit">{{ _("Send login link") }}</button>
+							<p class="text-center sign-up-message mt-3">
+								<a href="#login">{{ _("Back to Login") }}</a>
+							</p>
+						</div>
+					</form>
+				</div>
+			</section>
+			
+		</div>
+		
+		<div class="login-footer">
+			&copy; 2026 {{ app_name or "BB Tuition Academy" }} <br>
+			<span style="font-size: 0.8rem; opacity: 0.8; font-weight: 500; color: #1e3c72;">Developed By Dream Tech Solution</span>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>{% include "templates/includes/login/login.js" %}</script>
+<script>
+	// Add loading animation to login button on click
+	document.addEventListener('DOMContentLoaded', function() {
+		const forms = document.querySelectorAll('.form-login');
+		forms.forEach(form => {
+			form.addEventListener('submit', function() {
+				const btn = this.querySelector('.btn-login');
+				if(btn) {
+					btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
+					btn.classList.add('loading');
+				}
+			});
+		});
+	});
+</script>
+{% endblock %}
+
+{% block sidebar %}{% endblock %}

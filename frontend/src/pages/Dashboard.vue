@@ -14,13 +14,6 @@
           <FeatherIcon name="user-plus" class="w-4 h-4" />
           <span>New Student</span>
         </router-link>
-        <router-link
-          to="/payment-entries/new"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium text-sm rounded-lg shadow-sm transition-colors"
-        >
-          <FeatherIcon name="dollar-sign" class="w-4 h-4" />
-          <span>New Payment</span>
-        </router-link>
       </div>
     </div>
 
@@ -68,18 +61,6 @@
         </div>
       </div>
 
-      <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-2xs">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment Records</span>
-          <div class="p-2 bg-amber-50 rounded-lg text-amber-600">
-            <FeatherIcon name="credit-card" class="w-5 h-5" />
-          </div>
-        </div>
-        <div class="mt-3">
-          <div class="text-3xl font-bold text-gray-900">{{ paymentCount }}</div>
-          <div class="text-xs text-amber-600 mt-1 font-medium">Payments Processed</div>
-        </div>
-      </div>
     </div>
 
     <!-- Quick Shortcuts & Recent Students Table -->
@@ -174,19 +155,6 @@
           </router-link>
 
           <router-link
-            to="/payment-entries"
-            class="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
-          >
-            <div class="flex items-center gap-3">
-              <div class="p-2 bg-amber-50 text-amber-600 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                <FeatherIcon name="credit-card" class="w-4 h-4" />
-              </div>
-              <span class="text-sm font-medium text-gray-800">Payments Log</span>
-            </div>
-            <FeatherIcon name="chevron-right" class="w-4 h-4 text-gray-400 group-hover:text-amber-600" />
-          </router-link>
-
-          <router-link
             to="/student-batch-history"
             class="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all group"
           >
@@ -242,13 +210,6 @@ const invoicesList = createListResource({
   auto: true,
 })
 
-const paymentsList = createListResource({
-  doctype: 'Payment Entry',
-  fields: ['name'],
-  limit: 1000,
-  auto: true,
-})
-
 // Use list_rows for accurate total count, fallback to data length
 const studentCount = computed(() => {
   if (studentsList.list && studentsList.list.total_count !== undefined) {
@@ -269,12 +230,5 @@ const invoiceCount = computed(() => {
     return invoicesList.list.total_count
   }
   return invoicesList.data?.length || 0
-})
-
-const paymentCount = computed(() => {
-  if (paymentsList.list && paymentsList.list.total_count !== undefined) {
-    return paymentsList.list.total_count
-  }
-  return paymentsList.data?.length || 0
 })
 </script>

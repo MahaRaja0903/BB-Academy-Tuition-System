@@ -10,10 +10,10 @@
   "admission_details_section",
   "naming_series",
   "application_date",
-  "status",
-  "column_break_1",
-  "student_enquiry",
   "academic_year",
+  "column_break_1",
+  "status",
+  "student_enquiry",
   "student_details_section",
   "admission_number",
   "student_name",
@@ -23,16 +23,17 @@
   "school_name",
   "academic_allocation_section",
   "standard",
+  "group",
   "assigned_batch",
   "column_break_3",
   "starting_payment",
   "monthly_fee",
   "parent_details_section",
   "father_name",
-  "mother_name",
+  "father_mobile_number",
   "column_break_4",
-  "parent_mobile",
-  "whatsapp_number",
+  "mother_name",
+  "mother_mobile_number",
   "address_section",
   "address",
   "amended_from"
@@ -88,11 +89,10 @@
   {
    "fieldname": "academic_year",
    "fieldtype": "Link",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "Academic Year",
-   "options": "Academic Year",
-   "reqd": 0,
-   "hidden": 1
+   "options": "Academic Year"
   },
   {
    "fieldname": "student_details_section",
@@ -102,10 +102,9 @@
   {
    "fieldname": "admission_number",
    "fieldtype": "Data",
+   "hidden": 1,
    "in_list_view": 1,
-   "label": "Admission Number",
-   "reqd": 0,
-   "hidden": 1
+   "label": "Admission Number"
   },
   {
    "fieldname": "student_name",
@@ -151,9 +150,9 @@
   {
    "fieldname": "group",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Group",
-   "options": "Group",
-   "in_list_view": 1
+   "options": "Group"
   },
   {
    "fieldname": "assigned_batch",
@@ -208,18 +207,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "parent_mobile",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Parent Mobile",
-   "reqd": 1
-  },
-  {
-   "fieldname": "whatsapp_number",
-   "fieldtype": "Data",
-   "label": "WhatsApp Number"
-  },
-  {
    "fieldname": "address_section",
    "fieldtype": "Section Break",
    "label": "Address"
@@ -244,7 +231,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-04 23:25:15.793711",
+ "modified": "2026-08-04 23:58:53.432646",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",
@@ -311,7 +298,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "student_name, parent_mobile, standard",
+ "search_fields": "student_name, standard",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

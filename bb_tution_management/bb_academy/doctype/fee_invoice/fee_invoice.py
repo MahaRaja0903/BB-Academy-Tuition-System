@@ -49,7 +49,7 @@ class FeeInvoice(Document):
 				)
 
 	def calculate_outstanding(self):
-		self.grand_total = sum([float(item.amount or 0) for item in self.get("items", [])])
+		self.grand_total = float(self.monthly_fee or 0) + float(self.arrears_amount or 0)
 		paid_amount = float(self.paid_amount or 0)
 		self.outstanding_amount = max(0.0, self.grand_total - paid_amount)
 
@@ -68,29 +68,56 @@ class FeeInvoice(Document):
 	# 			self.status = "Draft"
 
 	def on_submit(self):
-		intended_payment = 0
-		if self.status == "Paid":
-			intended_payment = self.grand_total
-		elif self.status == "Partially Paid":
-			intended_payment = self.paid_amount
+		# We don't reset paid_amount here since Payment Entry is removed.
+		# We just directly add the row to payment_details table
+		self.update_student_payment_detail(is_submit=True)
+		self.send_receipt_sms()
 
-		self.paid_amount = 0
-		self.outstanding_amount = self.grand_total
-		self.status = "Unpaid"
-		self.db_update()
+	def on_cancel(self):
+		self.update_student_payment_detail(is_submit=False)
 
-		if intended_payment > 0:
-			self.create_payment_entry(intended_payment)
-			self.reload()
+	def update_student_payment_detail(self, is_submit=True):
+		student = frappe.get_doc("Student", self.student)
 
-	def create_payment_entry(self, amount):
-		payment = frappe.get_doc({
-			"doctype": "Fees Payment Entry",
-			"student": self.student,
-			"fee_invoice": self.name,
-			"amount": amount,
-			"payment_date": frappe.utils.today(),
-			"payment_mode": "Cash",
-		})
-		payment.insert(ignore_permissions=True)
-		payment.submit()
+		existing_row = None
+		for row in student.get("payment_details", []):
+			if row.month == self.fee_month:
+				existing_row = row
+				break
+
+		if not existing_row:
+			existing_row = student.append("payment_details", {
+				"month": self.fee_month,
+				"amount_paid": 0.0
+			})
+
+		if is_submit:
+			existing_row.amount_paid = float(existing_row.amount_paid or 0) + float(self.paid_amount or 0)
+		else:
+			existing_row.amount_paid = max(0.0, float(existing_row.amount_paid or 0) - float(self.paid_amount or 0))
+
+		existing_row.date = frappe.utils.today()
+		existing_row.pending = self.outstanding_amount
+
+		if existing_row.pending <= 0:
+			existing_row.status = "Paid"
+		elif existing_row.amount_paid > 0:
+			existing_row.status = "Partial"
+		else:
+			existing_row.status = "Not Paid"
+
+		student.save(ignore_permissions=True)
+
+	def send_receipt_sms(self):
+		if float(self.paid_amount or 0) > 0:
+			# Mocking a payment_doc since send_payment_confirmation expects one
+			class MockPaymentEntry:
+				def __init__(self, invoice):
+					self.student = invoice.student
+					self.amount = invoice.paid_amount
+					self.payment_mode = "Cash"
+					self.fee_invoice = invoice.name
+					self.reference_number = "N/A"
+			
+			from bb_tution_management.bb_academy.sms import send_payment_confirmation
+			send_payment_confirmation(MockPaymentEntry(self))

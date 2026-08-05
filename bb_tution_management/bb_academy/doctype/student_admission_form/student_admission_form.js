@@ -30,7 +30,7 @@ frappe.ui.form.on("Student Admission Form", {
 		if (frm.doc.standard && frm.doc.assigned_batch) {
 			frappe.db.get_value(
 				"Fee Structure",
-				{ standard: frm.doc.standard, batch: frm.doc.assigned_batch, is_active: 1 },
+				{ standard: frm.doc.standard, batch: frm.doc.assigned_batch },
 				"monthly_fee",
 				(r) => {
 					if (r && r.monthly_fee !== undefined) {

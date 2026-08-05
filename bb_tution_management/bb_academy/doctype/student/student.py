@@ -42,9 +42,7 @@ class Student(Document):
 			"invoice_date": today(),
 			"due_date": add_days(today(), 10),
 			"is_starting_fee": 1,
-			"items": [
-				{"description": "Starting Payment", "amount": self.starting_payment}
-			]
+			"monthly_fee": self.starting_payment
 		})
 		invoice.insert(ignore_permissions=True)
 		invoice.submit()

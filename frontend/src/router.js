@@ -5,12 +5,10 @@ import Dashboard from '@/pages/Dashboard.vue'
 import StudentsList from '@/pages/StudentsList.vue'
 import FeeInvoicesList from '@/pages/FeeInvoicesList.vue'
 import StudentEnquiriesList from '@/pages/StudentEnquiriesList.vue'
-import PaymentEntriesList from '@/pages/PaymentEntriesList.vue'
 import StudentDetail from '@/pages/StudentDetail.vue'
 import StudentBatchHistoryList from '@/pages/StudentBatchHistoryList.vue'
 import StudentAdmissionFormsList from '@/pages/StudentAdmissionFormsList.vue'
 import CreateStudent from '@/pages/CreateStudent.vue'
-import CreatePaymentEntry from '@/pages/CreatePaymentEntry.vue'
 import PromotionDemotionReport from '@/pages/PromotionDemotionReport.vue'
 import StudentWiseReport from '@/pages/StudentWiseReport.vue'
 import Login from '@/pages/Login.vue'
@@ -64,18 +62,6 @@ const routes = [
         name: 'StudentEnquiriesList',
         component: StudentEnquiriesList,
         meta: { title: 'Student Enquiries' },
-      },
-      {
-        path: 'payment-entries',
-        name: 'PaymentEntriesList',
-        component: PaymentEntriesList,
-        meta: { title: 'Payment Entries' },
-      },
-      {
-        path: 'payment-entries/new',
-        name: 'CreatePaymentEntry',
-        component: CreatePaymentEntry,
-        meta: { title: 'Create Payment Entry' },
       },
       {
         path: 'student-batch-history',

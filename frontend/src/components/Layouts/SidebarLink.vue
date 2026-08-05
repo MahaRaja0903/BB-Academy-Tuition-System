@@ -71,13 +71,6 @@ const navigationItems = [
     iconInactiveClass: 'bg-gray-100 text-gray-500 group-hover:bg-sky-100 group-hover:text-sky-500'
   },
   { 
-    label: 'Payment Entries', to: '/payment-entries', icon: 'credit-card',
-    activeClass: 'bg-violet-50 text-violet-700 shadow-sm shadow-violet-100/50', 
-    inactiveClass: 'text-gray-600 hover:bg-violet-50 hover:text-violet-600',
-    iconActiveClass: 'bg-violet-100 text-violet-600',
-    iconInactiveClass: 'bg-gray-100 text-gray-500 group-hover:bg-violet-100 group-hover:text-violet-500'
-  },
-  { 
     label: 'Batch History', to: '/student-batch-history', icon: 'git-branch',
     activeClass: 'bg-fuchsia-50 text-fuchsia-700 shadow-sm shadow-fuchsia-100/50', 
     inactiveClass: 'text-gray-600 hover:bg-fuchsia-50 hover:text-fuchsia-600',

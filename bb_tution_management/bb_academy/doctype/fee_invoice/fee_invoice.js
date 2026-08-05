@@ -23,7 +23,8 @@ frappe.ui.form.on("Fee Invoice", {
 				frm.set_df_property("paid_amount", "read_only", 1);
 				frm.set_df_property("paid_amount", "reqd", 0);
 				if (frm.doc.status === "Paid") {
-					frm.set_value("paid_amount", frm.doc.grand_total || 0);
+					let grand_total = (frm.doc.monthly_fee || 0) + (frm.doc.arrears_amount || 0);
+					frm.set_value("paid_amount", grand_total);
 				} else if (frm.doc.status === "Unpaid" || frm.doc.status === "Draft") {
 					frm.set_value("paid_amount", 0);
 				}
