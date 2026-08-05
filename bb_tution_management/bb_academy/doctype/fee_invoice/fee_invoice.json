@@ -22,6 +22,11 @@
   "column_break_2",
   "payment_amounts_section",
   "monthly_fee",
+  "add_discount",
+  "discount_amount",
+  "apply_gst_18",
+  "gst_amount",
+  "grand_total",
   "arrears_amount",
   "paid_amount",
   "column_break_3",
@@ -134,6 +139,35 @@
    "reqd": 1
   },
   {
+   "fieldname": "add_discount",
+   "fieldtype": "Check",
+   "label": "Add Discount"
+  },
+  {
+   "depends_on": "eval:doc.add_discount",
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Discount Amount"
+  },
+  {
+   "fieldname": "apply_gst_18",
+   "fieldtype": "Check",
+   "label": "Apply GST 18%"
+  },
+  {
+   "depends_on": "eval:doc.apply_gst_18",
+   "fieldname": "gst_amount",
+   "fieldtype": "Currency",
+   "label": "GST Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "label": "Grand Total",
+   "read_only": 1
+  },
+  {
    "fieldname": "arrears_amount",
    "fieldtype": "Currency",
    "label": "Arrears Amount",
@@ -193,7 +227,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-04 23:48:39.172256",
+ "modified": "2026-08-06 02:05:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",

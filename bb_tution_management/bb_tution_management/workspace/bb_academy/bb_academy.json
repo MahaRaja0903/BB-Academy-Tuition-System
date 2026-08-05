@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"MLzG1SBSB9\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}}]",
- "creation": "2026-08-03 23:19:20.189313",
+ "content": "[{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"0FsumFCZ5D\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}}]",
+ "creation": "2026-08-05 23:04:42.807237",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -65,107 +65,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Payment",
-   "link_count": 3,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Fee Invoice",
-   "link_count": 0,
-   "link_to": "Fee Invoice",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Fees Payment Entry",
-   "link_count": 0,
-   "link_to": "Fees Payment Entry",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Fee Structure",
-   "link_count": 0,
-   "link_to": "Fee Structure",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Report",
-   "link_count": 5,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Birthday Report",
-   "link_count": 0,
-   "link_to": "Birthday Report",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Pending Balance Report",
-   "link_count": 0,
-   "link_to": "Pending Balance Report",
-   "link_type": "Report",
-   "onboard": 0,
-   "report_ref_doctype": "Fee Invoice",
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Student Wise Report",
-   "link_count": 0,
-   "link_to": "Student Wise Report",
-   "link_type": "Report",
-   "onboard": 0,
-   "report_ref_doctype": "Student",
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Payment Wise Report",
-   "link_count": 0,
-   "link_to": "Payment Wise Report",
-   "link_type": "Report",
-   "onboard": 0,
-   "report_ref_doctype": "Fees Payment Entry",
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Promote and Demote Report",
-   "link_count": 0,
-   "link_to": "Promote and Demote Report",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Short Cut",
    "link_count": 4,
    "link_type": "DocType",
@@ -211,9 +110,90 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Payment",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Fee Invoice",
+   "link_count": 0,
+   "link_to": "Fee Invoice",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Fee Structure",
+   "link_count": 0,
+   "link_to": "Fee Structure",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Report",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Birthday Report",
+   "link_count": 0,
+   "link_to": "Birthday Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Student Wise Report",
+   "link_count": 0,
+   "link_to": "Student Wise Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Student",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Payment Wise Report",
+   "link_count": 0,
+   "link_to": "Payment Wise Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Fees Payment Entry",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Pending Balance Report",
+   "link_count": 0,
+   "link_to": "Pending Balance Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Fee Invoice",
+   "type": "Link"
   }
  ],
- "modified": "2026-08-04 22:25:31.687486",
+ "modified": "2026-08-06 01:41:03.295914",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "BB Academy",

@@ -5,6 +5,32 @@ import frappe
 from frappe.model.document import Document
 from frappe import _
 
+@frappe.whitelist()
+def get_student_fee_data(student):
+	"""Return student info + payment_details for fee tracking UI."""
+	student_doc = frappe.get_doc("Student", student)
+	payment_rows = []
+	for row in student_doc.get("payment_details", []):
+		payment_rows.append({
+			"month": row.month,
+			"date": str(row.date) if row.date else None,
+			"status": row.status,
+			"amount_paid": float(row.amount_paid or 0),
+			"pending": float(row.pending or 0),
+		})
+
+	return {
+		"student_name": student_doc.student_name,
+		"admission_date": str(student_doc.admission_date) if student_doc.admission_date else None,
+		"standard": student_doc.standard,
+		"current_batch": student_doc.current_batch,
+		"academic_year": student_doc.academic_year or "Current",
+		"image": student_doc.image,
+		"monthly_fee": float(student_doc.monthly_fee or 0),
+		"payment_details": payment_rows,
+	}
+
+
 class FeeInvoice(Document):
 	def validate(self):
 		self.fetch_student_details()
@@ -49,9 +75,18 @@ class FeeInvoice(Document):
 				)
 
 	def calculate_outstanding(self):
-		self.grand_total = float(self.monthly_fee or 0) + float(self.arrears_amount or 0)
+		discount = float(self.discount_amount or 0) if self.add_discount else 0.0
+		net_total = float(self.monthly_fee or 0) - discount
+		
+		if self.apply_gst_18:
+			self.gst_amount = net_total * 0.18
+		else:
+			self.gst_amount = 0.0
+			
+		self.grand_total = net_total + self.gst_amount
+		final_total = self.grand_total + float(self.arrears_amount or 0)
 		paid_amount = float(self.paid_amount or 0)
-		self.outstanding_amount = max(0.0, self.grand_total - paid_amount)
+		self.outstanding_amount = max(0.0, final_total - paid_amount)
 
 	# def update_status(self):
 	# 	if self.docstatus == 2:
