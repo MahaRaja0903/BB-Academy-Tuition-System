@@ -1,7 +1,7 @@
 [
  {
   "charts": [],
-  "content": "[{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"0FsumFCZ5D\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}}]",
+  "content": "[{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"bbDashLink\",\"type\":\"card\",\"data\":{\"card_name\":\"Dashboard\",\"col\":4}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"0FsumFCZ5D\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}}]",
   "custom_blocks": [],
   "docstatus": 0,
   "doctype": "Workspace",
@@ -12,6 +12,42 @@
   "is_hidden": 0,
   "label": "BB Academy",
   "links": [
+   {
+    "dependencies": null,
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "Dashboard",
+    "link_count": 1,
+    "link_to": null,
+    "link_type": "DocType",
+    "onboard": 0,
+    "only_for": null,
+    "parent": "BB Academy",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Card Break"
+   },
+   {
+    "dependencies": null,
+    "description": "View the BB Academy Dashboard",
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "BB Dashboard",
+    "link_count": 0,
+    "link_to": "bb-dashboard",
+    "link_type": "Page",
+    "onboard": 1,
+    "only_for": null,
+    "parent": "BB Academy",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
    {
     "dependencies": null,
     "description": null,
@@ -347,7 +383,16 @@
   "restrict_to_domain": null,
   "roles": [],
   "sequence_id": 6.0,
-  "shortcuts": [],
+  "shortcuts": [
+   {
+    "color": "#6366f1",
+    "doc_view": "",
+    "icon": "dashboard",
+    "label": "BB Dashboard",
+    "link_to": "bb-dashboard",
+    "type": "Page"
+   }
+  ],
   "title": "BB Academy"
  }
 ]

@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "BB-STU-.YYYY.-.#####",
+ "autoname": "field:admission_number",
  "creation": "2026-07-29 13:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -31,10 +31,11 @@
   "monthly_fee",
   "parent_details_section",
   "father_name",
-  "mother_name",
-  "father_occupation",
-  "column_break_4",
   "father_mobile_number",
+  "father_occupation",
+  "preferred_mobile_number",
+  "column_break_4",
+  "mother_name",
   "mother_mobile_number",
   "mother_occupation",
   "school_details_section",
@@ -249,16 +250,22 @@
    "fieldtype": "Link",
    "label": "Group",
    "options": "Group"
+  },
+  {
+   "fieldname": "preferred_mobile_number",
+   "fieldtype": "Select",
+   "label": "Preferred Mobile Number ",
+   "options": "\nFather\nMother\nBoth"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-05 23:14:42.252592",
+ "modified": "2026-08-06 09:17:52.518112",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",
- "naming_rule": "Expression",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -312,7 +319,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "student_name, admission_number",
+ "search_fields": "student_name, admission_number,mother_mobile_number,father_mobile_number",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

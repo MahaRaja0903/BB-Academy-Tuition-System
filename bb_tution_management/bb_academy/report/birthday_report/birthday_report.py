@@ -10,7 +10,7 @@ def execute(filters=None):
 
 def get_columns():
 	return [
-		{"fieldname": "student", "label": "Student ID", "fieldtype": "Link", "options": "Student", "width": 120},
+		{"fieldname": "student", "label": "Student ID", "fieldtype": "Link", "options": "Student", "width": 220},
 		{"fieldname": "student_name", "label": "Student Name", "fieldtype": "Data", "width": 250},
 		{"fieldname": "date_of_birth", "label": "Date of Birth", "fieldtype": "Date", "width": 220},
 		{"fieldname": "gender", "label": "Gender", "fieldtype": "Data", "width": 150},

@@ -8,13 +8,13 @@ frappe.query_reports["Birthday Report"] = {
 			"label": __("Month"),
 			"fieldtype": "Select",
 			"options": "\nJanuary\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember",
-			"default": ""
+			"default": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][new Date().getMonth()]
 		},
 		{
 			"fieldname": "gender",
 			"label": __("Gender"),
 			"fieldtype": "Select",
-			"options": "\nMale\nFemaleerro",
+			"options": "\nMale\nFemale",
 			"default": ""
 		},
 		{

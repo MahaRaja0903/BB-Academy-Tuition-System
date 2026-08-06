@@ -26,7 +26,7 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/bb_tution_management/css/bb_tution_management.css"
-# app_include_js = "/assets/bb_tution_management/js/bb_tution_management.js"
+app_include_js = "/assets/bb_tution_management/js/bb_tution_management.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/bb_tution_management/css/bb_tution_management.css"
@@ -245,3 +245,11 @@ fixtures = [
 ]
 
 website_route_rules = [{'from_route': '/tuition_app/<path:app_path>', 'to_route': 'tuition_app'},]
+
+# Redirect the built-in "My Account" page to the Desk
+website_redirects = [
+    {"source": "/me", "target": "/app"},
+]
+
+# Set default home page after login
+boot_session = "bb_tution_management.boot.boot_session"

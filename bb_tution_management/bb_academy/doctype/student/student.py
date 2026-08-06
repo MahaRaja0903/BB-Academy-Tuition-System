@@ -4,18 +4,130 @@
 import frappe
 from frappe.model.document import Document
 from frappe import _
+from frappe.utils import getdate
+
+
+MONTH_NAMES = [
+	"January", "February", "March", "April", "May", "June",
+	"July", "August", "September", "October", "November", "December"
+]
+
+# Map month name -> 1-based month number
+MONTH_NUMBER = {name: idx + 1 for idx, name in enumerate(MONTH_NAMES)}
 
 
 class Student(Document):
 	def validate(self):
 		self.fetch_starting_payment()
 		self.fetch_monthly_fee()
+		self.populate_payment_details()
 
 	def before_save(self):
 		self.track_batch_change()
 
 	# def after_insert(self):
 	# 	self.create_starting_fee_invoice()
+
+	def populate_payment_details(self):
+		"""Auto-populate payment_details months based on academic year and admission date.
+
+		- Months before the student's admission_date month -> status "Not Joined"
+		- Months from admission_date month onward          -> status "Not Paid"
+
+		Only runs when the academic_year or admission_date has changed, or when
+		the payment_details table is empty. Existing rows with status other than
+		"Not Joined" / "Not Paid" (i.e. already Paid / Partial) are preserved.
+		"""
+		if not self.academic_year or not self.admission_date:
+			return
+
+		# ----- determine if we need to rebuild -----
+		needs_rebuild = False
+
+		if not self.payment_details:
+			needs_rebuild = True
+
+		if not self.is_new():
+			doc_before = self.get_doc_before_save()
+			if doc_before:
+				if (doc_before.academic_year != self.academic_year
+						or str(doc_before.admission_date) != str(self.admission_date)):
+					needs_rebuild = True
+		else:
+			# New document – always populate
+			needs_rebuild = True
+
+		if not needs_rebuild:
+			return
+
+		# ----- fetch academic year start/end months -----
+		ay = frappe.get_cached_doc("Academic Year", self.academic_year)
+		start_month = MONTH_NUMBER.get(ay.start_month)
+		end_month = MONTH_NUMBER.get(ay.end_month)
+
+		if not start_month or not end_month:
+			return
+
+		# Build ordered list of month numbers from start_month to end_month
+		# e.g. June(6) to March(3) -> [6,7,8,9,10,11,12,1,2,3]
+		academic_months = []
+		m = start_month
+		while True:
+			academic_months.append(m)
+			if m == end_month:
+				break
+			m = m % 12 + 1  # next month, wrapping Dec(12)->Jan(1)
+
+		# ----- admission month -----
+		ad_date = getdate(self.admission_date)
+		admission_month_num = ad_date.month  # 1-based
+
+		# ----- build a lookup of existing rows we want to keep -----
+		existing = {}
+		for row in (self.payment_details or []):
+			month_num = MONTH_NUMBER.get(row.month)
+			if month_num and row.status not in (None, "", "Not Joined", "Not Paid"):
+				# Preserve rows that have meaningful status (Paid, Partial, etc.)
+				existing[month_num] = row
+
+		# ----- rebuild the table -----
+		self.payment_details = []
+		for month_num in academic_months:
+			month_name = MONTH_NAMES[month_num - 1]
+
+			if month_num in existing:
+				# Keep the existing row data intact
+				kept = existing[month_num]
+				self.append("payment_details", {
+					"month": kept.month,
+					"date": kept.date,
+					"status": kept.status,
+					"amount_paid": kept.amount_paid,
+					"pending": kept.pending,
+				})
+			else:
+				# Determine if the student had joined by this month
+				if month_num in academic_months:
+					# Find position of this month and admission month in the
+					# academic calendar to compare correctly across year boundary
+					month_pos = academic_months.index(month_num)
+					try:
+						admission_pos = academic_months.index(admission_month_num)
+					except ValueError:
+						# Admission month not in academic calendar – treat as joined
+						admission_pos = 0
+
+					if month_pos < admission_pos:
+						status = "Not Joined"
+					else:
+						status = "Not Paid"
+				else:
+					status = "Not Paid"
+
+				self.append("payment_details", {
+					"month": month_name,
+					"status": status,
+				})
 
 	def create_starting_fee_invoice(self):
 		if not self.starting_payment:
@@ -33,7 +145,7 @@ class Student(Document):
 		if existing:
 			return
 
-		from frappe.utils import today, add_days, getdate
+		from frappe.utils import today, add_days
 		ad_date = getdate(self.admission_date or today())
 		invoice = frappe.get_doc({
 			"doctype": "Fee Invoice",
