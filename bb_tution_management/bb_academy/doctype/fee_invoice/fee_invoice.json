@@ -23,14 +23,14 @@
   "payment_amounts_section",
   "monthly_fee",
   "add_discount",
-  "discount_amount",
   "apply_gst_18",
-  "gst_amount",
-  "grand_total",
-  "arrears_amount",
   "paid_amount",
+  "balance_amount",
   "column_break_3",
   "outstanding_amount",
+  "discount_amount",
+  "gst_amount",
+  "grand_total",
   "student_details_tab",
   "student_html",
   "student_detail_json",
@@ -46,6 +46,7 @@
    "default": "BB-INV-.YYYY.-.#####",
    "fieldname": "naming_series",
    "fieldtype": "Select",
+   "hidden": 1,
    "label": "Naming Series",
    "options": "BB-INV-.YYYY.-.#####",
    "reqd": 1
@@ -139,6 +140,7 @@
    "reqd": 1
   },
   {
+   "default": "0",
    "fieldname": "add_discount",
    "fieldtype": "Check",
    "label": "Add Discount"
@@ -150,6 +152,7 @@
    "label": "Discount Amount"
   },
   {
+   "default": "0",
    "fieldname": "apply_gst_18",
    "fieldtype": "Check",
    "label": "Apply GST 18%"
@@ -168,18 +171,11 @@
    "read_only": 1
   },
   {
-   "fieldname": "arrears_amount",
-   "fieldtype": "Currency",
-   "label": "Arrears Amount",
-   "read_only": 1
-  },
-  {
    "allow_on_submit": 1,
    "default": "0",
    "fieldname": "paid_amount",
    "fieldtype": "Currency",
-   "label": "Paid Amount",
-   "read_only": 1
+   "label": "Paid Amount"
   },
   {
    "fieldname": "column_break_3",
@@ -221,13 +217,19 @@
   {
    "fieldname": "student_detail_json",
    "fieldtype": "JSON",
+   "hidden": 1,
    "label": "student Detail json"
+  },
+  {
+   "fieldname": "balance_amount",
+   "fieldtype": "Int",
+   "label": "Balance Amount"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-06 02:05:00.000000",
+ "modified": "2026-08-07 10:00:07.157177",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",
