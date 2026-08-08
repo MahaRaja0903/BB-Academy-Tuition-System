@@ -84,7 +84,11 @@ class Student(Document):
 
 		# ----- build a lookup of existing rows we want to keep -----
 		existing = {}
+		starting_payment_row = None
 		for row in (self.payment_details or []):
+			if row.month == "Starting Payment":
+				starting_payment_row = row
+				continue
 			month_num = MONTH_NUMBER.get(row.month)
 			if month_num and row.status not in (None, "", "Not Joined", "Not Paid"):
 				# Preserve rows that have meaningful status (Paid, Partial, etc.)
@@ -92,6 +96,24 @@ class Student(Document):
 
 		# ----- rebuild the table -----
 		self.payment_details = []
+		
+		# Add starting payment row if applicable
+		if self.starting_payment:
+			if starting_payment_row:
+				self.append("payment_details", {
+					"month": starting_payment_row.month,
+					"date": starting_payment_row.date,
+					"status": starting_payment_row.status,
+					"amount_paid": starting_payment_row.amount_paid,
+					"pending": starting_payment_row.pending,
+				})
+			else:
+				self.append("payment_details", {
+					"month": "Starting Payment",
+					"status": "Not Paid",
+					"pending": self.starting_payment
+				})
+
 		for month_num in academic_months:
 			month_name = MONTH_NAMES[month_num - 1]
 
@@ -150,7 +172,7 @@ class Student(Document):
 		invoice = frappe.get_doc({
 			"doctype": "Fee Invoice",
 			"student": self.name,
-			"fee_month": ad_date.strftime("%B"),
+			"fee_month": "Starting Payment",
 			"invoice_date": today(),
 			"due_date": add_days(today(), 10),
 			"is_starting_fee": 1,
@@ -206,3 +228,5 @@ class Student(Document):
 					previous_batch, new_batch
 				)
 			)
+
+

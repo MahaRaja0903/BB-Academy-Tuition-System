@@ -1,0 +1,289 @@
+<style>
+    .invoice-wrapper {
+        font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #1f2937;
+        margin: 0 auto;
+        padding: 40px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        max-width: 800px;
+    }
+    .header-section {
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+    }
+    .brand-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: #111827;
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+    .brand-subtitle {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+        font-weight: 500;
+    }
+    .invoice-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #6b7280;
+        letter-spacing: 1px;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .invoice-value {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    .info-grid {
+        display: table;
+        width: 100%;
+        margin-bottom: 30px;
+        table-layout: fixed;
+    }
+    .info-column {
+        display: table-cell;
+        width: 50%;
+        vertical-align: top;
+    }
+    .info-box {
+        background: #f9fafb;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #f3f4f6;
+        margin-right: 10px;
+    }
+    .info-box.right {
+        margin-right: 0;
+        margin-left: 10px;
+    }
+    .info-row {
+        margin-bottom: 12px;
+    }
+    .info-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .payment-summary {
+        margin-top: 30px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .summary-header {
+        background: #f9fafb;
+        padding: 15px 20px;
+        border-bottom: 1px solid #e5e7eb;
+        font-weight: 700;
+        color: #374151;
+        font-size: 16px;
+    }
+    .summary-body {
+        padding: 20px;
+    }
+    
+    .amount-row {
+        display: table;
+        width: 100%;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px dashed #e5e7eb;
+    }
+    .amount-row:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    .amount-label {
+        display: table-cell;
+        font-size: 15px;
+        color: #4b5563;
+        font-weight: 500;
+        vertical-align: middle;
+    }
+    .amount-value {
+        display: table-cell;
+        text-align: right;
+        font-size: 18px;
+        font-weight: 700;
+        color: #111827;
+        vertical-align: middle;
+    }
+    .amount-value.balance {
+        color: #dc2626;
+    }
+    .amount-value.paid {
+        color: #059669;
+    }
+    
+    .terms-section {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #e5e7eb;
+    }
+    .terms-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #374151;
+        margin-bottom: 10px;
+    }
+    .terms-content {
+        font-size: 12px;
+        color: #6b7280;
+        line-height: 1.6;
+    }
+    .content-wrapper {
+        position: relative;
+        z-index: 1;
+    }
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #e5e7eb;
+        color: #374151;
+    }
+    .badge-paid { background: #d1fae5; color: #065f46; }
+    .badge-unpaid { background: #fee2e2; color: #991b1b; }
+    .badge-partial { background: #fef3c7; color: #92400e; }
+    
+    /* Frappe specific hides for print formatting */
+    .print-format {
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+</style>
+
+{% set is_starting = 1 if doc.is_starting_fee or doc.fee_month == "Starting Payment" else 0 %}
+{% set invoice_date = doc.invoice_date or doc.creation %}
+{% set invoice_day = frappe.utils.get_datetime(invoice_date).strftime("%A") if invoice_date else "" %}
+{% set display_date = frappe.utils.formatdate(invoice_date) %}
+
+<div class="invoice-wrapper">
+    <div class="content-wrapper">
+        <div style="display: table; width: 100%; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 30px;">
+            <div style="display: table-cell; vertical-align: middle;">
+                <h1 class="brand-title">BB ACADEMY</h1>
+                <div class="brand-subtitle">Tuition Center Management</div>
+            </div>
+            <div style="display: table-cell; text-align: right; vertical-align: middle;">
+                <h2 style="margin: 0; color: #374151; font-size: 24px; font-weight: 700; text-transform: uppercase;">
+                    {% if is_starting %}Starting Payment Receipt{% else %}Fee Receipt{% endif %}
+                </h2>
+                <div style="margin-top: 8px;">
+                    <span class="badge badge-{% if doc.outstanding_amount <= 0 %}paid{% elif doc.paid_amount > 0 %}partial{% else %}unpaid{% endif %}">
+                        {{ doc.status or 'Draft' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-column">
+                <div class="info-box">
+                    <div class="info-row">
+                        <div class="invoice-label">Invoice No</div>
+                        <div class="invoice-value">{{ doc.name }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="invoice-label">Date</div>
+                        <div class="invoice-value">{{ display_date }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="invoice-label">Day</div>
+                        <div class="invoice-value">{{ invoice_day }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="info-column">
+                <div class="info-box right">
+                    <div class="info-row">
+                        <div class="invoice-label">Student Name</div>
+                        <div class="invoice-value">{{ doc.student_name }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div style="display: table; width: 100%; table-layout: fixed;">
+                            <div style="display: table-cell; width: 50%;">
+                                <div class="invoice-label">Standard</div>
+                                <div class="invoice-value">{{ doc.standard }}</div>
+                            </div>
+                            <div style="display: table-cell; width: 50%;">
+                                <div class="invoice-label">Batch</div>
+                                <div class="invoice-value">{{ doc.batch }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="payment-summary">
+            <div class="summary-header">
+                Payment Details
+            </div>
+            <div class="summary-body">
+                <div class="amount-row">
+                    <div class="amount-label">
+                        {% if is_starting %}
+                            Starting Payment Covers
+                            <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">(1st Month, Last Month & Admission Fees)</div>
+                        {% else %}
+                            Fees Amount Paid For The Month of
+                        {% endif %}
+                    </div>
+                    <div class="amount-value" style="font-size: 16px; color: #374151;">
+                        {% if is_starting %}
+                            Admission & Deposit
+                        {% else %}
+                            {{ doc.fee_month }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="amount-row">
+                    <div class="amount-label">
+                        {% if is_starting %}
+                            Starting Payment Amount Paid
+                        {% else %}
+                            Fees Amount Paid
+                        {% endif %}
+                    </div>
+                    <div class="amount-value paid">
+                        {{ doc.currency or '₹' }} {{ frappe.utils.fmt_money(doc.paid_amount or 0) }}
+                    </div>
+                </div>
+                
+                <div class="amount-row">
+                    <div class="amount-label">
+                        {% if is_starting %}
+                            Starting Payment Balance Amount
+                        {% else %}
+                            Balance Amount
+                        {% endif %}
+                    </div>
+                    <div class="amount-value balance">
+                        {{ doc.currency or '₹' }} {{ frappe.utils.fmt_money(doc.outstanding_amount or 0) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="terms-section">
+            <div class="terms-title">Terms and Conditions</div>
+            <div class="terms-content">
+                1. Fees once paid are non-refundable under any circumstances.<br>
+                2. Monthly fees must be paid on or before the due date to avoid late payment penalties.<br>
+                3. Please keep this receipt safely for your records and future reference.<br>
+                4. Starting payments cover admission fees and specific month deposits as discussed at the time of enrollment.
+            </div>
+        </div>
+    </div>
+</div>

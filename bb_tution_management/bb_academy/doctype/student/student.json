@@ -246,6 +246,7 @@
    "options": "Student Payment Detail"
   },
   {
+   "depends_on": "eval:doc.standard == \"11TH Science\" || \"12TH Science\" || \"11TH Commerce\" || \"12TH Commerce\"",
    "fieldname": "group",
    "fieldtype": "Link",
    "label": "Group",
@@ -261,7 +262,7 @@
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-06 09:17:52.518112",
+ "modified": "2026-08-08 18:34:40.708148",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

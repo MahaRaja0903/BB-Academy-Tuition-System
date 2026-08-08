@@ -12,7 +12,6 @@
   "column_break_1",
   "effective_date",
   "status",
-  "approved_by",
   "reason_section",
   "reason"
  ],
@@ -59,14 +58,6 @@
    "reqd": 1
   },
   {
-   "default": "__user",
-   "fieldname": "approved_by",
-   "fieldtype": "Link",
-   "label": "Approved By",
-   "options": "User",
-   "reqd": 1
-  },
-  {
    "fieldname": "reason_section",
    "fieldtype": "Section Break",
    "label": "Reason"
@@ -80,12 +71,13 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "\nPromotion\nDemote"
+   "options": "\nPromotion\nDemote",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-03 00:34:26.104594",
+ "modified": "2026-08-08 16:11:03.933344",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Batch History",

@@ -21,6 +21,7 @@
   "column_break_2",
   "gender",
   "school_name",
+  "type_your_school",
   "academic_allocation_section",
   "standard",
   "group",
@@ -148,9 +149,9 @@
    "reqd": 1
   },
   {
+   "depends_on": "eval:doc.standard == \"11TH Science\" || \"12TH Science\" || \"11TH Commerce\" || \"12TH Commerce\"",
    "fieldname": "group",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "label": "Group",
    "options": "Group"
   },
@@ -225,13 +226,19 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "depends_on": "eval:doc.school_name == \"Others\"",
+   "fieldname": "type_your_school",
+   "fieldtype": "Data",
+   "label": "Type Your School"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-04 23:58:53.432646",
+ "modified": "2026-08-08 18:36:56.627219",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

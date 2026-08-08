@@ -8,10 +8,20 @@ frappe.ui.form.on("Student Admission Form", {
 				order_by: "academic_order asc"
 			};
 		});
-
+		frm.set_query("group", function() {
+			if (frm.doc.standard) {
+				return {
+					query: "bb_tution_management.bb_tution_management.doctype.group.group.get_groups_by_standard",
+					filters: {
+						standard: frm.doc.standard
+					}
+				};
+			}
+		});
 	},
 	standard(frm) {
 		frm.set_value('assigned_batch', '');
+		frm.set_value('group', '');
 		if (frm.doc.standard) {
 			frappe.db.get_value("Standard", frm.doc.standard, "starting_payment", (r) => {
 				if (r && r.starting_payment !== undefined) {

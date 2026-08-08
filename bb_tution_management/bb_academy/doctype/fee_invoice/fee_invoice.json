@@ -7,34 +7,32 @@
  "engine": "InnoDB",
  "field_order": [
   "tab_break_k8wg",
+  "amended_from",
+  "student_html",
   "invoice_details_section",
   "naming_series",
   "student",
   "student_name",
-  "standard",
-  "batch",
   "column_break_1",
   "invoice_date",
   "due_date",
   "status",
   "billing_period_section",
-  "fee_month",
-  "column_break_2",
+  "fees_details",
   "payment_amounts_section",
   "monthly_fee",
   "add_discount",
   "apply_gst_18",
   "paid_amount",
-  "balance_amount",
   "column_break_3",
   "outstanding_amount",
   "discount_amount",
   "gst_amount",
-  "grand_total",
-  "student_details_tab",
-  "student_html",
-  "student_detail_json",
-  "amended_from"
+  "section_break_pzdt",
+  "balance_amount",
+  "section_break_ybmt",
+  "fees_paid_details_html",
+  "student_detail_json"
  ],
  "fields": [
   {
@@ -60,30 +58,6 @@
    "reqd": 1
   },
   {
-   "fetch_from": "student.student_name",
-   "fieldname": "student_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Student Name",
-   "read_only": 1
-  },
-  {
-   "fieldname": "standard",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Standard",
-   "options": "Standard",
-   "read_only": 1
-  },
-  {
-   "fieldname": "batch",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Batch",
-   "options": "Batch",
-   "read_only": 1
-  },
-  {
    "fieldname": "column_break_1",
    "fieldtype": "Column Break"
   },
@@ -93,12 +67,14 @@
    "fieldtype": "Date",
    "in_list_view": 1,
    "label": "Invoice Date",
+   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "due_date",
    "fieldtype": "Date",
-   "label": "Due Date"
+   "label": "Due Date",
+   "read_only": 1
   },
   {
    "allow_on_submit": 1,
@@ -114,18 +90,6 @@
    "fieldname": "billing_period_section",
    "fieldtype": "Section Break",
    "label": "Billing Period"
-  },
-  {
-   "fieldname": "fee_month",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Fee Month",
-   "options": "January\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember",
-   "reqd": 1
-  },
-  {
-   "fieldname": "column_break_2",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "payment_amounts_section",
@@ -165,17 +129,12 @@
    "read_only": 1
   },
   {
-   "fieldname": "grand_total",
-   "fieldtype": "Currency",
-   "label": "Grand Total",
-   "read_only": 1
-  },
-  {
    "allow_on_submit": 1,
    "default": "0",
    "fieldname": "paid_amount",
    "fieldtype": "Currency",
-   "label": "Paid Amount"
+   "label": "Paid Amount",
+   "reqd": 1
   },
   {
    "fieldname": "column_break_3",
@@ -193,11 +152,6 @@
    "fieldname": "tab_break_k8wg",
    "fieldtype": "Tab Break",
    "label": "Fees Details"
-  },
-  {
-   "fieldname": "student_details_tab",
-   "fieldtype": "Tab Break",
-   "label": "Student Details"
   },
   {
    "fieldname": "amended_from",
@@ -223,13 +177,40 @@
   {
    "fieldname": "balance_amount",
    "fieldtype": "Int",
-   "label": "Balance Amount"
+   "label": "Balance Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fees_details",
+   "fieldtype": "Table",
+   "label": "Fees Details",
+   "options": "Fees Invoice Details"
+  },
+  {
+   "fieldname": "section_break_ybmt",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "fees_paid_details_html",
+   "fieldtype": "HTML",
+   "label": "fees paid details html"
+  },
+  {
+   "fetch_from": "student.student_name",
+   "fieldname": "student_name",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "student_name"
+  },
+  {
+   "fieldname": "section_break_pzdt",
+   "fieldtype": "Section Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-07 10:00:07.157177",
+ "modified": "2026-08-08 20:25:38.891728",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",
@@ -303,7 +284,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "student, fee_month",
+ "search_fields": "student",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

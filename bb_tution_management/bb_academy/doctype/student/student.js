@@ -27,9 +27,21 @@ frappe.ui.form.on("Student", {
 				order_by: "academic_order asc"
 			};
 		});
+
+		frm.set_query("group", function() {
+			if (frm.doc.standard) {
+				return {
+					query: "bb_tution_management.bb_tution_management.doctype.group.group.get_groups_by_standard",
+					filters: {
+						standard: frm.doc.standard
+					}
+				};
+			}
+		});
 	},
 	standard(frm) {
 		if (frm.doc.standard) {
+			frm.set_value("group", "");
 			frappe.db.get_value("Standard", frm.doc.standard, "starting_payment", (r) => {
 				if (r && r.starting_payment !== undefined) {
 					frm.set_value("starting_payment", r.starting_payment);

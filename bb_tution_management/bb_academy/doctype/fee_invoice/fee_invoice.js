@@ -18,23 +18,6 @@ frappe.ui.form.on("Fee Invoice", {
 			frm.trigger("render_fee_tracking");
 		}
 	},
-	status(frm) {
-		if (frm.doc.docstatus === 0) {
-			if (frm.doc.status === "Partially Paid") {
-				frm.set_df_property("paid_amount", "read_only", 0);
-				frm.set_df_property("paid_amount", "reqd", 1);
-			} else {
-				frm.set_df_property("paid_amount", "read_only", 1);
-				frm.set_df_property("paid_amount", "reqd", 0);
-				if (frm.doc.status === "Paid") {
-					let final_total = (frm.doc.grand_total || (frm.doc.monthly_fee || 0)) + (frm.doc.arrears_amount || 0);
-					frm.set_value("paid_amount", final_total);
-				} else if (frm.doc.status === "Unpaid" || frm.doc.status === "Draft") {
-					frm.set_value("paid_amount", 0);
-				}
-			}
-		}
-	},
 	student(frm) {
 		if (frm.doc.student) {
 			frappe.db.get_value(
@@ -43,13 +26,11 @@ frappe.ui.form.on("Fee Invoice", {
 				["standard", "current_batch", "monthly_fee", "starting_payment", "fees_due_date"],
 				(r) => {
 					if (r) {
-						frm.set_value("standard", r.standard);
-						frm.set_value("batch", r.current_batch);
+
 						
 						let currentDate = new Date();
 						let monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 						let currentMonth = monthNames[currentDate.getMonth()];
-						frm.set_value("fee_month", currentMonth);
 
 						if (r.fees_due_date) {
 							let year = currentDate.getFullYear();
@@ -71,8 +52,38 @@ frappe.ui.form.on("Fee Invoice", {
 		}
 	},
 	is_starting_fee(frm) {
-		if (frm.doc.student) {
+		if (frm.doc.student && frm.doc.student_detail_json) {
+			let data = JSON.parse(frm.doc.student_detail_json);
+			if (frm.doc.is_starting_fee) {
+				frm.set_value("monthly_fee", data.starting_payment || 0);
+			} else {
+				frm.set_value("monthly_fee", data.monthly_fee || 0);
+			}
+		} else if (frm.doc.student) {
 			frm.trigger("student");
+		}
+		
+		if (frm.doc.is_starting_fee) {
+			let existing = frm.doc.fees_details || [];
+			let exists = existing.some(d => d.month === "Starting Payment");
+			if (!exists) {
+				let row = frm.add_child("fees_details");
+				row.month = "Starting Payment";
+				
+				if (frm.doc.student_detail_json) {
+					let data = JSON.parse(frm.doc.student_detail_json);
+					let s_row = (data.payment_details || []).find(r => r.month === "Starting Payment");
+					row.paid_amount = s_row ? s_row.pending : (data.starting_payment || 0);
+				}
+				frm.refresh_field("fees_details");
+			}
+		} else {
+			let existing = frm.doc.fees_details || [];
+			let new_details = existing.filter(d => d.month !== "Starting Payment");
+			if (new_details.length !== existing.length) {
+				frm.doc.fees_details = new_details;
+				frm.refresh_field("fees_details");
+			}
 		}
 	},
 	render_fee_tracking(frm) {
@@ -87,10 +98,34 @@ frappe.ui.form.on("Fee Invoice", {
 				if (r.message) {
 					let data = r.message;
 					// Store as JSON
-					frm.set_value("student_detail_json", JSON.stringify(data));
+					if (frm.doc.docstatus === 0){
+						frm.set_value("student_detail_json", JSON.stringify(data));
+					}
+					
+					// Auto check is_starting_fee if not paid or pending
+					if (frm.doc.docstatus === 0 && !frm.doc.is_starting_fee) {
+						let starting_row = (data.payment_details || []).find(row => row.month === "Starting Payment");
+						let should_check = false;
+						
+						if (!starting_row && (data.starting_payment || 0) > 0) {
+							should_check = true;
+						} else if (starting_row && starting_row.pending > 0) {
+							should_check = true;
+						}
+
+						if (should_check) {
+							frm.set_value("is_starting_fee", 1);
+						}
+					}
+					
 					// Build and render HTML
-					let html = build_fee_tracking_html(data);
-					frm.fields_dict.student_html.$wrapper.html(html);
+					let student_html = build_student_details_html(data);
+					let fees_paid_html = build_fees_paid_details_html(data);
+					
+					frm.fields_dict.student_html.$wrapper.html(student_html);
+					if (frm.fields_dict.fees_paid_details_html) {
+						frm.fields_dict.fees_paid_details_html.$wrapper.html(fees_paid_html);
+					}
 				}
 			}
 		});
@@ -129,126 +164,7 @@ function calculate_totals(frm) {
 	frm.set_value('grand_total', grand_total);
 }
 
-
-
-function build_fee_tracking_html(data) {
-	const MONTHS = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-	const SHORT = { April: 'Apr', May: 'May', June: 'Jun', July: 'Jul', August: 'Aug', September: 'Sep', October: 'Oct', November: 'Nov', December: 'Dec', January: 'Jan', February: 'Feb', March: 'Mar' };
-
-	// Build payment lookup
-	let payDict = {};
-	(data.payment_details || []).forEach(row => {
-		payDict[row.month] = row;
-	});
-
-	// Calculate admission academic index (April=0 ... March=11)
-	let adAcIndex = 0;
-	if (data.admission_date) {
-		let adDate = new Date(data.admission_date);
-		let m = adDate.getMonth() + 1; // 1-12
-		adAcIndex = m >= 4 ? m - 4 : m + 8;
-	}
-
-	// Summary calculations
-	let paid = 0, remaining = 0, late = 0;
-	MONTHS.forEach((m, idx) => {
-		let p = payDict[m];
-		let status = 'Not Paid';
-		if (p && p.status) {
-			status = p.status;
-		} else if (idx < adAcIndex) {
-			status = 'Not Joined';
-		}
-		if (status === 'Paid') {
-			paid++;
-			if (p && p.date) {
-				let d = new Date(p.date).getDate();
-				if (d > 15) late++;
-			}
-		} else if (status === 'Not Paid' || status === 'Partial') {
-			remaining++;
-		}
-	});
-
-	let formatDate = (dateStr) => {
-		if (!dateStr) return 'N/A';
-		let d = new Date(dateStr);
-		return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-	};
-
-	let imgSrc = data.image || '/assets/frappe/images/default-avatar.png';
-
-	// Build month cards
-	let monthCardsHtml = '';
-	MONTHS.forEach((m, idx) => {
-		let p = payDict[m];
-		let status = 'Not Paid';
-		let pdDate = null;
-		let cardClass = 'card-notpaid';
-		let icon = '⏳';
-
-		if (p && p.status) {
-			status = p.status;
-			pdDate = p.date;
-		} else if (idx < adAcIndex) {
-			status = 'Not Joined';
-		}
-
-		if (status === 'Not Joined') {
-			cardClass = 'card-notjoined';
-			icon = '🚫';
-		} else if (status === 'Paid') {
-			icon = '✔';
-			if (pdDate) {
-				let d = new Date(pdDate).getDate();
-				if (d < 10) cardClass = 'card-early';
-				else if (d <= 15) cardClass = 'card-mid';
-				else cardClass = 'card-late';
-			} else {
-				cardClass = 'card-early';
-			}
-		} else if (status === 'Partial') {
-			cardClass = 'card-partial';
-			icon = '◐';
-		}
-
-		let tooltipHtml = '';
-		if (pdDate && (status === 'Paid' || status === 'Partial')) {
-			tooltipHtml = `<div class="sft-tooltip-text">Paid on ${formatDate(pdDate)}</div>`;
-		}
-
-	let formatCurrency = (val) => {
-		return '₹ ' + Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-	};
-
-	let detailLines = '';
-		if (status !== 'Not Joined') {
-			detailLines += `<span>🏠 ${data.current_batch || '-'}</span>`;
-		}
-		if ((status === 'Paid' || status === 'Partial') && pdDate) {
-			detailLines += `<span>📅 ${formatDate(pdDate)}</span>`;
-		} else if (status === 'Not Paid') {
-			detailLines += `<span>⚠️ Payment Pending</span>`;
-		} else if (status === 'Not Joined') {
-			detailLines += `<span>—</span>`;
-		}
-		if ((status === 'Paid' || status === 'Partial') && p) {
-			detailLines += `<span>💰 ${formatCurrency(p.amount_paid)}</span>`;
-		}
-
-		monthCardsHtml += `
-			<div class="sft-month-card ${cardClass}">
-				${tooltipHtml}
-				<div class="sft-mc-header">
-					<div class="sft-mc-month">${SHORT[m]}</div>
-					<div class="sft-mc-icon">${icon}</div>
-				</div>
-				<div class="sft-mc-status">${status}</div>
-				<div class="sft-mc-details">${detailLines}</div>
-			</div>
-		`;
-	});
-
+function get_shared_styles() {
 	return `
 <style>
 	.sft-container {
@@ -480,11 +396,87 @@ function build_fee_tracking_html(data) {
 		visibility: visible;
 		opacity: 1;
 	}
-</style>
+</style>`;
+}
 
-<div class="sft-container">
+function build_student_details_html(data) {
+	const MONTHS = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
+	
+	// Build payment lookup
+	let payDict = {};
+	(data.payment_details || []).forEach(row => {
+		payDict[row.month] = row;
+	});
+
+	// Calculate admission academic index (April=0 ... March=11)
+	let adAcIndex = 0;
+	if (data.admission_date) {
+		let adDate = new Date(data.admission_date);
+		let m = adDate.getMonth() + 1; // 1-12
+		adAcIndex = m >= 4 ? m - 4 : m + 8;
+	}
+
+	// Summary calculations
+	let paid = 0, remaining = 0, late = 0;
+	MONTHS.forEach((m, idx) => {
+		let p = payDict[m];
+		let status = 'Not Paid';
+		if (p && p.status) {
+			status = p.status;
+		} else if (idx < adAcIndex) {
+			status = 'Not Joined';
+		}
+		if (status === 'Paid') {
+			paid++;
+			if (p && p.date) {
+				let d = new Date(p.date).getDate();
+				if (d > 15) late++;
+			}
+		} else if (status === 'Not Paid' || status === 'Partial') {
+			remaining++;
+		}
+	});
+
+	let formatDate = (dateStr) => {
+		if (!dateStr) return 'N/A';
+		let d = new Date(dateStr);
+		return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+	};
+
+	let formatCurrency = (val) => {
+		return '₹ ' + Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+	};
+
+	let imgSrc = data.image || '/assets/frappe/images/default-avatar.png';
+
+	let starting_row = payDict["Starting Payment"];
+	let starting_paid = starting_row ? starting_row.amount_paid : 0;
+	let starting_pending = starting_row ? starting_row.pending : (data.starting_payment || 0);
+
+	let startingPaymentHtml = '';
+	if (data.starting_payment > 0) {
+		startingPaymentHtml = `
+		<div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #e5e7eb; display: flex; gap: 24px; flex-wrap: wrap;">
+			<div class="sft-meta-item">
+				<span class="sft-meta-label" style="color: #6b7280;">Starting Amount</span>
+				<span class="sft-meta-value" style="color: #374151; font-size: 15px;">${formatCurrency(data.starting_payment)}</span>
+			</div>
+			<div class="sft-meta-item">
+				<span class="sft-meta-label" style="color: #6b7280;">Starting Paid</span>
+				<span class="sft-meta-value" style="color: #10b981; font-size: 15px;">${formatCurrency(starting_paid)}</span>
+			</div>
+			<div class="sft-meta-item">
+				<span class="sft-meta-label" style="color: #6b7280;">Starting Pending</span>
+				<span class="sft-meta-value" style="color: #ef4444; font-size: 15px;">${formatCurrency(starting_pending)}</span>
+			</div>
+		</div>`;
+	}
+
+	return `
+${get_shared_styles()}
+<div class="sft-container" style="padding-bottom: 0;">
 	<!-- Student Card -->
-	<div class="sft-student-card">
+	<div class="sft-student-card" style="margin-bottom: 24px;">
 		<img src="${imgSrc}" alt="Student" class="sft-student-img" onerror="this.src='/assets/frappe/images/default-avatar.png'">
 		<div class="sft-student-info">
 			<h2 class="sft-student-name">${data.student_name || ''}</h2>
@@ -506,11 +498,12 @@ function build_fee_tracking_html(data) {
 					<span class="sft-meta-value">${data.academic_year || 'Current'}</span>
 				</div>
 			</div>
+			${startingPaymentHtml}
 		</div>
 	</div>
 
 	<!-- Summary + Legend -->
-	<div class="sft-summary-row">
+	<div class="sft-summary-row" style="margin-bottom: 0;">
 		<div class="sft-summary-box">
 			<div class="sft-stat-card">
 				<div class="sft-stat-val green">${paid}</div>
@@ -533,7 +526,108 @@ function build_fee_tracking_html(data) {
 			<div class="sft-legend-item"><div class="sft-dot sft-dot-notjoined"></div>Not Joined</div>
 		</div>
 	</div>
+</div>
+`;
+}
 
+function build_fees_paid_details_html(data) {
+	const MONTHS = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
+	const SHORT = { April: 'Apr', May: 'May', June: 'Jun', July: 'Jul', August: 'Aug', September: 'Sep', October: 'Oct', November: 'Nov', December: 'Dec', January: 'Jan', February: 'Feb', March: 'Mar' };
+
+	// Build payment lookup
+	let payDict = {};
+	(data.payment_details || []).forEach(row => {
+		payDict[row.month] = row;
+	});
+
+	// Calculate admission academic index (April=0 ... March=11)
+	let adAcIndex = 0;
+	if (data.admission_date) {
+		let adDate = new Date(data.admission_date);
+		let m = adDate.getMonth() + 1; // 1-12
+		adAcIndex = m >= 4 ? m - 4 : m + 8;
+	}
+
+	let formatDate = (dateStr) => {
+		if (!dateStr) return 'N/A';
+		let d = new Date(dateStr);
+		return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+	};
+
+	// Build month cards
+	let monthCardsHtml = '';
+	MONTHS.forEach((m, idx) => {
+		let p = payDict[m];
+		let status = 'Not Paid';
+		let pdDate = null;
+		let cardClass = 'card-notpaid';
+		let icon = '⏳';
+
+		if (p && p.status) {
+			status = p.status;
+			pdDate = p.date;
+		} else if (idx < adAcIndex) {
+			status = 'Not Joined';
+		}
+
+		if (status === 'Not Joined') {
+			cardClass = 'card-notjoined';
+			icon = '🚫';
+		} else if (status === 'Paid') {
+			icon = '✔';
+			if (pdDate) {
+				let d = new Date(pdDate).getDate();
+				if (d < 10) cardClass = 'card-early';
+				else if (d <= 15) cardClass = 'card-mid';
+				else cardClass = 'card-late';
+			} else {
+				cardClass = 'card-early';
+			}
+		} else if (status === 'Partial') {
+			cardClass = 'card-partial';
+			icon = '◐';
+		}
+
+		let tooltipHtml = '';
+		if (pdDate && (status === 'Paid' || status === 'Partial')) {
+			tooltipHtml = `<div class="sft-tooltip-text">Paid on ${formatDate(pdDate)}</div>`;
+		}
+
+		let formatCurrency = (val) => {
+			return '₹ ' + Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+		};
+
+		let detailLines = '';
+		if (status !== 'Not Joined') {
+			detailLines += `<span>🏠 ${data.current_batch || '-'}</span>`;
+		}
+		if ((status === 'Paid' || status === 'Partial') && pdDate) {
+			detailLines += `<span>📅 ${formatDate(pdDate)}</span>`;
+		} else if (status === 'Not Paid') {
+			detailLines += `<span>⚠️ Payment Pending</span>`;
+		} else if (status === 'Not Joined') {
+			detailLines += `<span>—</span>`;
+		}
+		if ((status === 'Paid' || status === 'Partial') && p) {
+			detailLines += `<span>💰 ${formatCurrency(p.amount_paid)}</span>`;
+		}
+
+		monthCardsHtml += `
+			<div class="sft-month-card ${cardClass}">
+				${tooltipHtml}
+				<div class="sft-mc-header">
+					<div class="sft-mc-month">${SHORT[m]}</div>
+					<div class="sft-mc-icon">${icon}</div>
+				</div>
+				<div class="sft-mc-status">${status}</div>
+				<div class="sft-mc-details">${detailLines}</div>
+			</div>
+		`;
+	});
+
+	return `
+${get_shared_styles()}
+<div class="sft-container" style="padding-top: 0;">
 	<!-- Month Grid -->
 	<div class="sft-grid">
 		${monthCardsHtml}
@@ -541,3 +635,4 @@ function build_fee_tracking_html(data) {
 </div>
 `;
 }
+

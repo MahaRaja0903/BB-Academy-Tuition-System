@@ -52,9 +52,6 @@ class BBDashboard {
 		this.page.add_inner_button("Fee Invoice", () =>
 			frappe.new_doc("Fee Invoice")
 		);
-		this.page.add_inner_button("Record Payment", () =>
-			frappe.new_doc("Fees Payment Entry")
-		);
 
 		this.$body = $(this.page.body);
 		this.$body.attr("data-page-container", "bb-dashboard");
@@ -198,7 +195,6 @@ class BBDashboard {
 			{ label: "New Enquiry", icon: "edit", action: () => frappe.new_doc("Student Enquiry Form") },
 			{ label: "New Admission", icon: "file-text", action: () => frappe.new_doc("Student Admission Form") },
 			{ label: "Create Invoice", icon: "file", action: () => frappe.new_doc("Fee Invoice") },
-			{ label: "Record Payment", icon: "credit-card", action: () => frappe.new_doc("Fees Payment Entry") },
 			{ label: "Bulk Invoicing", icon: "layers", action: () => frappe.set_route("Form", "Bulk Fee Invoice Tool") },
 			{ label: "SMS Settings", icon: "message-circle", action: () => frappe.set_route("Form", "BB SMS Settings") },
 		];

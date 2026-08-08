@@ -19,14 +19,15 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Month",
-   "options": "January\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember"
+   "options": "Starting Payment\nJanuary\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember"
   },
   {
    "columns": 2,
    "fieldname": "date",
    "fieldtype": "Date",
    "in_list_view": 1,
-   "label": "Date"
+   "label": "Date",
+   "read_only": 1
   },
   {
    "columns": 2,
@@ -34,28 +35,31 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "\nNot Paid\nPaid\nPartial\nNot Joined"
+   "options": "\nNot Paid\nPaid\nPartial\nNot Joined",
+   "read_only": 1
   },
   {
    "columns": 2,
    "fieldname": "amount_paid",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Amount Paid"
+   "label": "Amount Paid",
+   "read_only": 1
   },
   {
    "columns": 2,
    "fieldname": "pending",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Pending"
+   "label": "Pending",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-03 22:46:24.992814",
+ "modified": "2026-08-08 14:45:53.490487",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Payment Detail",

@@ -1,38 +1,37 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-08-01 00:38:32.218409",
+ "creation": "2026-08-08 18:41:01.564117",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "description",
-  "amount"
+  "month",
+  "paid_amount"
  ],
  "fields": [
   {
-   "fieldname": "description",
-   "fieldtype": "Data",
+   "fieldname": "month",
+   "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "Description",
-   "reqd": 1
+   "label": "Month",
+   "options": "\nStarting Payment\nJanuary\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember"
   },
   {
-   "fieldname": "amount",
-   "fieldtype": "Currency",
+   "fieldname": "paid_amount",
+   "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Amount",
-   "reqd": 1
+   "label": "Paid Amount"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-01 00:38:32.218409",
+ "modified": "2026-08-08 19:59:03.435474",
  "modified_by": "Administrator",
- "module": "BB Academy",
- "name": "Fee Invoice Item",
+ "module": "Bb Tution Management",
+ "name": "Fees Invoice Details",
  "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",

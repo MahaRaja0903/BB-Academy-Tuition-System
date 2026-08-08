@@ -117,4 +117,43 @@ class FeesPaymentEntry(Document):
 		else:
 			existing_row.status = "Not Paid"
 
+		# Handling Starting Payment Concessions
+		if invoice.fee_month == "Starting Payment":
+			starting_fee = float(student.starting_payment or 0)
+			if starting_fee > 0:
+				paid_percentage = (float(existing_row.amount_paid or 0) / starting_fee) * 100
+				
+				# Find academic months in payment_details
+				academic_rows = [row for row in student.get("payment_details", []) if row.month != "Starting Payment" and row.status != "Not Joined"]
+				
+				if academic_rows:
+					ad_date = frappe.utils.getdate(student.admission_date) if student.admission_date else frappe.utils.getdate()
+					first_month_index = 0
+					if ad_date.day > 10 and len(academic_rows) > 1:
+						first_month_index = 1
+						
+					first_month_row = academic_rows[first_month_index]
+					last_month_row = academic_rows[-1]
+					monthly_fee = float(student.monthly_fee or 0)
+					
+					if paid_percentage >= 100:
+						first_month_row.status = "Paid"
+						first_month_row.pending = 0
+						last_month_row.status = "Paid"
+						last_month_row.pending = 0
+					elif paid_percentage >= 50:
+						first_month_row.status = "Paid"
+						first_month_row.pending = 0
+						
+						if float(last_month_row.amount_paid or 0) == 0:
+							last_month_row.status = "Not Paid"
+							last_month_row.pending = monthly_fee
+					else:
+						if float(first_month_row.amount_paid or 0) == 0:
+							first_month_row.status = "Not Paid"
+							first_month_row.pending = monthly_fee
+						if float(last_month_row.amount_paid or 0) == 0:
+							last_month_row.status = "Not Paid"
+							last_month_row.pending = monthly_fee
+
 		student.save(ignore_permissions=True)
