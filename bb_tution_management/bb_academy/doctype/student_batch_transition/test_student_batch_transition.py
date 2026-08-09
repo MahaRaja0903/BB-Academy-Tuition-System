@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestStudentBatchHistory(FrappeTestCase):
+class TestStudentBatchTransition(FrappeTestCase):
 	pass

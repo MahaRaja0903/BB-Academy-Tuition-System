@@ -28,54 +28,58 @@ def get_student_fee_data(student):
 		"image": student_doc.image,
 		"monthly_fee": float(student_doc.monthly_fee or 0),
 		"starting_payment": float(student_doc.starting_payment or 0),
+		"fees_due_date": student_doc.fees_due_date,
 		"payment_details": payment_rows,
 	}
 
 
 class FeeInvoice(Document):
 	def validate(self):
-		self.fetch_student_details()
-		self.validate_immutability()
 		self.validate_duplicate_invoice()
 		self.calculate_outstanding()
 		# self.update_status()
 
-	def fetch_student_details(self):
-		if self.student:
-			student_doc = frappe.get_doc("Student", self.student)
-			if self.is_new():
-				self.standard = student_doc.standard
-				self.batch = student_doc.current_batch
-
-	def validate_immutability(self):
-		if not self.is_new():
-			doc_before_save = self.get_doc_before_save()
-			if doc_before_save:
-				if doc_before_save.standard != self.standard:
-					frappe.throw(_("Standard cannot be changed once Fee Invoice is created."))
-				if doc_before_save.batch != self.batch:
-					frappe.throw(_("Batch cannot be changed once Fee Invoice is created."))
-
 	def validate_duplicate_invoice(self):
-		if self.student and self.fee_month and not self.is_starting_fee:
-			existing = frappe.db.exists(
-				"Fee Invoice",
-				{
-					"student": self.student,
-					"fee_month": self.fee_month,
-					"is_starting_fee": 0,
-					"docstatus": ["!=", 2],
-					"name": ["!=", self.name or ""]
-				}
-			)
-			if existing:
-				frappe.throw(
-					_("A Fee Invoice ({0}) already exists for Student {1} for {2}.").format(
-						existing, self.student, self.fee_month
+		is_starting = getattr(self, "is_starting_fee", 0)
+		if self.student and not is_starting:
+			for detail in self.get("fees_details", []):
+				month = detail.month
+				if not month or month == "Starting Payment":
+					continue
+
+				existing = frappe.db.sql("""
+					select parent from `tabFees Invoice Details`
+					where month = %s and parenttype = 'Fee Invoice' and parent != %s
+					and parent in (
+						select name from `tabFee Invoice` where student = %s and docstatus != 2
 					)
-				)
+				""", (month, self.name or "", self.student))
+				
+				if existing:
+					frappe.throw(
+						_("A Fee Invoice ({0}) already exists for Student {1} for {2}.").format(
+							existing[0][0], self.student, month
+						)
+					)
 
 	def calculate_outstanding(self):
+		if self.student:
+			student_doc = frappe.get_doc("Student", self.student)
+			total_fee = 0.0
+			total_paid = 0.0
+			
+			if self.get("fees_details"):
+				for row in self.fees_details:
+					if row.month == "Starting Payment":
+						total_fee += float(student_doc.starting_payment or 0)
+					elif row.month:
+						total_fee += float(student_doc.monthly_fee or 0)
+					total_paid += float(row.paid_amount or 0)
+						
+				self.monthly_fee = total_fee
+				if total_paid > 0 or len(self.fees_details) > 0:
+					self.paid_amount = total_paid
+
 		discount = float(self.discount_amount or 0) if self.add_discount else 0.0
 		net_total = float(self.monthly_fee or 0) - discount
 		
@@ -85,9 +89,10 @@ class FeeInvoice(Document):
 			self.gst_amount = 0.0
 			
 		self.grand_total = net_total + self.gst_amount
-		final_total = self.grand_total + float(self.arrears_amount or 0)
+		outstanding_amount = float(self.outstanding_amount or 0)
+		final_total = self.grand_total + outstanding_amount
 		paid_amount = float(self.paid_amount or 0)
-		self.outstanding_amount = max(0.0, final_total - paid_amount)
+		self.balance_amount = max(0.0, final_total - paid_amount)
 
 	# def update_status(self):
 	# 	if self.docstatus == 2:
@@ -115,71 +120,86 @@ class FeeInvoice(Document):
 	def update_student_payment_detail(self, is_submit=True):
 		student = frappe.get_doc("Student", self.student)
 
-		existing_row = None
-		for row in student.get("payment_details", []):
-			if row.month == self.fee_month:
-				existing_row = row
-				break
+		for detail in self.get("fees_details", []):
+			month = detail.month
+			if not month:
+				continue
 
-		if not existing_row:
-			existing_row = student.append("payment_details", {
-				"month": self.fee_month,
-				"amount_paid": 0.0
-			})
+			existing_row = None
+			for row in student.get("payment_details", []):
+				if row.month == month:
+					existing_row = row
+					break
 
-		if is_submit:
-			existing_row.amount_paid = float(existing_row.amount_paid or 0) + float(self.paid_amount or 0)
-		else:
-			existing_row.amount_paid = max(0.0, float(existing_row.amount_paid or 0) - float(self.paid_amount or 0))
+			if not existing_row:
+				existing_row = student.append("payment_details", {
+					"month": month,
+					"amount_paid": 0.0
+				})
 
-		existing_row.date = frappe.utils.today()
-		existing_row.pending = self.outstanding_amount
+			detail_paid = float(detail.paid_amount or 0)
+			if detail_paid == 0 and len(self.get("fees_details", [])) == 1:
+				detail_paid = float(self.paid_amount or 0)
 
-		if existing_row.pending <= 0:
-			existing_row.status = "Paid"
-		elif existing_row.amount_paid > 0:
-			existing_row.status = "Partial"
-		else:
-			existing_row.status = "Not Paid"
+			if is_submit:
+				existing_row.amount_paid = float(existing_row.amount_paid or 0) + detail_paid
+			else:
+				existing_row.amount_paid = max(0.0, float(existing_row.amount_paid or 0) - detail_paid)
 
-		# Handling Starting Payment Concessions
-		if self.fee_month == "Starting Payment":
-			starting_fee = float(student.starting_payment or 0)
-			if starting_fee > 0:
-				paid_percentage = (float(existing_row.amount_paid or 0) / starting_fee) * 100
+			existing_row.date = frappe.utils.today()
+			
+			if month == "Starting Payment":
+				total_fee = float(student.starting_payment or 0)
+			else:
+				total_fee = float(student.monthly_fee or 0)
 				
-				# Find academic months in payment_details
-				academic_rows = [row for row in student.get("payment_details", []) if row.month != "Starting Payment" and row.status != "Not Joined"]
-				
-				if academic_rows:
-					ad_date = frappe.utils.getdate(student.admission_date) if student.admission_date else frappe.utils.getdate()
-					first_month_index = 0
-					if ad_date.day > 10 and len(academic_rows) > 1:
-						first_month_index = 1
-						
-					first_month_row = academic_rows[first_month_index]
-					last_month_row = academic_rows[-1]
-					monthly_fee = float(student.monthly_fee or 0)
+			existing_row.pending = max(0.0, total_fee - float(existing_row.amount_paid or 0))
+
+			if existing_row.pending <= 0:
+				existing_row.status = "Paid"
+			elif existing_row.amount_paid > 0:
+				existing_row.status = "Partial"
+			else:
+				existing_row.status = "Not Paid"
+
+			# Handling Starting Payment Concessions
+			if month == "Starting Payment":
+				starting_fee = float(student.starting_payment or 0)
+				if starting_fee > 0:
+					paid_percentage = (float(existing_row.amount_paid or 0) / starting_fee) * 100
 					
-					if paid_percentage >= 100:
-						first_month_row.status = "Paid"
-						first_month_row.pending = 0
-						last_month_row.status = "Paid"
-						last_month_row.pending = 0
-					elif paid_percentage >= 50:
-						first_month_row.status = "Paid"
-						first_month_row.pending = 0
+					# Find academic months in payment_details
+					academic_rows = [row for row in student.get("payment_details", []) if row.month != "Starting Payment" and row.status != "Not Joined"]
+					
+					if academic_rows:
+						ad_date = frappe.utils.getdate(student.admission_date) if student.admission_date else frappe.utils.getdate()
+						first_month_index = 0
+						if ad_date.day > 10 and len(academic_rows) > 1:
+							first_month_index = 1
+							
+						first_month_row = academic_rows[first_month_index]
+						last_month_row = academic_rows[-1]
+						monthly_fee = float(student.monthly_fee or 0)
 						
-						if float(last_month_row.amount_paid or 0) == 0:
-							last_month_row.status = "Not Paid"
-							last_month_row.pending = monthly_fee
-					else:
-						if float(first_month_row.amount_paid or 0) == 0:
-							first_month_row.status = "Not Paid"
-							first_month_row.pending = monthly_fee
-						if float(last_month_row.amount_paid or 0) == 0:
-							last_month_row.status = "Not Paid"
-							last_month_row.pending = monthly_fee
+						if paid_percentage >= 100:
+							first_month_row.status = "Paid"
+							first_month_row.pending = 0
+							last_month_row.status = "Paid"
+							last_month_row.pending = 0
+						elif paid_percentage >= 50:
+							first_month_row.status = "Paid"
+							first_month_row.pending = 0
+							
+							if float(last_month_row.amount_paid or 0) == 0:
+								last_month_row.status = "Not Paid"
+								last_month_row.pending = monthly_fee
+						else:
+							if float(first_month_row.amount_paid or 0) == 0:
+								first_month_row.status = "Not Paid"
+								first_month_row.pending = monthly_fee
+							if float(last_month_row.amount_paid or 0) == 0:
+								last_month_row.status = "Not Paid"
+								last_month_row.pending = monthly_fee
 
 		student.save(ignore_permissions=True)
 

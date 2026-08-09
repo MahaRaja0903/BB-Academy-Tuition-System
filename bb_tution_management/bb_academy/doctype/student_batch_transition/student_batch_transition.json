@@ -5,6 +5,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "student_html",
   "batch_history_details_section",
   "student",
   "previous_batch",
@@ -13,7 +14,10 @@
   "effective_date",
   "status",
   "reason_section",
-  "reason"
+  "reason",
+  "amended_from",
+  "section_break_yoif",
+  "student_details_json"
  ],
  "fields": [
   {
@@ -30,11 +34,13 @@
    "reqd": 1
   },
   {
+   "fetch_from": "student.current_batch",
    "fieldname": "previous_batch",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Previous Batch",
    "options": "Batch",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -73,14 +79,40 @@
    "label": "Status",
    "options": "\nPromotion\nDemote",
    "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Student Batch Transition",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "student_html",
+   "fieldtype": "HTML",
+   "label": "Student_html"
+  },
+  {
+   "fieldname": "section_break_yoif",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "student_details_json",
+   "fieldtype": "JSON",
+   "hidden": 1,
+   "label": "student_details_json"
   }
  ],
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2026-08-08 16:11:03.933344",
+ "modified": "2026-08-09 10:10:44.561498",
  "modified_by": "Administrator",
  "module": "BB Academy",
- "name": "Student Batch History",
+ "name": "Student Batch Transition",
  "naming_rule": "Autoincrement",
  "owner": "Administrator",
  "permissions": [

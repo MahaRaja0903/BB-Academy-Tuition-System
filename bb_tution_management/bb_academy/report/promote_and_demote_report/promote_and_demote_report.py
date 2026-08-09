@@ -19,7 +19,7 @@ def get_columns():
 		{"label": _("Status (Promotion/Demotion)"), "fieldname": "status", "fieldtype": "Data", "width": 120},
 		{"label": _("Date"), "fieldname": "effective_date", "fieldtype": "Date", "width": 120},
 		{"label": _("Reason (Performance)"), "fieldname": "reason", "fieldtype": "Data", "width": 200},
-		{"label": _("Approved By"), "fieldname": "approved_by", "fieldtype": "Link", "options": "User", "width": 120},
+		# {"label": _("Approved By"), "fieldname": "approved_by", "fieldtype": "Link", "options": "User", "width": 120},
 	]
 
 def get_data(filters):
@@ -45,8 +45,7 @@ def get_data(filters):
 			sbh.new_batch,
 			sbh.status,
 			sbh.effective_date,
-			sbh.reason,
-			sbh.approved_by
+			sbh.reason
 		FROM
 			`tabStudent Batch History` sbh
 		JOIN

@@ -6,17 +6,34 @@ from frappe.model.document import Document
 from frappe import _
 
 
-class StudentBatchHistory(Document):
+class StudentBatchTransition(Document):
 	def validate(self):
 		if self.previous_batch and self.new_batch and self.previous_batch == self.new_batch:
 			frappe.throw(_("Previous Batch and New Batch cannot be the same."))
 
-	def on_submit(self):
-		self.update_student_current_batch()
-
-	def after_insert(self):
+	def before_submit(self):
 		self.update_student_current_batch()
 		self.send_batch_change_sms_notification()
+		self.show_transition_message()
+
+	def show_transition_message(self):
+		if self.student and self.new_batch and self.status:
+			student_doc = frappe.get_doc("Student", self.student)
+			gender = student_doc.gender
+			pronoun = "His" if gender == "Male" else ("Her" if gender == "Female" else "Their")
+			
+			if self.status == "Promotion":
+				status_html = "<span style='color: #10b981; font-weight: bold;'>Promoted</span>"
+			else:
+				status_html = "<span style='color: #ef4444; font-weight: bold;'>Demoted</span>"
+				
+			msg = f"""
+				<div style='padding: 10px;'>
+					<p style='font-size: 16px;'>Student <strong>{student_doc.student_name}</strong> has been {status_html} to Batch <strong>{self.new_batch}</strong>.</p>
+					<p style='font-size: 14px;'>{pronoun} New Monthly Fees will be Updated based on the current Batch.</p>
+				</div>
+			"""
+			frappe.msgprint(msg, title="Batch Transition Successful", indicator="green")
 
 	def send_batch_change_sms_notification(self):
 		if self.student and self.previous_batch and self.new_batch:

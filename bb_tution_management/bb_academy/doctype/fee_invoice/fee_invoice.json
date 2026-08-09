@@ -15,7 +15,6 @@
   "student_name",
   "column_break_1",
   "invoice_date",
-  "due_date",
   "status",
   "billing_period_section",
   "fees_details",
@@ -29,6 +28,8 @@
   "discount_amount",
   "gst_amount",
   "section_break_pzdt",
+  "grand_total",
+  "column_break_pqhq",
   "balance_amount",
   "section_break_ybmt",
   "fees_paid_details_html",
@@ -71,16 +72,11 @@
    "reqd": 1
   },
   {
-   "fieldname": "due_date",
-   "fieldtype": "Date",
-   "label": "Due Date",
-   "read_only": 1
-  },
-  {
    "allow_on_submit": 1,
    "default": "Draft",
    "fieldname": "status",
    "fieldtype": "Select",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "Status",
    "options": "Draft\nUnpaid\nPartially Paid\nPaid\nCancelled",
@@ -205,12 +201,22 @@
   {
    "fieldname": "section_break_pzdt",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "grand_total",
+   "fieldtype": "Int",
+   "label": "Grand Total",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_pqhq",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-08 20:25:38.891728",
+ "modified": "2026-08-08 22:02:18.342735",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",

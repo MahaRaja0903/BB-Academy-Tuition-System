@@ -119,3 +119,11 @@ class StudentAdmissionForm(Document):
 		if self.student_enquiry:
 			enquiry = frappe.get_doc("Student Enquiry Form", self.student_enquiry)
 			enquiry.db_set("status", "Converted")
+
+@frappe.whitelist()
+def get_standard_ordered(doctype, txt, searchfield, start, page_len, filters):
+	return frappe.db.sql("""
+		select name from `tabStandard`
+		where name like %s and is_active = 1
+		order by academic_order asc
+	""", ("%%%s%%" % txt,))

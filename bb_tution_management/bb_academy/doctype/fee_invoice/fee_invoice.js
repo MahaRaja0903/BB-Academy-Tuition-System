@@ -32,13 +32,6 @@ frappe.ui.form.on("Fee Invoice", {
 						let monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 						let currentMonth = monthNames[currentDate.getMonth()];
 
-						if (r.fees_due_date) {
-							let year = currentDate.getFullYear();
-							let month = ("0" + (currentDate.getMonth() + 1)).slice(-2);
-							let day = ("0" + r.fees_due_date).slice(-2);
-							frm.set_value("due_date", `${year}-${month}-${day}`);
-						}
-
 						if (frm.doc.is_starting_fee) {
 							frm.set_value("monthly_fee", r.starting_payment || 0);
 						} else {
@@ -119,7 +112,7 @@ frappe.ui.form.on("Fee Invoice", {
 					}
 					
 					// Build and render HTML
-					let student_html = build_student_details_html(data);
+					let student_html = build_student_details_html(data, frm.doc.fee_month);
 					let fees_paid_html = build_fees_paid_details_html(data);
 					
 					frm.fields_dict.student_html.$wrapper.html(student_html);
@@ -144,8 +137,63 @@ frappe.ui.form.on("Fee Invoice", {
 	},
 	apply_gst_18: function(frm) {
 		calculate_totals(frm);
+	},
+	paid_amount: function(frm) {
+		calculate_totals(frm);
+	},
+	outstanding_amount: function(frm) {
+		calculate_totals(frm);
 	}
 });
+
+frappe.ui.form.on("Fees Invoice Details", {
+	month: function(frm, cdt, cdn) {
+		let row = locals[cdt][cdn];
+		if (row.month) {
+			if (frm.doc.student_detail_json) {
+				let data = JSON.parse(frm.doc.student_detail_json);
+				if (row.month !== "Starting Payment") {
+					if (data.monthly_fee) {
+						frappe.model.set_value(cdt, cdn, 'paid_amount', data.monthly_fee);
+					}
+				} else {
+					let s_row = (data.payment_details || []).find(r => r.month === "Starting Payment");
+					let pending_amount = s_row ? s_row.pending : (data.starting_payment || 0);
+					frappe.model.set_value(cdt, cdn, 'paid_amount', pending_amount);
+				}
+			}
+		}
+		update_monthly_fee_from_details(frm);
+	},
+	paid_amount: function(frm, cdt, cdn) {
+		update_monthly_fee_from_details(frm);
+	},
+	fees_details_remove: function(frm) {
+		update_monthly_fee_from_details(frm);
+	}
+});
+
+function update_monthly_fee_from_details(frm) {
+	if (!frm.doc.student || !frm.doc.student_detail_json) return;
+	let data = JSON.parse(frm.doc.student_detail_json);
+	let total_fee = 0;
+	let total_paid = 0;
+	
+	(frm.doc.fees_details || []).forEach(row => {
+		if (row.month === "Starting Payment") {
+			total_fee += (data.starting_payment || 0);
+		} else if (row.month) {
+			total_fee += (data.monthly_fee || 0);
+		}
+		total_paid += (row.paid_amount || 0);
+	});
+	
+	if ((frm.doc.fees_details || []).length > 0) {
+		frm.set_value("monthly_fee", total_fee);
+		frm.set_value("paid_amount", total_paid);
+	}
+	calculate_totals(frm);
+}
 
 function calculate_totals(frm) {
 	let monthly_fee = frm.doc.monthly_fee || 0;
@@ -162,6 +210,11 @@ function calculate_totals(frm) {
 	
 	let grand_total = net_total + gst_amount;
 	frm.set_value('grand_total', grand_total);
+	
+	let outstanding = frm.doc.outstanding_amount || 0;
+	let final_total = grand_total + outstanding;
+	let balance = Math.max(0, final_total - (frm.doc.paid_amount || 0));
+	frm.set_value('balance_amount', balance);
 }
 
 function get_shared_styles() {
@@ -399,7 +452,7 @@ function get_shared_styles() {
 </style>`;
 }
 
-function build_student_details_html(data) {
+function build_student_details_html(data, fee_month) {
 	const MONTHS = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
 	
 	// Build payment lookup
@@ -472,6 +525,18 @@ function build_student_details_html(data) {
 		</div>`;
 	}
 
+	let dueDateFormatted = '-';
+	if (data.fees_due_date) {
+		let day = parseInt(data.fees_due_date, 10);
+		if (day) {
+			let suffix = 'th';
+			if (day === 1 || day === 21 || day === 31) suffix = 'st';
+			else if (day === 2 || day === 22) suffix = 'nd';
+			else if (day === 3 || day === 23) suffix = 'rd';
+			dueDateFormatted = `${day}${suffix} of ${fee_month && fee_month !== 'Starting Payment' ? fee_month : 'every month'}`;
+		}
+	}
+
 	return `
 ${get_shared_styles()}
 <div class="sft-container" style="padding-bottom: 0;">
@@ -484,6 +549,10 @@ ${get_shared_styles()}
 				<div class="sft-meta-item">
 					<span class="sft-meta-label">Admission Date</span>
 					<span class="sft-meta-value">${formatDate(data.admission_date)}</span>
+				</div>
+				<div class="sft-meta-item">
+					<span class="sft-meta-label">Due Date</span>
+					<span class="sft-meta-value" style="color: #ef4444;">${dueDateFormatted}</span>
 				</div>
 				<div class="sft-meta-item">
 					<span class="sft-meta-label">Standard</span>

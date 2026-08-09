@@ -9,19 +9,18 @@
   "image",
   "admission_details_section",
   "naming_series",
-  "application_date",
-  "academic_year",
   "column_break_1",
-  "status",
   "student_enquiry",
   "student_details_section",
   "admission_number",
   "student_name",
   "date_of_birth",
+  "academic_year",
   "column_break_2",
   "gender",
   "school_name",
   "type_your_school",
+  "application_date",
   "academic_allocation_section",
   "standard",
   "group",
@@ -43,7 +42,6 @@
   {
    "fieldname": "image",
    "fieldtype": "Attach Image",
-   "hidden": 1,
    "label": "Photo"
   },
   {
@@ -55,6 +53,7 @@
    "default": "BB-ADM-.YYYY.-.#####",
    "fieldname": "naming_series",
    "fieldtype": "Select",
+   "hidden": 1,
    "label": "Naming Series",
    "options": "BB-ADM-.YYYY.-.#####",
    "reqd": 1
@@ -68,16 +67,6 @@
    "reqd": 1
   },
   {
-   "allow_on_submit": 1,
-   "default": "Draft",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Status",
-   "options": "Draft\nSubmitted\nApproved\nRejected",
-   "reqd": 1
-  },
-  {
    "fieldname": "column_break_1",
    "fieldtype": "Column Break"
   },
@@ -85,7 +74,8 @@
    "fieldname": "student_enquiry",
    "fieldtype": "Link",
    "label": "Student Enquiry Form",
-   "options": "Student Enquiry Form"
+   "options": "Student Enquiry Form",
+   "read_only": 1
   },
   {
    "fieldname": "academic_year",
@@ -238,7 +228,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-08 18:36:56.627219",
+ "modified": "2026-08-09 10:14:00.892190",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

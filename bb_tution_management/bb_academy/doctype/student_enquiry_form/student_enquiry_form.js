@@ -5,7 +5,7 @@ frappe.ui.form.on("Student Enquiry Form", {
 	setup(frm) {
 		frm.set_query("standard", function() {
 			return {
-				order_by: "academic_order asc"
+				query: "bb_tution_management.bb_academy.doctype.student_admission_form.student_admission_form.get_standard_ordered"
 			};
 		});
 	},
