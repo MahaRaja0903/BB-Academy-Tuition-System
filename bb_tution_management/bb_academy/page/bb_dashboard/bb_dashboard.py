@@ -177,19 +177,19 @@ def get_pending_followups():
 
 @frappe.whitelist()
 def get_overdue_invoices():
-	"""Invoices past due date that remain unpaid/partially paid."""
+	"""Invoices that remain unpaid/partially paid."""
 	return frappe.db.get_all(
 		"Fee Invoice",
 		filters={
 			"docstatus": 1,
 			"status": ["in", ["Unpaid", "Partially Paid"]],
-			"due_date": ["<", nowdate()],
+			"invoice_date": ["<", nowdate()],
 		},
 		fields=[
 			"name", "student", "student_name",
 			"grand_total", "outstanding_amount",
-			"due_date", "fee_month",
+			"invoice_date",
 		],
-		order_by="due_date asc",
+		order_by="invoice_date asc",
 		limit=10,
 	)

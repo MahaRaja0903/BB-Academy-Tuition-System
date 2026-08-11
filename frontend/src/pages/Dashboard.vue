@@ -187,7 +187,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { createListResource } from 'frappe-ui'
+import { createListResource, createResource } from 'frappe-ui'
 
 const studentsList = createListResource({
   doctype: 'Student',
@@ -196,39 +196,34 @@ const studentsList = createListResource({
   auto: true,
 })
 
-const enquiriesList = createListResource({
-  doctype: 'Student Enquiry Form',
-  fields: ['name'],
-  limit: 1000,
+const studentCountResource = createResource({
+  url: 'frappe.client.get_list',
+  makeParams: () => ({ doctype: 'Student', limit_page_length: 0, fields: ['count(name) as count'] }),
   auto: true,
 })
 
-const invoicesList = createListResource({
-  doctype: 'Fee Invoice',
-  fields: ['name'],
-  limit: 1000,
+const enquiryCountResource = createResource({
+  url: 'frappe.client.get_list',
+  makeParams: () => ({ doctype: 'Student Enquiry Form', limit_page_length: 0, fields: ['count(name) as count'] }),
   auto: true,
 })
 
-// Use list_rows for accurate total count, fallback to data length
+const invoiceCountResource = createResource({
+  url: 'frappe.client.get_list',
+  makeParams: () => ({ doctype: 'Fee Invoice', limit_page_length: 0, fields: ['count(name) as count'] }),
+  auto: true,
+})
+
+// Use the count resource directly
 const studentCount = computed(() => {
-  if (studentsList.list && studentsList.list.total_count !== undefined) {
-    return studentsList.list.total_count
-  }
-  return studentsList.data?.length || 0
+  return studentCountResource.data?.[0]?.count || 0
 })
 
 const enquiryCount = computed(() => {
-  if (enquiriesList.list && enquiriesList.list.total_count !== undefined) {
-    return enquiriesList.list.total_count
-  }
-  return enquiriesList.data?.length || 0
+  return enquiryCountResource.data?.[0]?.count || 0
 })
 
 const invoiceCount = computed(() => {
-  if (invoicesList.list && invoicesList.list.total_count !== undefined) {
-    return invoicesList.list.total_count
-  }
-  return invoicesList.data?.length || 0
+  return invoiceCountResource.data?.[0]?.count || 0
 })
 </script>

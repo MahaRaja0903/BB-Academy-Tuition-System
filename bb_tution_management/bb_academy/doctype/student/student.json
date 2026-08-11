@@ -246,7 +246,7 @@
    "options": "Student Payment Detail"
   },
   {
-   "depends_on": "eval:doc.standard == \"11TH Science\" || \"12TH Science\" || \"11TH Commerce\" || \"12TH Commerce\"",
+   "depends_on": "eval:doc.standard && (doc.standard.startsWith(\"11\") || doc.standard.startsWith(\"12\"))",
    "fieldname": "group",
    "fieldtype": "Link",
    "label": "Group",

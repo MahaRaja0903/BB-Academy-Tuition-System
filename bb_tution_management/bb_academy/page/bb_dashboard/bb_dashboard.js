@@ -554,7 +554,7 @@ class BBDashboard {
 			html += `
 				<div class="bb-list-item" onclick="frappe.set_route('Form','Fees Payment Entry','${p.name}')">
 					<div class="bb-list-item__body">
-						<div class="bb-list-item__title">${frappe.utils.escape_html(p.student_name)}</div>
+						<div class="bb-list-item__title">${frappe.utils.escape_html(p.student_name || p.student || "Unknown")}</div>
 						<div class="bb-list-item__sub">
 							${p.payment_date}
 							<span class="bb-badge bb-badge--${modeColor[p.payment_mode] || "accent"}">${p.payment_mode}</span>
@@ -574,11 +574,12 @@ class BBDashboard {
 		}
 		let html = "";
 		data.forEach((s) => {
+			const displayName = s.student_name || s.name || "Unknown";
 			html += `
 				<div class="bb-list-item" onclick="frappe.set_route('Form','Student','${s.name}')">
-					<div class="bb-list-item__avatar">${frappe.utils.escape_html(s.student_name.charAt(0))}</div>
+					<div class="bb-list-item__avatar">${frappe.utils.escape_html(displayName.charAt(0).toUpperCase())}</div>
 					<div class="bb-list-item__body">
-						<div class="bb-list-item__title">${frappe.utils.escape_html(s.student_name)}</div>
+						<div class="bb-list-item__title">${frappe.utils.escape_html(displayName)}</div>
 						<div class="bb-list-item__sub">${s.standard || ""} ${s.current_batch ? "· " + s.current_batch : ""}</div>
 					</div>
 				</div>`;
@@ -600,7 +601,7 @@ class BBDashboard {
 				<div class="bb-list-item ${overdue ? "bb-list-item--alert" : ""}"
 				     onclick="frappe.set_route('Form','Student Enquiry Form','${e.name}')">
 					<div class="bb-list-item__body">
-						<div class="bb-list-item__title">${frappe.utils.escape_html(e.applicant_name)}</div>
+						<div class="bb-list-item__title">${frappe.utils.escape_html(e.applicant_name || e.name || "Unknown")}</div>
 						<div class="bb-list-item__sub">
 							${e.parent_mobile || ""}
 							${e.standard ? " · " + e.standard : ""}
@@ -625,8 +626,8 @@ class BBDashboard {
 				<div class="bb-list-item bb-list-item--alert"
 				     onclick="frappe.set_route('Form','Fee Invoice','${inv.name}')">
 					<div class="bb-list-item__body">
-						<div class="bb-list-item__title">${frappe.utils.escape_html(inv.student_name)}</div>
-						<div class="bb-list-item__sub">${inv.fee_month || ""} · Due: ${inv.due_date}</div>
+						<div class="bb-list-item__title">${frappe.utils.escape_html(inv.student_name || inv.student || "Unknown")}</div>
+						<div class="bb-list-item__sub">Date: ${inv.invoice_date || ""}</div>
 					</div>
 					<div class="bb-list-item__end bb-list-item__end--danger">${this._fmt_inr(inv.outstanding_amount)}</div>
 				</div>`;

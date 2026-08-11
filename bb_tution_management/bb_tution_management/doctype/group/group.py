@@ -8,12 +8,17 @@ class Group(Document):
 	pass
 
 @frappe.whitelist()
-def get_groups_by_standard(doctype, txt, searchfield, start, page_len, filters):
+def get_groups_by_standard(*args, **kwargs):
+	import json
+	txt = kwargs.get('txt') or ''
+	filters = kwargs.get('filters') or {}
+	if isinstance(filters, str):
+		filters = json.loads(filters)
 	standard = filters.get('standard')
 	if not standard:
 		return []
 	return frappe.db.sql("""
-		select name from `tabGroup` 
+		select name, name from `tabGroup` 
 		where name in (select parent from `tabStandard Detail` where standard = %s)
 		and name like %s
 	""", (standard, "%%%s%%" % txt))
