@@ -30,14 +30,7 @@ class StudentAdmissionForm(Document):
 				self.starting_payment = starting_payment
 
 		if self.standard and self.assigned_batch:
-			monthly_fee = frappe.db.get_value(
-				"Fee Structure",
-				{
-					"standard": self.standard,
-					"batch": self.assigned_batch
-				},
-				"monthly_fee"
-			)
+			monthly_fee = get_monthly_fee(self.standard, self.assigned_batch)
 			if monthly_fee is not None:
 				self.monthly_fee = monthly_fee
 
@@ -127,3 +120,16 @@ def get_standard_ordered(doctype, txt, searchfield, start, page_len, filters):
 		where name like %s and is_active = 1
 		order by academic_order asc
 	""", ("%%%s%%" % txt,))
+
+@frappe.whitelist()
+def get_monthly_fee(standard, batch):
+	fee = frappe.db.sql("""
+		select fs.monthly_fee
+		from `tabFee Structure` fs
+		join `tabStandard Detail` sd on fs.name = sd.parent
+		where fs.batch = %s and sd.standard = %s
+	""", (batch, standard))
+	
+	if fee:
+		return fee[0][0]
+	return 0

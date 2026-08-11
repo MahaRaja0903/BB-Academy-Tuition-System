@@ -38,16 +38,18 @@ frappe.ui.form.on("Student Admission Form", {
 
 	fetch_monthly_fee(frm) {
 		if (frm.doc.standard && frm.doc.assigned_batch) {
-			frappe.db.get_value(
-				"Fee Structure",
-				{ standard: frm.doc.standard, batch: frm.doc.assigned_batch },
-				"monthly_fee",
-				(r) => {
-					if (r && r.monthly_fee !== undefined) {
-						frm.set_value("monthly_fee", r.monthly_fee);
+			frappe.call({
+				method: "bb_tution_management.bb_academy.doctype.student_admission_form.student_admission_form.get_monthly_fee",
+				args: {
+					standard: frm.doc.standard,
+					batch: frm.doc.assigned_batch
+				},
+				callback: function(r) {
+					if (r.message !== undefined) {
+						frm.set_value("monthly_fee", r.message);
 					}
 				}
-			);
+			});
 		}
 	}
 });
