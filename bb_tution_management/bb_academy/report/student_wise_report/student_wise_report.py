@@ -18,23 +18,20 @@ def get_columns():
 		{"label": _("Academic Year"), "fieldname": "academic_year", "fieldtype": "Link", "options": "Academic Year", "width": 120},
 		{"label": _("Gender"), "fieldname": "gender", "fieldtype": "Data", "width": 100},
 		{"label": _("Date of Birth"), "fieldname": "date_of_birth", "fieldtype": "Date", "width": 120},
-		{"label": _("Parent Mobile"), "fieldname": "parent_mobile", "fieldtype": "Data", "width": 120},
+		{"label": _("Father Mobile Number"), "fieldname": "father_mobile_number", "fieldtype": "Data", "width": 150},
+		{"label": _("Mother Mobile Number"), "fieldname": "mother_mobile_number", "fieldtype": "Data", "width": 150},
 		{"label": _("Status"), "fieldname": "status", "fieldtype": "Data", "width": 100},
 	]
 
 def get_data(filters):
+	filters = filters or {}
 	conditions = []
-	if filters:
-		if filters.get("standard"):
-			conditions.append(f"standard = '{filters.get('standard')}'")
-		if filters.get("current_batch"):
-			conditions.append(f"current_batch = '{filters.get('current_batch')}'")
-		if filters.get("academic_year"):
-			conditions.append(f"academic_year = '{filters.get('academic_year')}'")
-		if filters.get("status"):
-			conditions.append(f"status = '{filters.get('status')}'")
-		if filters.get("gender"):
-			conditions.append(f"gender = '{filters.get('gender')}'")
+	values = {}
+
+	for fieldname in ("standard", "current_batch", "academic_year", "status", "gender"):
+		if filters.get(fieldname):
+			conditions.append(f"`{fieldname}` = %({fieldname})s")
+			values[fieldname] = filters.get(fieldname)
 
 	where_clause = " AND ".join(conditions) if conditions else "1=1"
 
@@ -47,7 +44,8 @@ def get_data(filters):
 			academic_year,
 			gender,
 			date_of_birth,
-			parent_mobile,
+			father_mobile_number,
+			mother_mobile_number,
 			status
 		FROM
 			`tabStudent`
@@ -55,6 +53,6 @@ def get_data(filters):
 			{where_clause}
 		ORDER BY
 			creation DESC
-	""", as_dict=1)
+	""", values, as_dict=1)
 
 	return data

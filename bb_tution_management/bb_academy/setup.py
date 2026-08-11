@@ -25,14 +25,6 @@ def seed_sms_settings():
 def seed_academic_years():
 	academic_years = [
 		{
-			"academic_year_name": "2025-2026",
-			"start_date": "2025-04-01",
-			"start_month": "April",
-			"end_date": "2026-03-31",
-			"end_month": "March",
-			"is_active": 1
-		},
-		{
 			"academic_year_name": "2026-2027",
 			"start_date": "2026-04-01",
 			"start_month": "April",
@@ -52,7 +44,7 @@ def seed_academic_years():
 
 
 def create_roles():
-	roles = ["Receptionist", "Teacher", "Accountant"]
+	roles = ["Receptionist", "Teacher", "Accountant","Owners"]
 	for r in roles:
 		if not frappe.db.exists("Role", r):
 			role_doc = frappe.get_doc({

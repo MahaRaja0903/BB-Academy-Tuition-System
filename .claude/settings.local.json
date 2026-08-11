@@ -3,7 +3,34 @@
     "allow": [
       "Bash(yarn build:*)",
       "Bash(ss -tlnp:*)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(echo \"--- exit: $?\")",
+      "Bash(node scripts/validate_palette.js \"#256abf,#c4501f,#0f7d56,#8a5a00,#b34a74,#006300,#3d3090,#b8302f\" --mode light --surface \"#ffffff\")",
+      "Bash(python3 *)",
+      "Read(//Users/td-109/frappe-bench/**)",
+      "Bash(bench --site learning.local execute frappe.db.count --kwargs '{\"dt\": \"Student Batch Transition\"}')",
+      "Bash(node scripts/validate_palette.js \"#3987e5,#d95926,#199e70,#c98500,#d55181,#008300,#9085e9,#e66767\" --mode dark --surface \"#171717\")",
+      "Bash(../env/bin/python -c ' *)",
+      "Bash(node --check bb_tution_management/bb_academy/web_form/student_admission_form/student_admission_form.js)",
+      "Bash(bench --site learning.local migrate)",
+      "Bash(cp /private/tmp/claude-502/-Users-td-109-frappe-bench-apps-bb-tution-management/232c980d-49b3-4c64-97c0-4c7775d26af6/scratchpad/verify.py apps/bb_tution_management/bb_tution_management/verify_tmp.py)",
+      "Bash(bench --site learning.local execute bb_tution_management.verify_tmp.run)",
+      "Bash(curl -s -H 'Host: learning.local' http://localhost:__TRACKED_VAR__/api/method/bb_tution_management.bb_academy.doctype.student_admission_form.student_admission_form.get_admission_form_options)",
+      "Bash(bench --site selco15.local list-apps)",
+      "Bash(node --check bb_tution_management/bb_academy/doctype/student/student.js)",
+      "Bash(./env/bin/python -c ' *)",
+      "Bash(../env/bin/python /private/tmp/claude-502/-Users-td-109-frappe-bench-apps-bb-tution-management/01c084fd-a83f-44ae-8230-f0661308872f/scratchpad/verify_collections.py)",
+      "Bash(node -e ' *)",
+      "Bash(./env/bin/python -c 'import ast;ast.parse\\(open\\('\\\\''__TRACKED_VAR__/apps/bb_tution_management/bb_tution_management/bb_academy/page/bb_dashboard/bb_dashboard.py'\\\\''.replace\\('\\\\''__TRACKED_VAR__'\\\\'','\\\\''/Users/td-109/frappe-bench'\\\\''\\)\\).read\\(\\)\\);print\\('\\\\''Python parse OK'\\\\''\\)')",
+      "Bash(bench --site learning.local clear-cache)",
+      "Bash(node *)",
+      "Bash(bench --site learning.local execute frappe.client.get_list --kwargs '{\"doctype\":\"DocField\",\"filters\":{\"fieldname\":\"parent_mobile\"},\"fields\":[\"parent\",\"fieldname\"],\"parent\":\"DocType\",\"limit_page_length\":0}')",
+      "Bash(../env/bin/python /private/tmp/claude-502/-Users-td-109-frappe-bench-apps-bb-tution-management/01c084fd-a83f-44ae-8230-f0661308872f/scratchpad/verify_roles.py)",
+      "Bash(bench --site learning.local list-apps)",
+      "Bash(grep -iv \"Updating DocTypes\\\\|^$\" /Users/td-109/.claude/projects/-Users-td-109-frappe-bench-apps-bb-tution-management/3a25ec86-3598-4c2c-92d5-71a6b5f0e666/tool-results/bwcmzyq9b.txt)",
+      "Bash(grep -iv \"^Updating\\\\|^Syncing\\\\|^\\\\[=*\\\\|%$\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(bench --site learning.local mariadb -e \"select name, docstatus, student, paid_amount, coupon__code, creation from \\\\`tabFee Invoice\\\\`;\")"
     ]
   }
 }

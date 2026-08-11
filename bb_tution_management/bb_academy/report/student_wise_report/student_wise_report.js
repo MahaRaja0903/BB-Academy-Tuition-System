@@ -31,7 +31,7 @@ frappe.query_reports["Student Wise Report"] = {
 			"fieldname": "status",
 			"label": __("Status"),
 			"fieldtype": "Select",
-			"options": "\nActive\nInactive"
+			"options": "\nActive\nCompleted\nDiscontinued\nSuspended"
 		}
 	]
 };

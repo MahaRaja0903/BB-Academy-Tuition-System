@@ -9,6 +9,7 @@
   "month",
   "date",
   "status",
+  "amount_need_to_pay",
   "amount_paid",
   "pending"
  ],
@@ -36,6 +37,14 @@
    "in_list_view": 1,
    "label": "Status",
    "options": "\nNot Paid\nPaid\nPartial\nNot Joined",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "amount_need_to_pay",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount Need to Pay",
    "read_only": 1
   },
   {

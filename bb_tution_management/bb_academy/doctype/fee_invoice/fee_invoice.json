@@ -16,6 +16,8 @@
   "column_break_1",
   "invoice_date",
   "status",
+  "is_starting_fee",
+  "pay_complete_fees",
   "billing_period_section",
   "fees_details",
   "payment_amounts_section",
@@ -23,10 +25,14 @@
   "add_discount",
   "apply_gst_18",
   "paid_amount",
+  "add_coupon",
+  "coupon__code",
   "column_break_3",
+  "payment_method",
   "outstanding_amount",
   "discount_amount",
   "gst_amount",
+  "coupon_amount",
   "section_break_pzdt",
   "grand_total",
   "column_break_pqhq",
@@ -211,12 +217,48 @@
   {
    "fieldname": "column_break_pqhq",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_starting_fee",
+   "fieldtype": "Check",
+   "label": "Is Starting Fee "
+  },
+  {
+   "fieldname": "payment_method",
+   "fieldtype": "Select",
+   "label": "Payment Method",
+   "options": "\nCash\nGPAY\nScanner",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "pay_complete_fees",
+   "fieldtype": "Check",
+   "label": "Pay Complete Fees"
+  },
+  {
+   "fieldname": "add_coupon",
+   "fieldtype": "Button",
+   "label": "Add Coupon"
+  },
+  {
+   "fieldname": "coupon__code",
+   "fieldtype": "Data",
+   "label": "Coupon  Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "coupon_amount",
+   "fieldtype": "Int",
+   "label": "Coupon Amount",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-08 22:02:18.342735",
+ "modified": "2026-08-12 01:20:21.777434",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",

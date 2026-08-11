@@ -33,17 +33,17 @@ frappe.ui.form.on("Student Batch Transition", {
 				return;
 			}
 			
-			// determine promotion or demotion
+			// Determine promotion or demotion. display_order ranks batches
+			// best-first, so moving to a higher display_order (1 -> 2) is a
+			// demotion. The server re-derives this on validate -- this is only
+			// so the form shows it straight away.
 			frappe.db.get_value('Batch', frm.doc.previous_batch, 'display_order', (prev) => {
 				frappe.db.get_value('Batch', frm.doc.new_batch, 'display_order', (curr) => {
 					if (prev && curr) {
-						if (curr.display_order > prev.display_order) {
-							frm.set_value('status', 'Promotion');
-						} else if (curr.display_order < prev.display_order) {
-							frm.set_value('status', 'Demote');
-						} else {
-							frm.set_value('status', 'Promotion');
-						}
+						frm.set_value(
+							'status',
+							cint(curr.display_order) > cint(prev.display_order) ? 'Demote' : 'Promotion'
+						);
 					}
 				});
 			});

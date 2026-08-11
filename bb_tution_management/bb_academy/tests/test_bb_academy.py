@@ -69,7 +69,7 @@ class TestBBAcademy(FrappeTestCase):
 			"admission_number": adm_no,
 			"student_name": "John Doe",
 			"admission_date": "2026-01-01",
-			"parent_mobile": "9876543210",
+			"father_mobile_number": "9876543210",
 			"academic_year": "2025-2026",
 			"standard": "6",
 			"current_batch": "Batch 1",
@@ -86,7 +86,7 @@ class TestBBAcademy(FrappeTestCase):
 			"admission_number": adm_no,
 			"student_name": "Jane Smith",
 			"admission_date": "2026-01-01",
-			"parent_mobile": "9876543211",
+			"father_mobile_number": "9876543211",
 			"academic_year": "2025-2026",
 			"standard": "6",
 			"current_batch": "Batch 1",
@@ -116,7 +116,7 @@ class TestBBAcademy(FrappeTestCase):
 			"admission_number": adm_no,
 			"student_name": "Alice Johnson",
 			"admission_date": "2026-01-01",
-			"parent_mobile": "9876543212",
+			"father_mobile_number": "9876543212",
 			"academic_year": "2025-2026",
 			"standard": "10 Commerce",
 			"current_batch": "Batch 1",
@@ -148,7 +148,7 @@ class TestBBAcademy(FrappeTestCase):
 			"admission_number": adm_no,
 			"student_name": "Bob Lee",
 			"admission_date": "2026-01-01",
-			"parent_mobile": "9876543213",
+			"father_mobile_number": "9876543213",
 			"academic_year": "2025-2026",
 			"standard": "6",
 			"current_batch": "Batch 1",
@@ -199,6 +199,18 @@ class TestBBAcademy(FrappeTestCase):
 		self.assertEqual(float(invoice.outstanding_amount), 0.0)
 		self.assertEqual(invoice.status, "Paid")
 
+	def test_student_enquiry_auto_set_academic_year(self):
+		enquiry = frappe.get_doc({
+			"doctype": "Student Enquiry Form",
+			"applicant_name": "Test Auto AY",
+			"enquiry_date": "2026-08-11",
+			"status": "Open",
+			"parent_name": "Parent Test",
+			"parent_mobile": "9998887770"
+		})
+		enquiry.validate()
+		self.assertEqual(enquiry.academic_year, "2026-2027")
+
 	def test_student_enquiry_to_admission_form_flow(self):
 		enquiry = frappe.get_doc({
 			"doctype": "Student Enquiry Form",
@@ -216,7 +228,7 @@ class TestBBAcademy(FrappeTestCase):
 		adm_form = make_admission_form(enquiry.name)
 		self.assertEqual(adm_form.student_name, "Test Enquiry Applicant")
 		self.assertEqual(adm_form.standard, "6")
-		self.assertEqual(adm_form.parent_mobile, "9998887770")
+		self.assertEqual(adm_form.father_mobile_number, "9998887770")
 
 	def test_student_admission_form_submission(self):
 		adm_no = f"ADM-TEST-{frappe.generate_hash(length=8)}"
@@ -228,7 +240,7 @@ class TestBBAcademy(FrappeTestCase):
 			"student_name": "Test Adm Student",
 			"standard": "6",
 			"assigned_batch": "Batch 1",
-			"parent_mobile": "9998887771"
+			"father_mobile_number": "9998887771"
 		})
 		adm_form.insert(ignore_permissions=True)
 		adm_form.submit()
@@ -265,7 +277,7 @@ class TestBBAcademy(FrappeTestCase):
 			"admission_number": adm_no,
 			"student_name": "Birthday Boy",
 			"admission_date": "2026-01-01",
-			"parent_mobile": "9988776655",
+			"father_mobile_number": "9988776655",
 			"academic_year": "2025-2026",
 			"standard": "6",
 			"current_batch": "Batch 1",

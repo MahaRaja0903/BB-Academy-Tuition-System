@@ -13,6 +13,7 @@
   "column_break_1",
   "academic_year",
   "standard",
+  "group",
   "referred_by",
   "applicant_details_section",
   "applicant_name",
@@ -179,11 +180,17 @@
    "fieldtype": "Link",
    "label": "Referred By",
    "options": "Student"
+  },
+  {
+   "fieldname": "group",
+   "fieldtype": "Link",
+   "label": "Group",
+   "options": "Group"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-31 07:55:01.803149",
+ "modified": "2026-08-12 00:22:29.762439",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Enquiry Form",

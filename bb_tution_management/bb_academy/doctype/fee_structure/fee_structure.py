@@ -60,3 +60,27 @@ class FeeStructure(Document):
 					overlap.parent, overlap.standard, self.batch
 				)
 			)
+
+
+def get_monthly_fee(standard, batch):
+	"""Return the monthly fee for a Standard + Batch pair, or None if none is defined.
+
+	"standard" on Fee Structure is a Table MultiSelect, so the standards live as
+	Standard Detail rows -- there is no `standard` column on `tabFee Structure`.
+	"""
+	if not standard or not batch:
+		return None
+
+	fee = frappe.db.sql(
+		"""
+		select fs.monthly_fee
+		from `tabFee Structure` fs
+		join `tabStandard Detail` sd
+			on sd.parent = fs.name and sd.parenttype = 'Fee Structure'
+		where fs.batch = %s and sd.standard = %s
+		limit 1
+		""",
+		(batch, standard),
+	)
+
+	return fee[0][0] if fee else None

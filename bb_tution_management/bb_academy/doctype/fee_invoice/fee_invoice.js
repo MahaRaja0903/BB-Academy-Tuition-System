@@ -18,66 +18,139 @@ frappe.ui.form.on("Fee Invoice", {
 			frm.trigger("render_fee_tracking");
 		}
 	},
+	before_submit(frm) {
+		// Submitting posts the money against the student's months and cannot be
+		// undone without cancelling, so make the cashier confirm what was taken.
+		frappe.validated = false;
+
+		return new Promise((resolve) => {
+			let dialog = new frappe.ui.Dialog({
+				title: __("Confirm Amount Collected"),
+				fields: [{
+					fieldtype: "HTML",
+					fieldname: "collection_summary",
+					options: build_collection_summary_html(frm)
+				}],
+				primary_action_label: __("Amount Collected — Submit"),
+				primary_action() {
+					frappe.validated = true;
+					resolve();
+					dialog.hide();
+				},
+				secondary_action_label: __("Go Back")
+			});
+
+			// Dismissing the dialog leaves frappe.validated false, which stops the
+			// submit -- but the promise still has to settle or the form hangs.
+			dialog.$wrapper.on("hidden.bs.modal", () => resolve());
+			dialog.show();
+		});
+	},
 	student(frm) {
-		if (frm.doc.student) {
-			frappe.db.get_value(
-				"Student",
-				frm.doc.student,
-				["standard", "current_batch", "monthly_fee", "starting_payment", "fees_due_date"],
-				(r) => {
-					if (r) {
-
-						
-						let currentDate = new Date();
-						let monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-						let currentMonth = monthNames[currentDate.getMonth()];
-
-						if (frm.doc.is_starting_fee) {
-							frm.set_value("monthly_fee", r.starting_payment || 0);
-						} else {
-							frm.set_value("monthly_fee", r.monthly_fee || 0);
-						}
-					}
-				}
-			);
-			// Render fee tracking UI
-			frm.trigger("render_fee_tracking");
+		// Coupons belong to the student they were issued to.
+		if (frm.doc.docstatus === 0 && frm.doc.coupon__code) {
+			frm.set_value("coupon__code", "");
+			frm.set_value("coupon_amount", 0);
 		}
+
+		if (!frm.doc.student) {
+			frm.clear_table("fees_details");
+			frm.refresh_field("fees_details");
+			frm.set_value("is_starting_fee", 0);
+			update_monthly_fee_from_details(frm);
+			frm.fields_dict.student_html.$wrapper.html("");
+			return;
+		}
+
+		// Render fee tracking UI (also caches the student data in student_detail_json)
+		frm.trigger("render_fee_tracking");
+
+		if (frm.doc.docstatus !== 0) return;
+
+		// Seed the grid with whatever the student currently owes: any pending
+		// starting payment, plus the current month unless it is already paid or
+		// covered by the starting payment advance.
+		frappe.call({
+			method: "bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice.get_invoice_prefill",
+			args: { student: frm.doc.student },
+			callback: function(r) {
+				if (!r.message) return;
+				let prefill = r.message;
+
+				frm.clear_table("fees_details");
+				(prefill.rows || []).forEach(row => {
+					frm.add_child("fees_details", {
+						month: row.month,
+						amount_need_to_pay: row.amount_need_to_pay,
+						paid_amount: row.paid_amount
+					});
+				});
+				frm.refresh_field("fees_details");
+
+				// After the rows exist, so the is_starting_fee handler sees the
+				// Starting Payment row already there and leaves it alone.
+				frm.set_value("is_starting_fee", prefill.has_starting_payment ? 1 : 0);
+				update_monthly_fee_from_details(frm);
+
+				(prefill.notes || []).forEach(note => {
+					frappe.show_alert({ message: note, indicator: "blue" }, 10);
+				});
+			}
+		});
 	},
 	is_starting_fee(frm) {
-		if (frm.doc.student && frm.doc.student_detail_json) {
-			let data = JSON.parse(frm.doc.student_detail_json);
-			if (frm.doc.is_starting_fee) {
-				frm.set_value("monthly_fee", data.starting_payment || 0);
-			} else {
-				frm.set_value("monthly_fee", data.monthly_fee || 0);
-			}
-		} else if (frm.doc.student) {
-			frm.trigger("student");
-		}
-		
-		if (frm.doc.is_starting_fee) {
-			let existing = frm.doc.fees_details || [];
-			let exists = existing.some(d => d.month === "Starting Payment");
-			if (!exists) {
-				let row = frm.add_child("fees_details");
-				row.month = "Starting Payment";
-				
-				if (frm.doc.student_detail_json) {
-					let data = JSON.parse(frm.doc.student_detail_json);
-					let s_row = (data.payment_details || []).find(r => r.month === "Starting Payment");
-					row.paid_amount = s_row ? s_row.pending : (data.starting_payment || 0);
-				}
-				frm.refresh_field("fees_details");
-			}
+		let existing = frm.doc.fees_details || [];
+		let has_row = existing.some(d => d.month === "Starting Payment");
+
+		if (frm.doc.is_starting_fee && !has_row) {
+			frm.add_child("fees_details", {
+				month: "Starting Payment",
+				amount_need_to_pay: get_row_amount(frm, "Starting Payment"),
+				paid_amount: get_row_amount(frm, "Starting Payment")
+			});
+			frm.refresh_field("fees_details");
+		} else if (!frm.doc.is_starting_fee && has_row) {
+			frm.doc.fees_details = existing.filter(d => d.month !== "Starting Payment");
+			frm.doc.fees_details.forEach((row, idx) => { row.idx = idx + 1; });
+			frm.refresh_field("fees_details");
 		} else {
-			let existing = frm.doc.fees_details || [];
-			let new_details = existing.filter(d => d.month !== "Starting Payment");
-			if (new_details.length !== existing.length) {
-				frm.doc.fees_details = new_details;
-				frm.refresh_field("fees_details");
-			}
+			return;
 		}
+
+		update_monthly_fee_from_details(frm);
+	},
+	fees_details_remove(frm) {
+		update_monthly_fee_from_details(frm);
+	},
+	add_coupon(frm) {
+		if (frm.doc.docstatus !== 0) {
+			frappe.msgprint(__("Coupons can only be changed while the invoice is a draft."));
+			return;
+		}
+		if (!frm.doc.student) {
+			frappe.msgprint(__("Select a Student first."));
+			return;
+		}
+
+		frappe.call({
+			method: "bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice.get_available_coupons",
+			args: { student: frm.doc.student },
+			callback: function(r) {
+				let coupons = r.message || [];
+
+				if (!coupons.length) {
+					frappe.msgprint({
+						title: __("No Coupons Available"),
+						message: __("{0} has no unused coupon that is still valid.",
+							[frm.doc.student_name || frm.doc.student]),
+						indicator: "orange"
+					});
+					return;
+				}
+
+				show_coupon_dialog(frm, coupons);
+			}
+		});
 	},
 	render_fee_tracking(frm) {
 		if (!frm.doc.student) {
@@ -94,23 +167,11 @@ frappe.ui.form.on("Fee Invoice", {
 					if (frm.doc.docstatus === 0){
 						frm.set_value("student_detail_json", JSON.stringify(data));
 					}
-					
-					// Auto check is_starting_fee if not paid or pending
-					if (frm.doc.docstatus === 0 && !frm.doc.is_starting_fee) {
-						let starting_row = (data.payment_details || []).find(row => row.month === "Starting Payment");
-						let should_check = false;
-						
-						if (!starting_row && (data.starting_payment || 0) > 0) {
-							should_check = true;
-						} else if (starting_row && starting_row.pending > 0) {
-							should_check = true;
-						}
 
-						if (should_check) {
-							frm.set_value("is_starting_fee", 1);
-						}
-					}
-					
+					// is_starting_fee and the Fees Details rows are set by
+					// get_invoice_prefill when the student is picked -- don't
+					// second-guess them on every refresh.
+
 					// Build and render HTML
 					let student_html = build_student_details_html(data, frm.doc.fee_month);
 					let fees_paid_html = build_fees_paid_details_html(data);
@@ -150,48 +211,250 @@ frappe.ui.form.on("Fees Invoice Details", {
 	month: function(frm, cdt, cdn) {
 		let row = locals[cdt][cdn];
 		if (row.month) {
-			if (frm.doc.student_detail_json) {
-				let data = JSON.parse(frm.doc.student_detail_json);
-				if (row.month !== "Starting Payment") {
-					if (data.monthly_fee) {
-						frappe.model.set_value(cdt, cdn, 'paid_amount', data.monthly_fee);
-					}
-				} else {
-					let s_row = (data.payment_details || []).find(r => r.month === "Starting Payment");
-					let pending_amount = s_row ? s_row.pending : (data.starting_payment || 0);
-					frappe.model.set_value(cdt, cdn, 'paid_amount', pending_amount);
-				}
-			}
+			let amount = get_row_amount(frm, row.month);
+			frappe.model.set_value(cdt, cdn, 'amount_need_to_pay', amount);
+			frappe.model.set_value(cdt, cdn, 'paid_amount', amount);
 		}
 		update_monthly_fee_from_details(frm);
 	},
 	paid_amount: function(frm, cdt, cdn) {
 		update_monthly_fee_from_details(frm);
-	},
-	fees_details_remove: function(frm) {
-		update_monthly_fee_from_details(frm);
 	}
 });
 
-function update_monthly_fee_from_details(frm) {
-	if (!frm.doc.student || !frm.doc.student_detail_json) return;
+// What a fresh row for this month should be billed -- the server works this out
+// per student (starting payment still pending, pro-rated joining month, or the
+// plain monthly fee) and caches it in student_detail_json.
+function get_row_amount(frm, month) {
+	if (!frm.doc.student_detail_json) return 0;
+
 	let data = JSON.parse(frm.doc.student_detail_json);
+	let amounts = data.row_amounts || {};
+
+	if (month in amounts) return amounts[month];
+	return month === "Starting Payment" ? (data.starting_payment || 0) : (data.monthly_fee || 0);
+}
+
+function get_selected_coupons(frm) {
+	return (frm.doc.coupon__code || "").split(",").map(c => c.trim()).filter(Boolean);
+}
+
+// Picker for the student's redeemable referral coupons. Multiple coupons are
+// stored on the invoice as a comma separated list and their amounts added up.
+function show_coupon_dialog(frm, coupons) {
+	let already_applied = get_selected_coupons(frm);
+	let by_code = {};
+	coupons.forEach(c => { by_code[c.coupon_code] = c; });
+
+	let dialog = new frappe.ui.Dialog({
+		title: __("Available Coupons"),
+		fields: [
+			{
+				fieldtype: "MultiCheck",
+				fieldname: "coupons",
+				label: __("Pick the coupons to use on this invoice"),
+				columns: 1,
+				select_all: coupons.length > 1,
+				sort_options: false,
+				options: coupons.map(c => ({
+					label: `<b>${c.coupon_code}</b> &nbsp;&mdash;&nbsp; ${format_currency(c.amount)}`
+						+ (c.valid_till ? ` <span class="text-muted">(${__("valid till")} ${frappe.datetime.str_to_user(c.valid_till)})</span>` : ""),
+					value: c.coupon_code,
+					checked: already_applied.includes(c.coupon_code)
+				})),
+				on_change: () => update_coupon_dialog_total()
+			},
+			{ fieldtype: "HTML", fieldname: "coupon_total" }
+		],
+		primary_action_label: __("Apply"),
+		primary_action() {
+			let picked = dialog.get_value("coupons") || [];
+			let total = picked.reduce((sum, code) => sum + (by_code[code] || {}).amount, 0);
+
+			if (total > (frm.doc.paid_amount || 0)) {
+				frappe.msgprint({
+					title: __("Coupon Too Large"),
+					message: __("The selected coupons come to {0}, which is more than the Paid Amount of {1}.",
+						[format_currency(total), format_currency(frm.doc.paid_amount || 0)]),
+					indicator: "red"
+				});
+				return;
+			}
+
+			// Stored without spaces -- the server matches a single code against
+			// this list with find_in_set().
+			frm.set_value("coupon__code", picked.join(","));
+			frm.set_value("coupon_amount", total);
+			dialog.hide();
+
+			if (picked.length) {
+				frappe.show_alert({
+					message: __("{0} applied. Cash to collect is now {1}.",
+						[picked.join(", "), format_currency((frm.doc.paid_amount || 0) - total)]),
+					indicator: "green"
+				}, 10);
+			} else {
+				frappe.show_alert({ message: __("Coupons removed."), indicator: "orange" }, 5);
+			}
+		},
+		secondary_action_label: __("Cancel")
+	});
+
+	function update_coupon_dialog_total() {
+		let picked = dialog.get_value("coupons") || [];
+		let total = picked.reduce((sum, code) => sum + (by_code[code] || {}).amount, 0);
+		let paid = frm.doc.paid_amount || 0;
+		let over = total > paid;
+
+		dialog.fields_dict.coupon_total.$wrapper.html(`
+			<div style="padding:12px;border-radius:8px;background:${over ? "#fee2e2" : "#eff6ff"};color:${over ? "#991b1b" : "#1e3a8a"};font-size:13px;">
+				<div>${__("Coupon total")}: <b>${format_currency(total)}</b>
+					&nbsp;/&nbsp; ${__("Paid Amount")}: <b>${format_currency(paid)}</b></div>
+				<div style="margin-top:6px;font-size:15px;">
+					${over
+						? __("Coupons exceed the Paid Amount.")
+						: `${__("Cash to collect")}: <b style="font-size:18px;">${format_currency(paid - total)}</b>`}
+				</div>
+			</div>`);
+	}
+
+	dialog.show();
+	update_coupon_dialog_total();
+}
+
+// Pre-submit recap of what the cashier should have in hand: every row, what it
+// was billed, what is being recorded as paid, and where the two do not match.
+function build_collection_summary_html(frm) {
+	let rows = (frm.doc.fees_details || []).filter(row => row.month);
+	let billed = 0;
+	let paid = 0;
+	let partial_months = [];
+
+	let row_html = rows.map(row => {
+		let need = row.amount_need_to_pay || 0;
+		let got = row.paid_amount || 0;
+		billed += need;
+		paid += got;
+
+		let short = need - got;
+		let note = "";
+		if (short > 0) {
+			partial_months.push(row.month);
+			note = `<span style="color:#b91c1c;">${__("Short by")} ${format_currency(short)}</span>`;
+		} else {
+			note = `<span style="color:#065f46;">${__("Full")}</span>`;
+		}
+
+		return `<tr>
+			<td>${row.month}</td>
+			<td class="text-right">${format_currency(need)}</td>
+			<td class="text-right"><b>${format_currency(got)}</b></td>
+			<td class="text-right">${note}</td>
+		</tr>`;
+	}).join("");
+
+	if (!rows.length) {
+		row_html = `<tr><td colspan="4" class="text-muted">${__("No rows in Fees Details.")}</td></tr>`;
+	}
+
+	// The coupon is a credit against the payment, so the months are recorded as
+	// fully paid and only the difference comes in as cash.
+	let coupon_codes = get_selected_coupons(frm);
+	let coupon = frm.doc.coupon_amount || 0;
+	let cash = Math.max(0, paid - coupon);
+	let coupon_html = "";
+
+	if (coupon_codes.length) {
+		coupon_html = `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:#f5f3ff;color:#5b21b6;">
+			${__("Coupon")} <b>${coupon_codes.join(", ")}</b>
+			${__("covers")} <b>${format_currency(coupon)}</b> ${__("of the Paid Amount")}
+			&mdash; ${__("these coupons will be marked used and cannot be applied again.")}
+		</div>`;
+	}
+
+	let warnings = "";
+
+	if (paid <= 0) {
+		warnings += `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:#fef3c7;color:#92400e;">
+			${__("Paid Amount is zero. Nothing will be recorded as collected for this student.")}
+		</div>`;
+	} else if (partial_months.length) {
+		warnings += `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:#fef3c7;color:#92400e;">
+			${__("Part payment for {0}. The remaining {1} stays pending on the student.", [partial_months.join(", "), format_currency(billed - paid)])}
+		</div>`;
+	}
+
+	// The starting payment settles two months in advance, but only once it is
+	// paid in full -- worth spelling out before the money is committed.
+	let starting_row = rows.find(row => row.month === "Starting Payment");
+	if (starting_row && frm.doc.student_detail_json) {
+		let advance = (JSON.parse(frm.doc.student_detail_json).advance_months || []).join(", ");
+		if (advance) {
+			let full = (starting_row.paid_amount || 0) >= (starting_row.amount_need_to_pay || 0);
+			warnings += `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:${full ? "#d1fae5" : "#e0e7ff"};color:${full ? "#065f46" : "#3730a3"};">
+				${full
+					? __("Starting payment is being paid in full, so {0} will be marked Paid.", [advance])
+					: __("Starting payment is not being paid in full, so {0} will not be settled yet.", [advance])}
+			</div>`;
+		}
+	}
+
+	return `
+	<div style="font-size:13px;">
+		<p style="margin-bottom:12px;">
+			${__("Check the Paid Amount against the money actually collected. Once submitted this posts against the student's fee record and can only be reversed by cancelling.")}
+		</p>
+		<table class="table table-bordered" style="margin-bottom:0;">
+			<thead>
+				<tr>
+					<th>${__("Month")}</th>
+					<th class="text-right">${__("Need to Pay")}</th>
+					<th class="text-right">${__("Paid")}</th>
+					<th class="text-right">${__("Status")}</th>
+				</tr>
+			</thead>
+			<tbody>${row_html}</tbody>
+			<tfoot>
+				<tr style="background:#f9fafb;">
+					<th>${__("Total")}</th>
+					<th class="text-right">${format_currency(billed)}</th>
+					<th class="text-right">${format_currency(paid)}</th>
+					<th></th>
+				</tr>
+			</tfoot>
+		</table>
+		${coupon_html}
+		<div style="margin-top:14px;padding:12px;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:15px;">
+			${__("Collect")} <b style="font-size:18px;">${format_currency(cash)}</b>
+			${frm.doc.payment_method ? ` ${__("by")} <b>${frm.doc.payment_method}</b>` : ""}
+		</div>
+		${warnings}
+	</div>`;
+}
+
+function update_monthly_fee_from_details(frm) {
 	let total_fee = 0;
 	let total_paid = 0;
-	
+
 	(frm.doc.fees_details || []).forEach(row => {
-		if (row.month === "Starting Payment") {
-			total_fee += (data.starting_payment || 0);
-		} else if (row.month) {
-			total_fee += (data.monthly_fee || 0);
-		}
+		if (!row.month) return;
+		total_fee += (row.amount_need_to_pay || 0);
 		total_paid += (row.paid_amount || 0);
 	});
-	
-	if ((frm.doc.fees_details || []).length > 0) {
-		frm.set_value("monthly_fee", total_fee);
-		frm.set_value("paid_amount", total_paid);
+
+	frm.set_value("monthly_fee", total_fee);
+	frm.set_value("paid_amount", total_paid);
+
+	// Editing the rows down can leave the coupon worth more than the payment it
+	// is meant to credit -- say so here rather than at submit.
+	if ((frm.doc.coupon_amount || 0) > total_paid) {
+		frappe.show_alert({
+			message: __("Coupon of {0} is now more than the Paid Amount of {1}. Reopen Add Coupon to change it.",
+				[format_currency(frm.doc.coupon_amount), format_currency(total_paid)]),
+			indicator: "red"
+		}, 10);
 	}
+
 	calculate_totals(frm);
 }
 

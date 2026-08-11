@@ -4,7 +4,10 @@
 import frappe
 from frappe.model.document import Document
 from frappe import _
-from frappe.utils import getdate
+from frappe.utils import flt, getdate
+
+from bb_tution_management.bb_academy.doctype.fee_structure.fee_structure import get_monthly_fee
+from bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice import update_student_totals
 
 
 MONTH_NAMES = [
@@ -15,18 +18,71 @@ MONTH_NAMES = [
 # Map month name -> 1-based month number
 MONTH_NUMBER = {name: idx + 1 for idx, name in enumerate(MONTH_NAMES)}
 
+# Editable fee field -> (field holding the reason for the change, fields the
+# fee is normally derived from). Used by the "Edit Fees Amount" button.
+EDITABLE_FEES = {
+	"starting_payment": {
+		"reason_field": "reason_for_discounting_starting_amount",
+		"source_fields": ("standard",),
+	},
+	"monthly_fee": {
+		"reason_field": "reason_for_discounting_monthly_fees",
+		"source_fields": ("standard", "current_batch"),
+	},
+}
+
 
 class Student(Document):
 	def validate(self):
 		self.fetch_starting_payment()
 		self.fetch_monthly_fee()
 		self.populate_payment_details()
+		self.update_scholarship_payment_details()
+		update_student_totals(self)
 
 	def before_save(self):
 		self.track_batch_change()
 
-	# def after_insert(self):
-	# 	self.create_starting_fee_invoice()
+	def update_scholarship_payment_details(self):
+		"""When scholarship_student is checked, set all 'Not Paid' statuses in payment_details to 'Paid'."""
+		if self.scholarship_student:
+			for row in self.get("payment_details", []):
+				if row.status == "Not Paid":
+					row.status = "Paid"
+
+
+	def after_insert(self):
+		self.create_referral_coupon_code()
+
+	def create_referral_coupon_code(self):
+		if not self.referred_by:
+			return
+
+		if not frappe.db.exists("Student", self.referred_by):
+			return
+
+		referring_student = frappe.get_doc("Student", self.referred_by)
+
+		academic_year_name = referring_student.academic_year or self.academic_year
+		valid_till = None
+		if academic_year_name:
+			valid_till = frappe.db.get_value("Academic Year", academic_year_name, "end_date")
+
+		coupon = frappe.get_doc({
+			"doctype": "Referral Coupon Code",
+			"student_id": referring_student.name,
+			"student_name": referring_student.student_name,
+			"amount": 500,
+			"valid_till": valid_till,
+		})
+		coupon.insert(ignore_permissions=True)
+
+		referring_student.append("coupon_code_details", {
+			"referral_coupon_code": coupon.name,
+			"valid_till": valid_till,
+			"amount": 500,
+		})
+		referring_student.save(ignore_permissions=True)
 
 	def populate_payment_details(self):
 		"""Auto-populate payment_details months based on academic year and admission date.
@@ -104,6 +160,7 @@ class Student(Document):
 					"month": starting_payment_row.month,
 					"date": starting_payment_row.date,
 					"status": starting_payment_row.status,
+					"amount_need_to_pay": starting_payment_row.amount_need_to_pay,
 					"amount_paid": starting_payment_row.amount_paid,
 					"pending": starting_payment_row.pending,
 				})
@@ -111,6 +168,7 @@ class Student(Document):
 				self.append("payment_details", {
 					"month": "Starting Payment",
 					"status": "Not Paid",
+					"amount_need_to_pay": self.starting_payment,
 					"pending": self.starting_payment
 				})
 
@@ -124,6 +182,7 @@ class Student(Document):
 					"month": kept.month,
 					"date": kept.date,
 					"status": kept.status,
+					"amount_need_to_pay": kept.amount_need_to_pay,
 					"amount_paid": kept.amount_paid,
 					"pending": kept.pending,
 				})
@@ -181,52 +240,145 @@ class Student(Document):
 		invoice.insert(ignore_permissions=True)
 		invoice.submit()
 
+	def has_manual_fee(self, fee_field):
+		"""True when this fee was set by hand via "Edit Fees Amount" and should
+		not be pulled back from the Standard / Fee Structure.
+
+		The override is dropped as soon as one of the fields the fee is derived
+		from changes -- a discount agreed for one standard/batch does not carry
+		over to another.
+		"""
+		if self.flags.get("ignore_fee_fetch"):
+			return True
+
+		config = EDITABLE_FEES[fee_field]
+		if not self.get(config["reason_field"]):
+			return False
+
+		doc_before = None if self.is_new() else self.get_doc_before_save()
+		if not doc_before:
+			return False
+
+		return all(doc_before.get(f) == self.get(f) for f in config["source_fields"])
+
 	def fetch_starting_payment(self):
-		if self.standard:
-			starting_payment = frappe.db.get_value("Standard", self.standard, "starting_payment")
-			if starting_payment is not None:
-				self.starting_payment = starting_payment
+		if not self.standard:
+			return
+
+		if self.has_manual_fee("starting_payment"):
+			return
+
+		# Any manual amount has been superseded -- drop the reason that went with it.
+		self.reason_for_discounting_starting_amount = None
+
+		starting_payment = frappe.db.get_value("Standard", self.standard, "starting_payment")
+		if starting_payment is not None:
+			self.starting_payment = starting_payment
 
 	def fetch_monthly_fee(self):
-		if self.standard and self.current_batch:
-			monthly_fee = frappe.db.get_value(
-				"Fee Structure",
-				{
-					"standard": self.standard,
-					"batch": self.current_batch,
-					# "is_active": 1,
-				},
-				"monthly_fee"
-			)
-			if monthly_fee is not None:
-				self.monthly_fee = monthly_fee
+		if not (self.standard and self.current_batch):
+			return
+
+		if self.has_manual_fee("monthly_fee"):
+			return
+
+		# Any manual amount has been superseded -- drop the reason that went with it.
+		self.reason_for_discounting_monthly_fees = None
+
+		# "standard" on Fee Structure is a Table MultiSelect, so it lives in
+		# the Standard Detail child table, not as a column on tabFee Structure.
+		monthly_fee = get_monthly_fee(self.standard, self.current_batch)
+		if monthly_fee is not None:
+			self.monthly_fee = monthly_fee
 
 	def track_batch_change(self):
 		if self.is_new() or getattr(self.flags, "ignore_batch_history", False):
 			return
 
 		doc_before_save = self.get_doc_before_save()
-		if doc_before_save and doc_before_save.current_batch != self.current_batch:
-			previous_batch = doc_before_save.current_batch
-			new_batch = self.current_batch
+		if not doc_before_save or doc_before_save.current_batch == self.current_batch:
+			return
 
-			history_doc = frappe.get_doc({
-				"doctype": "Student Batch History",
-				"student": self.name,
-				"previous_batch": previous_batch,
-				"new_batch": new_batch,
-				"effective_date": frappe.utils.today(),
-				"reason": _("Batch updated for student {0} from {1} to {2}").format(
-					self.student_name, previous_batch, new_batch
-				),
-				"approved_by": frappe.session.user or "Administrator"
-			})
-			history_doc.flags.ignore_student_update = True
-			history_doc.insert(ignore_permissions=True)
-			frappe.msgprint(
-				_("Student batch change recorded in Student Batch History from {0} to {1}.").format(
-					previous_batch, new_batch
-				)
+		previous_batch = doc_before_save.current_batch
+		new_batch = self.current_batch
+
+		# Both batches are required on a transition, so a student being moved
+		# into their first batch has nothing to record.
+		if not (previous_batch and new_batch):
+			return
+
+		transition = frappe.get_doc({
+			"doctype": "Student Batch Transition",
+			"student": self.name,
+			"previous_batch": previous_batch,
+			"new_batch": new_batch,
+			"effective_date": frappe.utils.today(),
+			"reason": _("Batch updated for student {0} from {1} to {2} by {3}").format(
+				self.student_name, previous_batch, new_batch, frappe.session.user
+			),
+		})
+		# The batch is already being changed on this document -- don't let the
+		# transition turn around and save the Student again.
+		transition.flags.ignore_student_update = True
+		transition.insert(ignore_permissions=True)
+
+		frappe.msgprint(
+			_("Student batch change recorded in Student Batch Transition {0}, from {1} to {2}.").format(
+				frappe.utils.get_link_to_form("Student Batch Transition", transition.name),
+				previous_batch,
+				new_batch,
 			)
+		)
+
+
+@frappe.whitelist()
+def get_editable_fees(student):
+	"""Current fee amounts and the reason recorded against each, for the
+	"Edit Fees Amount" dialog."""
+	doc = frappe.get_doc("Student", student)
+	doc.check_permission("read")
+
+	return {
+		fee_field: {
+			"amount": flt(doc.get(fee_field)),
+			"reason": doc.get(config["reason_field"]),
+		}
+		for fee_field, config in EDITABLE_FEES.items()
+	}
+
+
+@frappe.whitelist()
+def update_fee_amount(student, fee_type, new_amount, reason):
+	"""Set the starting payment or monthly fee on a Student to a manually
+	agreed amount, recording why it was changed."""
+	config = EDITABLE_FEES.get(fee_type)
+	if not config:
+		frappe.throw(_("{0} is not an editable fee.").format(fee_type))
+
+	reason = (reason or "").strip()
+	if not reason:
+		frappe.throw(_("A reason is required to change the fees amount."))
+
+	new_amount = flt(new_amount)
+	if new_amount < 0:
+		frappe.throw(_("Fees amount cannot be negative."))
+
+	doc = frappe.get_doc("Student", student)
+	doc.check_permission("write")
+
+	old_amount = flt(doc.get(fee_type))
+	doc.set(fee_type, new_amount)
+	doc.set(config["reason_field"], reason)
+
+	# Keep validate() from pulling the amount back from the Standard / Fee Structure.
+	doc.flags.ignore_fee_fetch = True
+	doc.save()
+
+	return {
+		"fee_type": fee_type,
+		"old_amount": old_amount,
+		"new_amount": flt(doc.get(fee_type)),
+		"reason": reason,
+	}
 
 

@@ -23,37 +23,43 @@ def get_columns():
 	]
 
 def get_data(filters):
-	conditions = []
-	if filters:
-		if filters.get("from_date"):
-			conditions.append(f"sbh.effective_date >= '{filters.get('from_date')}'")
-		if filters.get("to_date"):
-			conditions.append(f"sbh.effective_date <= '{filters.get('to_date')}'")
-		if filters.get("status"):
-			conditions.append(f"sbh.status = '{filters.get('status')}'")
-		if filters.get("student"):
-			conditions.append(f"sbh.student = '{filters.get('student')}'")
+	filters = filters or {}
+	conditions = ["sbt.docstatus < 2"]
+	values = {}
 
-	where_clause = " AND ".join(conditions) if conditions else "1=1"
+	if filters.get("from_date"):
+		conditions.append("sbt.effective_date >= %(from_date)s")
+		values["from_date"] = filters.get("from_date")
+	if filters.get("to_date"):
+		conditions.append("sbt.effective_date <= %(to_date)s")
+		values["to_date"] = filters.get("to_date")
+	if filters.get("status"):
+		conditions.append("sbt.status = %(status)s")
+		values["status"] = filters.get("status")
+	if filters.get("student"):
+		conditions.append("sbt.student = %(student)s")
+		values["student"] = filters.get("student")
+
+	where_clause = " AND ".join(conditions)
 
 	data = frappe.db.sql(f"""
 		SELECT
-			sbh.student,
+			sbt.student,
 			stu.student_name,
 			stu.standard,
-			sbh.previous_batch,
-			sbh.new_batch,
-			sbh.status,
-			sbh.effective_date,
-			sbh.reason
+			sbt.previous_batch,
+			sbt.new_batch,
+			sbt.status,
+			sbt.effective_date,
+			sbt.reason
 		FROM
-			`tabStudent Batch History` sbh
+			`tabStudent Batch Transition` sbt
 		JOIN
-			`tabStudent` stu ON stu.name = sbh.student
+			`tabStudent` stu ON stu.name = sbt.student
 		WHERE
 			{where_clause}
 		ORDER BY
-			sbh.effective_date DESC
-	""", as_dict=1)
+			sbt.effective_date DESC
+	""", values, as_dict=1)
 
 	return data

@@ -12,6 +12,8 @@
   "admission_number",
   "student_name",
   "admission_date",
+  "scholarship_student",
+  "reason_for_scholarship",
   "column_break_1",
   "date_of_birth",
   "gender",
@@ -26,9 +28,15 @@
   "group",
   "fee_details_section",
   "starting_payment",
+  "reason_for_discounting_starting_amount",
   "fees_due_date",
   "column_break_3",
   "monthly_fee",
+  "reason_for_discounting_monthly_fees",
+  "fees_summary_section",
+  "total_paid_amount",
+  "column_break_fees_summary",
+  "total_pending_amount",
   "parent_details_section",
   "father_name",
   "father_mobile_number",
@@ -40,8 +48,10 @@
   "mother_occupation",
   "school_details_section",
   "school_name",
-  "address_section",
   "referred_by",
+  "column_break_zfzw",
+  "coupon_code_details",
+  "address_section",
   "address",
   "payment_details"
  ],
@@ -156,6 +166,28 @@
    "read_only": 1
   },
   {
+   "fieldname": "fees_summary_section",
+   "fieldtype": "Section Break",
+   "label": "Fees Summary"
+  },
+  {
+   "fieldname": "total_paid_amount",
+   "fieldtype": "Currency",
+   "label": "Total Paid Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_fees_summary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Fees still due for the academic year, including months not yet invoiced.",
+   "fieldname": "total_pending_amount",
+   "fieldtype": "Currency",
+   "label": "Total Pending Amount",
+   "read_only": 1
+  },
+  {
    "fieldname": "parent_details_section",
    "fieldtype": "Section Break",
    "label": "Parent Details"
@@ -212,8 +244,9 @@
   },
   {
    "fieldname": "referred_by",
-   "fieldtype": "Data",
-   "label": "Referred By"
+   "fieldtype": "Link",
+   "label": "Referred By",
+   "options": "Student"
   },
   {
    "depends_on": "eval:doc.status == \"Discontinued\"",
@@ -257,12 +290,46 @@
    "fieldtype": "Select",
    "label": "Preferred Mobile Number ",
    "options": "\nFather\nMother\nBoth"
+  },
+  {
+   "fieldname": "reason_for_discounting_starting_amount",
+   "fieldtype": "Small Text",
+   "label": "Reason For Discounting Starting Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason_for_discounting_monthly_fees",
+   "fieldtype": "Small Text",
+   "label": "Reason for Discounting Monthly Fees"
+  },
+  {
+   "default": "0",
+   "fieldname": "scholarship_student",
+   "fieldtype": "Check",
+   "label": "scholarship Student"
+  },
+  {
+   "depends_on": "eval:doc.scholarship_student == 1",
+   "fieldname": "reason_for_scholarship",
+   "fieldtype": "Small Text",
+   "label": "Reason For scholarship",
+   "mandatory_depends_on": "eval:doc.scholarship_student == 1"
+  },
+  {
+   "fieldname": "column_break_zfzw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "coupon_code_details",
+   "fieldtype": "Table",
+   "label": "Coupon Code Details",
+   "options": "Referral Coupon Code Detail"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-08 18:34:40.708148",
+ "modified": "2026-08-12 00:56:15.476003",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",
@@ -320,7 +387,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "student_name, admission_number,mother_mobile_number,father_mobile_number",
+ "search_fields": "student_name,standard,admission_number,mother_mobile_number,father_mobile_number",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
