@@ -1,0 +1,4 @@
+/* Hide Help Dropdown in Frappe Desk Navbar */
+.dropdown-help {
+    display: none !important;
+}
