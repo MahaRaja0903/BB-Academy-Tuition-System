@@ -120,22 +120,26 @@ frappe.ui.form.on("Student", {
 		frappe.db.get_value(
 			"Academic Year",
 			frm.doc.academic_year,
-			["start_month", "end_month"],
+			["start_date", "end_date"],
 			(ay) => {
-				if (!ay || !ay.start_month || !ay.end_month) return;
+				if (!ay || !ay.start_date || !ay.end_date) return;
 
-				let start_idx = MONTH_NAMES.indexOf(ay.start_month);
-				let end_idx = MONTH_NAMES.indexOf(ay.end_month);
+				let start_parts = ay.start_date.split('-');
+				let end_parts = ay.end_date.split('-');
+				let start_y = parseInt(start_parts[0], 10);
+				let start_m = parseInt(start_parts[1], 10) - 1; // 0-based
+				let end_y = parseInt(end_parts[0], 10);
+				let end_m = parseInt(end_parts[1], 10) - 1; // 0-based
 
-				if (start_idx === -1 || end_idx === -1) return;
+				let total_months = (end_y - start_y) * 12 + (end_m - start_m) + 1;
+				if (total_months <= 0) return;
 
 				// Build ordered list of month indices (0-based) from start to end
 				let academic_months = [];
-				let idx = start_idx;
-				while (true) {
-					academic_months.push(idx);
-					if (idx === end_idx) break;
-					idx = (idx + 1) % 12;
+				let idx = start_m;
+				for (let i = 0; i < total_months; i++) {
+					academic_months.push(idx % 12);
+					idx++;
 				}
 
 				// Get admission month (0-based)

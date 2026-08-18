@@ -300,7 +300,8 @@
   {
    "fieldname": "reason_for_discounting_monthly_fees",
    "fieldtype": "Small Text",
-   "label": "Reason for Discounting Monthly Fees"
+   "label": "Reason for Discounting Monthly Fees",
+   "read_only": 1
   },
   {
    "default": "0",
@@ -323,13 +324,14 @@
    "fieldname": "coupon_code_details",
    "fieldtype": "Table",
    "label": "Coupon Code Details",
-   "options": "Referral Coupon Code Detail"
+   "options": "Referral Coupon Code Detail",
+   "read_only": 1
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-12 00:56:15.476003",
+ "modified": "2026-08-18 17:10:11.520635",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

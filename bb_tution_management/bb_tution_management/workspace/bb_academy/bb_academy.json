@@ -1,7 +1,7 @@
 {
  "charts": [],
  "content": "[{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"bbDashLink\",\"type\":\"card\",\"data\":{\"card_name\":\"Dashboard\",\"col\":4}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"0FsumFCZ5D\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}}]",
- "creation": "2026-08-08 20:27:14.594794",
+ "creation": "2026-08-18 15:50:09.294651",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -213,16 +213,26 @@
    "type": "Link"
   }
  ],
- "modified": "2026-08-09 10:04:05.284234",
+ "modified": "2026-08-18 16:41:38.855135",
  "modified_by": "Administrator",
- "module": "Bb Tution Management",
+ "module": "BB Academy",
  "name": "BB Academy",
  "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
  "quick_lists": [],
- "roles": [],
+ "roles": [
+  {
+   "role": "Teacher"
+  },
+  {
+   "role": "Receptionist"
+  },
+  {
+   "role": "Owners"
+  }
+ ],
  "sequence_id": 6.0,
  "shortcuts": [],
  "title": "BB Academy"

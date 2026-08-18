@@ -116,22 +116,24 @@ class Student(Document):
 		if not needs_rebuild:
 			return
 
-		# ----- fetch academic year start/end months -----
+		# ----- fetch academic year start/end dates -----
 		ay = frappe.get_cached_doc("Academic Year", self.academic_year)
-		start_month = MONTH_NUMBER.get(ay.start_month)
-		end_month = MONTH_NUMBER.get(ay.end_month)
-
-		if not start_month or not end_month:
+		if not ay.start_date or not ay.end_date:
 			return
 
-		# Build ordered list of month numbers from start_month to end_month
+		start_date = getdate(ay.start_date)
+		end_date = getdate(ay.end_date)
+
+		total_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+		if total_months <= 0:
+			return
+
+		# Build ordered list of month numbers from start_date to end_date
 		# e.g. June(6) to March(3) -> [6,7,8,9,10,11,12,1,2,3]
 		academic_months = []
-		m = start_month
-		while True:
+		m = start_date.month
+		for _ in range(total_months):
 			academic_months.append(m)
-			if m == end_month:
-				break
 			m = m % 12 + 1  # next month, wrapping Dec(12)->Jan(1)
 
 		# ----- admission month -----
