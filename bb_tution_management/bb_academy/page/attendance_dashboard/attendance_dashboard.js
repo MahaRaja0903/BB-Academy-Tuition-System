@@ -11,10 +11,8 @@ class AttendanceDashboard {
     constructor(wrapper) {
         this.wrapper = $(wrapper).find('.layout-main-section');
         this.charts = {};
-        frappe.require('attendance_dashboard.html', () => {
-            this.setup_ui();
-            this.bind_events();
-        });
+        this.setup_ui();
+        this.bind_events();
     }
 
     setup_ui() {
@@ -136,7 +134,7 @@ class AttendanceDashboard {
             type: 'donut',
             colors: ['#28a745', '#dc3545', '#6c757d', '#ffc107'],
             height: 200,
-            tooltipOptions: { formatTooltipY: d => d + ' students' }
+            tooltipOptions: { formatTooltipY: val => val + ' students' }
         });
         
         // 30 Days Trend Chart
@@ -175,7 +173,7 @@ class AttendanceDashboard {
             type: 'line',
             colors: ['#007bff'],
             height: 200,
-            tooltipOptions: { formatTooltipY: d => d + '%' }
+            tooltipOptions: { formatTooltipY: val => val + '%' }
         });
         
         // Standard / Batch Chart
@@ -211,7 +209,7 @@ class AttendanceDashboard {
             type: 'bar',
             colors: ['#17a2b8'],
             height: 200,
-            tooltipOptions: { formatTooltipY: d => d + '%' }
+            tooltipOptions: { formatTooltipY: val => val + '%' }
         });
         
         // Top 10 Absent Chart

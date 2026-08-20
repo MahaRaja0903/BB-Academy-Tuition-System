@@ -15,9 +15,7 @@ class AttendanceManager {
         this.students = [];
         this.summary = {};
         
-        frappe.require('attendance_manager.html', () => {
-            this.setup_ui();
-        });
+        this.setup_ui();
     }
 
     setup_ui() {
@@ -232,9 +230,6 @@ class AttendanceManager {
     mark_attendance(student, status, $input) {
         let date = this.$date.val();
         
-        // Optimistic UI updates handled by bootstrap button groups (.active class is toggled)
-        // We just need to update summary visually before API call completes, though it's optional.
-        
         frappe.call({
             method: 'bb_tution_management.bb_academy.attendance.save_student_attendance',
             args: {
@@ -246,18 +241,15 @@ class AttendanceManager {
                 if(r.message && r.message.status === 'success') {
                     frappe.show_alert({message: `Attendance updated for ${student}`, indicator: 'green'}, 3);
                     
-                    // Update badges
                     let $tr = this.$tbody.find(`tr[data-id="${student}"]`);
                     $tr.find('.att-absent-count').text(r.message.monthly_absent);
                     $tr.find('.att-late-count').text(r.message.monthly_late);
                     
-                    // Re-calculate summary client-side
                     this.recalc_summary();
                 }
             },
             error: (err) => {
                 frappe.msgprint('Error saving attendance');
-                // Could revert UI state here, for MVP reload is safer
                 this.load_students();
             }
         });
@@ -296,7 +288,7 @@ class AttendanceManager {
                             frappe.show_alert({message: 'Holiday assigned successfully', indicator: 'green'});
                             d.hide();
                             if(this.$date.val() === values.date) {
-                                this.load_students(); // reload to show holiday
+                                this.load_students();
                             }
                         }
                     }
@@ -304,7 +296,6 @@ class AttendanceManager {
             }
         });
         
-        // Auto-fill std/batch if selected
         if(this.$std.val()) d.set_value('standard', this.$std.val());
         if(this.$batch.val()) d.set_value('batch', this.$batch.val());
         

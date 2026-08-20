@@ -987,7 +987,7 @@ class BBDashboard {
 						title: nm,
 						sub: bits.join(" · ") || __("No standard assigned"),
 						avatar: String(nm).charAt(0).toUpperCase(),
-						end: `<span class="bb-badge ${label === 'Today' ? 'bb-badge--info' : 'bb-badge--yellow'}">${__(label)}</span>`,
+						end: `<span class="bb-badge ${label === 'Today' ? 'bb-badge--info' : 'bb-badge--warn'}">${__(label)}</span>`,
 					});
 				})
 				.join("")

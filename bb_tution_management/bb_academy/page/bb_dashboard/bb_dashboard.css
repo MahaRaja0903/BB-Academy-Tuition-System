@@ -1250,7 +1250,7 @@
 	}
 
 	.bb-chart-host {
-		min-width: 540px;
+		min-width: 100%;
 		min-height: 250px;
 	}
 }
