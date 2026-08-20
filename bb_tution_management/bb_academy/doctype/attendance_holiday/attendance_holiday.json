@@ -1,0 +1,102 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:HOL-{holiday_date}",
+ "creation": "2026-08-20 14:45:40.570760",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "holiday_date",
+  "holiday_type",
+  "reason",
+  "scope",
+  "standard",
+  "batch"
+ ],
+ "fields": [
+  {
+   "fieldname": "holiday_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Holiday Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "holiday_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Holiday Type",
+   "options": "Rain\nGovernment Holiday\nSchool Holiday\nEmergency\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "reqd": 1
+  },
+  {
+   "fieldname": "scope",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Scope",
+   "options": "Entire School\nStandard\nStandard + Batch",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:in_list(['Standard', 'Standard + Batch'], doc.scope)",
+   "fieldname": "standard",
+   "fieldtype": "Link",
+   "label": "Standard",
+   "options": "Standard"
+  },
+  {
+   "depends_on": "eval:doc.scope=='Standard + Batch'",
+   "fieldname": "batch",
+   "fieldtype": "Link",
+   "label": "Batch",
+   "options": "Batch"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-20 14:45:40.570760",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "Attendance Holiday",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Attendance Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

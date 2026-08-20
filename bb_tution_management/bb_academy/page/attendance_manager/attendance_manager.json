@@ -1,0 +1,26 @@
+{
+ "content": null,
+ "creation": "2026-08-20 14:55:25.931255",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-08-20 14:55:25.931255",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "attendance-manager",
+ "owner": "Administrator",
+ "page_name": "attendance-manager",
+ "roles": [
+  {
+   "role": "Attendance Manager"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Attendance Manager"
+}

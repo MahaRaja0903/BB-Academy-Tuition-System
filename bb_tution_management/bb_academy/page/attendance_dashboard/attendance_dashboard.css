@@ -1,0 +1,8 @@
+.attendance-dashboard .stat-card {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.attendance-dashboard .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}

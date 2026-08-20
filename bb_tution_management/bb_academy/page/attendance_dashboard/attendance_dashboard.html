@@ -1,0 +1,151 @@
+<div class="attendance-dashboard">
+    <div class="row mb-4 align-items-end">
+        <div class="col-sm-3">
+            <div class="form-group mb-0">
+                <label>Standard</label>
+                <select id="dash-standard" class="form-control form-control-sm">
+                    <option value="">All Standards</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="form-group mb-0">
+                <label>Batch</label>
+                <select id="dash-batch" class="form-control form-control-sm" disabled>
+                    <option value="">All Batches</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-sm-2">
+            <div class="form-group mb-0">
+                <label>Date</label>
+                <input type="date" id="dash-date" class="form-control form-control-sm">
+            </div>
+        </div>
+        <div class="col-sm-4 text-right">
+            <a href="/app/attendance-manager" class="btn btn-primary btn-sm"><i class="fa fa-check-circle"></i> Take Attendance</a>
+            <button class="btn btn-secondary btn-sm ml-2" id="btn-dashboard-holiday"><i class="fa fa-calendar-times-o"></i> Assign Holiday</button>
+        </div>
+    </div>
+    
+    <div class="row text-center mb-4 dashboard-cards">
+        <div class="col-sm-3">
+            <div class="card bg-info text-white stat-card" data-action="new-students">
+                <div class="card-body py-3">
+                    <h6 class="card-title">New Students</h6>
+                    <h3 class="card-text mb-0" id="dash-new">0</h3>
+                    <small>Last 7 Days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="card bg-danger text-white stat-card" data-action="today-absent">
+                <div class="card-body py-3">
+                    <h6 class="card-title">Today's Absent</h6>
+                    <h3 class="card-text mb-0" id="dash-absent">0</h3>
+                    <small>Today</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="card bg-warning text-dark stat-card" data-action="absent-5">
+                <div class="card-body py-3">
+                    <h6 class="card-title">Absent > 5 Days</h6>
+                    <h3 class="card-text mb-0" id="dash-abs-5">0</h3>
+                    <small>This Month</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="card bg-secondary text-white stat-card" data-action="late-5">
+                <div class="card-body py-3">
+                    <h6 class="card-title">Late > 5 Days</h6>
+                    <h3 class="card-text mb-0" id="dash-late-5">0</h3>
+                    <small>This Month</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-sm-4">
+            <div class="card h-100">
+                <div class="card-header bg-light py-2">
+                    <h6 class="mb-0">Today's Attendance Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div id="chart-today-dist"></div>
+                    <div class="text-center mt-2 small text-muted">
+                        Total Students: <span id="dash-sum-total">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-8">
+            <div class="card h-100">
+                <div class="card-header bg-light py-2">
+                    <h6 class="mb-0">Last 30 Days Trend</h6>
+                </div>
+                <div class="card-body">
+                    <div id="chart-30-days"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-sm-12">
+            <div class="card">
+                <div class="card-header bg-light py-2 d-flex justify-content-between">
+                    <h6 class="mb-0" id="chart-std-title">Attendance by Standard</h6>
+                </div>
+                <div class="card-body">
+                    <div id="chart-standard"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-sm-6">
+            <div class="card h-100">
+                <div class="card-header bg-light py-2">
+                    <h6 class="mb-0">Top 10 Absent Students (This Month)</h6>
+                </div>
+                <div class="card-body">
+                    <div id="chart-top-absent"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6">
+            <div class="card h-100">
+                <div class="card-header bg-light py-2">
+                    <h6 class="mb-0">Top 10 Late Students (This Month)</h6>
+                </div>
+                <div class="card-body">
+                    <div id="chart-top-late"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="card">
+                <div class="card-header bg-light py-2">
+                    <h6 class="mb-0">Quick Reports</h6>
+                </div>
+                <div class="card-body p-2 d-flex flex-wrap">
+                    <a href="/app/query-report/Daily Attendance Report" class="btn btn-light btn-sm m-1 border">Daily Attendance</a>
+                    <a href="/app/query-report/Student Attendance History" class="btn btn-light btn-sm m-1 border">Student History</a>
+                    <a href="/app/query-report/Monthly Attendance Report" class="btn btn-light btn-sm m-1 border">Monthly Report</a>
+                    <a href="/app/query-report/Standard and Batch Attendance Summary" class="btn btn-light btn-sm m-1 border">Batch Summary</a>
+                    <a href="/app/query-report/Absent Student Report" class="btn btn-light btn-sm m-1 border">Absent Report</a>
+                    <a href="/app/query-report/Late Entry Report" class="btn btn-light btn-sm m-1 border">Late Entry Report</a>
+                    <a href="/app/query-report/Attendance Defaulters" class="btn btn-light btn-sm m-1 border">Defaulters</a>
+                    <a href="/app/query-report/Monthly Attendance Register" class="btn btn-light btn-sm m-1 border">Register</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

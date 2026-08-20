@@ -34,7 +34,7 @@ ever need true payment dating, the schema needs a date field first.
 """
 
 import frappe
-from frappe.utils import add_months, flt, get_first_day, get_last_day, getdate, nowdate
+from frappe.utils import add_days, add_months, flt, get_first_day, get_last_day, getdate, nowdate
 
 # Roles allowed to read dashboard figures. Mirrors the roles on bb_dashboard.json —
 # the whitelisted endpoints are callable independently of page access, so they
@@ -426,20 +426,24 @@ def get_recent_collections(limit=8):
 
 @frappe.whitelist()
 def get_todays_birthdays():
-	"""Active students whose birthday falls today (month + day match in SQL)."""
+	"""Active students whose birthday falls today or tomorrow."""
 	_guard()
 	today = getdate(nowdate())
+	tomorrow = add_days(today, 1)
 	return frappe.db.sql(
 		"""
-		select name, student_name, date_of_birth, standard, current_batch
+		select name, student_name, date_of_birth, standard, current_batch,
+		       if(month(date_of_birth) = %s and day(date_of_birth) = %s, 'Today', 'Tomorrow') as day_label
 		from `tabStudent`
 		where status = 'Active'
 		  and date_of_birth is not null
-		  and month(date_of_birth) = %s
-		  and day(date_of_birth) = %s
-		order by student_name asc
+		  and (
+			(month(date_of_birth) = %s and day(date_of_birth) = %s) or
+			(month(date_of_birth) = %s and day(date_of_birth) = %s)
+		  )
+		order by day_label asc, student_name asc
 		""",
-		(today.month, today.day),
+		(today.month, today.day, today.month, today.day, tomorrow.month, tomorrow.day),
 		as_dict=True,
 	)
 

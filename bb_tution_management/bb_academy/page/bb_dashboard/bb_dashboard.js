@@ -276,7 +276,7 @@ class BBDashboard {
 
 				<div class="bb-grid bb-grid--2">
 					<div class="bb-card bb-card--accent bb-a--magenta bb-rise" style="--bb-i:5">
-						${this._head("cake", __("Birthdays Today"), "magenta")}
+						${this._head("cake", __("Upcoming Birthdays"), "magenta")}
 						<div class="bb-card__body bb-card__body--flush" data-ref="birthdays"></div>
 					</div>
 					<div class="bb-card bb-card--accent bb-a--yellow bb-rise" style="--bb-i:6">
@@ -658,7 +658,7 @@ class BBDashboard {
 			items.push({
 				tone: "info",
 				icon: "gift",
-				text: __("{0} student birthdays today", [d.birthdays.length]),
+				text: __("{0} upcoming student birthdays", [d.birthdays.length]),
 				doctype: "Student",
 			});
 		}
@@ -694,14 +694,16 @@ class BBDashboard {
 				accent: BB_ACCENTS.blue,
 				label: __("Active Students"),
 				count: k.active_students,
-				meta:
-					k.total_students > k.active_students
-						? __("{0} enrolled total · {1} discontinued · {2} suspended", [
-								k.total_students,
-								k.discontinued_students || 0,
-								k.suspended_students || 0,
-						  ])
-						: __("All enrolled students active"),
+				meta: (() => {
+					let html = __("{0} enrolled total", [k.total_students]);
+					if (k.discontinued_students) {
+						html += ` <span class="bb-pill bb-pill--warn" style="margin-left:4px"><span class="bb-dot bb-dot--warn"></span>${__("{0} discontinued", [k.discontinued_students])}</span>`;
+					}
+					if (k.suspended_students) {
+						html += ` <span class="bb-pill bb-pill--crit" style="margin-left:4px"><span class="bb-dot bb-dot--crit"></span>${__("{0} suspended", [k.suspended_students])}</span>`;
+					}
+					return html;
+				})(),
 				list: "Student",
 				filters: { status: "Active" },
 			},
@@ -893,7 +895,8 @@ class BBDashboard {
 			$el.html(this._empty(emptyIcon, emptyText));
 			return;
 		}
-		const shown = rows.slice(0, 8);
+		const limit = opts.limit || 10;
+		const shown = rows.length === limit + 1 ? rows : rows.slice(0, limit);
 		const max = Math.max(...shown.map((r) => flt(r.count)));
 		const total = rows.reduce((s, r) => s + flt(r.count), 0);
 
@@ -969,7 +972,7 @@ class BBDashboard {
 	_render_birthdays(rows) {
 		const $el = this.$ref("birthdays");
 		if (!rows.length) {
-			$el.html(this._empty("cake", __("No birthdays today")));
+			$el.html(this._empty("cake", __("No upcoming birthdays")));
 			return;
 		}
 		$el.html(
@@ -977,13 +980,14 @@ class BBDashboard {
 				.map((s) => {
 					const nm = s.student_name || s.name;
 					const bits = [s.standard, s.current_batch].filter(Boolean).map(esc);
+					const label = s.day_label || "Today";
 					return this._row({
 						doctype: "Student",
 						name: s.name,
 						title: nm,
 						sub: bits.join(" · ") || __("No standard assigned"),
 						avatar: String(nm).charAt(0).toUpperCase(),
-						end: `<span class="bb-badge bb-badge--info">${__("Today")}</span>`,
+						end: `<span class="bb-badge ${label === 'Today' ? 'bb-badge--info' : 'bb-badge--yellow'}">${__(label)}</span>`,
 					});
 				})
 				.join("")
@@ -1123,7 +1127,7 @@ class BBDashboard {
 						? __("{0} submitted transitions", [c.batch_transitions])
 						: null,
 			},
-			{ label: __("SMS Settings"), icon: "settings", accent: A.magenta, form: "BB SMS Settings" },
+			{ label: __("New Student"), icon: "users", accent: A.green, newDoc: "Student" },
 		];
 
 		this.$ref("actions").html(
