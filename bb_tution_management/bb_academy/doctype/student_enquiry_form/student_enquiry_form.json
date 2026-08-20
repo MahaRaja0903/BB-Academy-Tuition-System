@@ -74,6 +74,7 @@
    "in_list_view": 1,
    "label": "Academic Year",
    "options": "Academic Year",
+   "read_only": 1,
    "reqd": 1
   },
   {

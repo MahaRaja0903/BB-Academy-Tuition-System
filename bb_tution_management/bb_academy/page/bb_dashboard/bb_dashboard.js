@@ -696,7 +696,11 @@ class BBDashboard {
 				count: k.active_students,
 				meta:
 					k.total_students > k.active_students
-						? __("{0} enrolled in total", [k.total_students])
+						? __("{0} enrolled total · {1} discontinued · {2} suspended", [
+								k.total_students,
+								k.discontinued_students || 0,
+								k.suspended_students || 0,
+						  ])
 						: __("All enrolled students active"),
 				list: "Student",
 				filters: { status: "Active" },

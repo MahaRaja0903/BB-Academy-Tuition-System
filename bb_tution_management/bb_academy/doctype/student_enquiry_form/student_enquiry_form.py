@@ -8,15 +8,29 @@ from frappe import _
 
 class StudentEnquiryForm(Document):
 	def validate(self):
-		if not self.academic_year:
-			self.academic_year = get_academic_year(self.enquiry_date or frappe.utils.today())
+		if not self.academic_year or self.standard:
+			self.academic_year = get_academic_year(self.enquiry_date or frappe.utils.today(), self.standard)
 
 
 @frappe.whitelist()
-def get_academic_year(date=None):
+def get_academic_year(date=None, standard=None):
 	if not date:
 		date = frappe.utils.today()
 	
+	if standard:
+		query = """
+			SELECT p.name 
+			FROM `tabAcademic Year` p
+			JOIN `tabStandard Detail` c ON p.name = c.parent
+			WHERE c.standard = %s 
+			AND p.start_date <= %s 
+			AND p.end_date >= %s
+			LIMIT 1
+		"""
+		ay = frappe.db.sql(query, (standard, date, date))
+		if ay:
+			return ay[0][0]
+
 	ay = frappe.db.get_value(
 		"Academic Year",
 		{

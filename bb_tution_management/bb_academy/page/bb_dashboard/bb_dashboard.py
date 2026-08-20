@@ -206,6 +206,8 @@ def _sum_payments(start, end=None):
 
 def _get_kpis(today, month_start, month_end):
 	active_students = frappe.db.count("Student", {"status": "Active"})
+	discontinued_students = frappe.db.count("Student", {"status": "Discontinued"})
+	suspended_students = frappe.db.count("Student", {"status": "Suspended"})
 	total_students = frappe.db.count("Student")
 
 	new_admissions = frappe.db.count(
@@ -257,6 +259,8 @@ def _get_kpis(today, month_start, month_end):
 
 	return {
 		"active_students": active_students,
+		"discontinued_students": discontinued_students,
+		"suspended_students": suspended_students,
 		"total_students": total_students,
 		"new_admissions": new_admissions,
 		"open_enquiries": open_enquiries,

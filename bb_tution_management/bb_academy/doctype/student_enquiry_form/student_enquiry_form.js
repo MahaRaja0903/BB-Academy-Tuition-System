@@ -40,12 +40,18 @@ frappe.ui.form.on("Student Enquiry Form", {
 			frm.trigger("set_academic_year");
 		}
 	},
+	standard(frm) {
+		if (frm.doc.standard) {
+			frm.trigger("set_academic_year");
+		}
+	},
 	set_academic_year(frm) {
 		let ref_date = frm.doc.enquiry_date || frappe.datetime.get_today();
 		frappe.call({
 			method: "bb_tution_management.bb_academy.doctype.student_enquiry_form.student_enquiry_form.get_academic_year",
 			args: {
-				date: ref_date
+				date: ref_date,
+				standard: frm.doc.standard
 			},
 			callback(r) {
 				if (r.message) {
