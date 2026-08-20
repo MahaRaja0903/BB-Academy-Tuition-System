@@ -39,6 +39,9 @@ def get_data(filters):
 	if filters.get("student"):
 		conditions.append("sbt.student = %(student)s")
 		values["student"] = filters.get("student")
+	if filters.get("standard"):
+		conditions.append("stu.standard = %(standard)s")
+		values["standard"] = filters.get("standard")
 
 	where_clause = " AND ".join(conditions)
 

@@ -27,15 +27,7 @@ def standard_takes_group(standard):
 
 class StudentAdmissionForm(Document):
 	def validate(self):
-		if not self.academic_year:
-			today = frappe.utils.today()
-			if today:
-				year = int(today.split('-')[0])
-				month = int(today.split('-')[1])
-				start_year = year if month >= 6 else year - 1
-				end_year = start_year + 1
-				self.academic_year = f"{start_year}-{end_year}"
-		
+		self.fetch_academic_year()
 		if not self.admission_number and self.name and not self.name.startswith("new-"):
 			self.admission_number = self.name
 
@@ -43,6 +35,29 @@ class StudentAdmissionForm(Document):
 		self.validate_group()
 		self.fetch_fees()
 		self.validate_admission_number()
+
+	def fetch_academic_year(self):
+		if not self.standard:
+			self.academic_year = None
+			return
+
+		active_academic_years = frappe.get_all("Academic Year", filters={"is_active": 1}, pluck="name")
+		if not active_academic_years:
+			return
+
+		academic_year = frappe.db.get_value(
+			"Standard Detail",
+			{
+				"parent": ["in", active_academic_years],
+				"parenttype": "Academic Year",
+				"parentfield": "standard_applicable",
+				"standard": self.standard
+			},
+			"parent"
+		)
+
+		if academic_year:
+			self.academic_year = academic_year
 
 	def set_standard_academic_order(self):
 		"""Mirror the Standard's academic_order onto the form.

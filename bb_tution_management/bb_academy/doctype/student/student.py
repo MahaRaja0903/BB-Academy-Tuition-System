@@ -34,6 +34,7 @@ EDITABLE_FEES = {
 
 class Student(Document):
 	def validate(self):
+		self.fetch_academic_year()
 		self.fetch_starting_payment()
 		self.fetch_monthly_fee()
 		self.populate_payment_details()
@@ -263,6 +264,29 @@ class Student(Document):
 
 		return all(doc_before.get(f) == self.get(f) for f in config["source_fields"])
 
+	def fetch_academic_year(self):
+		if not self.standard:
+			self.academic_year = None
+			return
+
+		active_academic_years = frappe.get_all("Academic Year", filters={"is_active": 1}, pluck="name")
+		if not active_academic_years:
+			return
+
+		academic_year = frappe.db.get_value(
+			"Standard Detail",
+			{
+				"parent": ["in", active_academic_years],
+				"parenttype": "Academic Year",
+				"parentfield": "standard_applicable",
+				"standard": self.standard
+			},
+			"parent"
+		)
+
+		if academic_year:
+			self.academic_year = academic_year
+
 	def fetch_starting_payment(self):
 		if not self.standard:
 			return
@@ -383,4 +407,24 @@ def update_fee_amount(student, fee_type, new_amount, reason):
 		"reason": reason,
 	}
 
+@frappe.whitelist()
+def get_academic_year_for_standard(standard):
+	if not standard:
+		return None
+
+	active_academic_years = frappe.get_all("Academic Year", filters={"is_active": 1}, pluck="name")
+	if not active_academic_years:
+		return None
+
+	academic_year = frappe.db.get_value(
+		"Standard Detail",
+		{
+			"parent": ["in", active_academic_years],
+			"parenttype": "Academic Year",
+			"parentfield": "standard_applicable",
+			"standard": standard
+		},
+		"parent"
+	)
+	return academic_year
 

@@ -26,20 +26,6 @@ frappe.ui.form.on("Student", {
 		frm.add_custom_button(__("Edit Fees Amount"), () => show_edit_fees_dialog(frm));
 	},
 
-	onload(frm) {
-		if (!frm.doc.academic_year) {
-			let today = frappe.datetime.get_today();
-			if (today) {
-				let year = parseInt(today.split('-')[0]);
-				let month = parseInt(today.split('-')[1]);
-				
-				let start_year = month >= 6 ? year : year - 1;
-				let end_year = start_year + 1;
-				
-				frm.set_value("academic_year", `${start_year}-${end_year}`);
-			}
-		}
-	},
 	setup(frm) {
 		frm.set_query("standard", function() {
 			return {
@@ -67,6 +53,21 @@ frappe.ui.form.on("Student", {
 				}
 			});
 			frm.trigger("fetch_monthly_fee");
+			
+			// Auto-set academic_year based on standard
+			frappe.call({
+				method: "bb_tution_management.bb_academy.doctype.student.student.get_academic_year_for_standard",
+				args: { standard: frm.doc.standard },
+				callback: function(r) {
+					if (r.message) {
+						frm.set_value("academic_year", r.message);
+					} else {
+						frm.set_value("academic_year", "");
+					}
+				}
+			});
+		} else {
+			frm.set_value("academic_year", "");
 		}
 	},
 

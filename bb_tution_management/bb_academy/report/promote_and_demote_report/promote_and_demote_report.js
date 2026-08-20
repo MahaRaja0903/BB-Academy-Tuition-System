@@ -26,6 +26,12 @@ frappe.query_reports["Promote and Demote Report"] = {
 			"label": __("Student"),
 			"fieldtype": "Link",
 			"options": "Student"
+		},
+		{
+			"fieldname": "standard",
+			"label": __("Standard"),
+			"fieldtype": "Link",
+			"options": "Standard"
 		}
 	]
 };

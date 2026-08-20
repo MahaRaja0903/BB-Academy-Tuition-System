@@ -18,6 +18,7 @@
   "academic_year",
   "column_break_2",
   "gender",
+  "blood_group",
   "school_name",
   "type_your_school",
   "application_date",
@@ -248,13 +249,19 @@
    "fieldtype": "Link",
    "label": "Referred By Student ID",
    "options": "Student"
+  },
+  {
+   "fieldname": "blood_group",
+   "fieldtype": "Select",
+   "label": "Blood Group",
+   "options": "A+\nA-\nB+\nB-\nAB+\nAB-\nO+\nO-"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-12 00:46:01.440812",
+ "modified": "2026-08-19 15:07:22.472184",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

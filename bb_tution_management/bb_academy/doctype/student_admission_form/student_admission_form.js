@@ -29,6 +29,21 @@ frappe.ui.form.on("Student Admission Form", {
 				}
 			});
 			frm.trigger("fetch_monthly_fee");
+			
+			// Auto-set academic_year based on standard
+			frappe.call({
+				method: "bb_tution_management.bb_academy.doctype.student.student.get_academic_year_for_standard",
+				args: { standard: frm.doc.standard },
+				callback: function(r) {
+					if (r.message) {
+						frm.set_value("academic_year", r.message);
+					} else {
+						frm.set_value("academic_year", "");
+					}
+				}
+			});
+		} else {
+			frm.set_value("academic_year", "");
 		}
 	},
 
