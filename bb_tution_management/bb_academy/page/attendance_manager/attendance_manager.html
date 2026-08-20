@@ -40,7 +40,8 @@
                 <div class="text-danger"><strong>Absent: </strong><span id="sum-absent">0</span></div>
                 <div class="text-muted"><strong>Late: </strong><span id="sum-late">0</span></div>
                 <div class="text-warning"><strong>Pending: </strong><span id="sum-pending">0</span></div>
-                <div>
+                <div class="d-flex align-items-center">
+                    <label class="mr-3 mb-0 text-muted" style="cursor:pointer;"><input type="checkbox" id="att-show-completed"> Show Completed</label>
                     <input type="text" id="att-search" class="form-control form-control-sm" placeholder="Search Student..." style="width: 200px;">
                 </div>
             </div>
@@ -61,7 +62,7 @@
                     <th style="width: 20%">Student ID & Stats</th>
                     <th style="width: 25%">Student Name</th>
                     <th style="width: 15%">Previous Day</th>
-                    <th style="width: 40%">Today's Attendance</th>
+                    <th style="width: 40%">Today&apos;s Attendance</th>
                 </tr>
             </thead>
             <tbody id="att-tbody">
@@ -72,7 +73,7 @@
 </div>
 
 <template id="att-row-template">
-    <tr class="att-student-row" data-id="${student_id}" data-name="${student_name_lower}">
+    <tr class="att-student-row" data-id="${student_id}" data-name="${student_name_lower}" data-current-status="${today_status_raw}">
         <td>
             <strong>${student_id}</strong>
             <div class="small text-muted mt-1">

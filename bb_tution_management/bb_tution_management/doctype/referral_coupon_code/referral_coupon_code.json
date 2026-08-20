@@ -7,8 +7,9 @@
  "engine": "InnoDB",
  "field_order": [
   "student_id",
-  "student_name",
   "amount",
+  "column_break_fdbb",
+  "student_name",
   "valid_till"
  ],
  "fields": [
@@ -33,12 +34,16 @@
    "fieldname": "valid_till",
    "fieldtype": "Date",
    "label": "Valid Till"
+  },
+  {
+   "fieldname": "column_break_fdbb",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-12 01:30:01.548110",
+ "modified": "2026-08-20 17:28:51.751893",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Referral Coupon Code",

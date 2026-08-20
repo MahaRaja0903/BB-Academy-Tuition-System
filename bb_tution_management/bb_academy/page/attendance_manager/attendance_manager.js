@@ -29,7 +29,7 @@ class AttendanceManager {
         this.$hol_msg = this.wrapper.find('#holiday-message');
         this.$table = this.wrapper.find('#att-table');
         
-        // Set date to today
+        
         this.$date.val(frappe.datetime.get_today());
         
         this.load_standards();
@@ -78,7 +78,13 @@ class AttendanceManager {
             this.show_holiday_dialog();
         });
         
-        // Event delegation for attendance buttons
+        this.wrapper.find('#att-show-completed').on('change', () => {
+            if(this.raw_students) {
+                this.render_students(this.raw_students, this.summary);
+            }
+        });
+        
+        
         this.$tbody.on('change', 'input[type=radio]', (e) => {
             let $input = $(e.target);
             let status = $input.val();
@@ -118,7 +124,7 @@ class AttendanceManager {
             args: {
                 doctype: 'Batch',
                 fields: ['name'],
-                filters: { 'standard': standard },
+                
                 limit_page_length: 0
             },
             callback: (r) => {
@@ -161,6 +167,7 @@ class AttendanceManager {
                     if(r.message.holiday) {
                         this.show_holiday(r.message.holiday);
                     } else {
+                        this.raw_students = r.message.students;
                         this.render_students(r.message.students, r.message.summary);
                     }
                 }
@@ -180,9 +187,18 @@ class AttendanceManager {
     render_students(students, summary) {
         this.$hol_msg.hide();
         this.$table.show();
-        this.students = students;
+        
+        let show_completed = this.wrapper.find('#att-show-completed').is(':checked');
+        let pending_students = show_completed ? students : students.filter(s => !s.today_status);
+        this.students = pending_students;
+        
         this.update_summary(summary);
         this.wrapper.find('#sum-total').text(students.length);
+        
+        if(pending_students.length === 0) {
+            this.$tbody.html('<tr><td colspan="4" class="text-center text-success" style="padding: 30px;"><h5><i class="fa fa-check-circle"></i> Awesome! All attendance has been marked.</h5></td></tr>');
+            return;
+        }
         
         if(students.length === 0) {
             this.$tbody.html('<tr><td colspan="4" class="text-center text-muted">No active students found for this Standard and Batch on the selected date.</td></tr>');
@@ -192,11 +208,12 @@ class AttendanceManager {
         let html = '';
         let template = this.wrapper.find('#att-row-template').html();
         
-        students.forEach(s => {
+        pending_students.forEach(s => {
             let row = template;
             row = row.replace(/\${student_id}/g, s.student_id);
             row = row.replace(/\${student_name}/g, s.student_name);
             row = row.replace(/\${student_name_lower}/g, (s.student_name || "").toLowerCase());
+            row = row.replace(/\${today_status_raw}/g, s.today_status || "");
             row = row.replace(/\${monthly_absent}/g, s.monthly_absent);
             row = row.replace(/\${monthly_late}/g, s.monthly_late);
             row = row.replace(/\${previous_status}/g, s.previous_status);
@@ -215,7 +232,7 @@ class AttendanceManager {
         
         this.$tbody.html(html);
         
-        // Re-trigger search filter if there's any text
+        
         this.$search.trigger('input');
     }
 
@@ -242,10 +259,28 @@ class AttendanceManager {
                     frappe.show_alert({message: `Attendance updated for ${student}`, indicator: 'green'}, 3);
                     
                     let $tr = this.$tbody.find(`tr[data-id="${student}"]`);
-                    $tr.find('.att-absent-count').text(r.message.monthly_absent);
-                    $tr.find('.att-late-count').text(r.message.monthly_late);
                     
-                    this.recalc_summary();
+                    let old_status = $tr.data('current-status');
+                    $tr.data('current-status', status);
+                    
+                    // Also update raw_students array so it persists on toggle
+                    let raw_s = this.raw_students.find(x => x.student_id === student);
+                    if(raw_s) raw_s.today_status = status;
+                    
+                    let show_completed = this.wrapper.find('#att-show-completed').is(':checked');
+                    
+                    if(!show_completed) {
+                        $tr.fadeOut(300, () => {
+                            $tr.remove();
+                            this.recalc_summary(status, old_status);
+                            
+                            if(this.$tbody.find('tr.att-student-row').length === 0) {
+                                this.$tbody.html('<tr><td colspan="4" class="text-center text-success" style="padding: 30px;"><h5><i class="fa fa-check-circle"></i> Awesome! All attendance has been marked.</h5></td></tr>');
+                            }
+                        });
+                    } else {
+                        this.recalc_summary(status, old_status);
+                    }
                 }
             },
             error: (err) => {
@@ -255,16 +290,20 @@ class AttendanceManager {
         });
     }
 
-    recalc_summary() {
-        let p=0, a=0, l=0, pend=0;
-        this.$tbody.find('.att-student-row').each(function() {
-            let val = $(this).find('input[type=radio]:checked').val();
-            if(val === 'Present') p++;
-            else if(val === 'Absent') a++;
-            else if(val === 'Late') l++;
-            else pend++;
-        });
-        this.update_summary({present: p, absent: a, late: l, pending: pend});
+    recalc_summary(status, old_status) {
+        if(status && this.summary) {
+            if(!old_status) {
+                this.summary.pending--;
+            } else {
+                if(old_status === 'Present') this.summary.present--;
+                if(old_status === 'Absent') this.summary.absent--;
+                if(old_status === 'Late') this.summary.late--;
+            }
+            if(status === 'Present') this.summary.present++;
+            if(status === 'Absent') this.summary.absent++;
+            if(status === 'Late') this.summary.late++;
+            this.update_summary(this.summary);
+        }
     }
 
     show_holiday_dialog() {

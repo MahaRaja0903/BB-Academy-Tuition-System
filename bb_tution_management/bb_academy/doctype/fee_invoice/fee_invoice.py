@@ -301,8 +301,15 @@ class FeeInvoice(Document):
 		self.validate_duplicate_rows()
 		self.validate_duplicate_invoice()
 		self.validate_coupons()
+		self.validate_discount_amount()
 		self.calculate_outstanding()
 		# self.update_status()
+
+	def validate_discount_amount(self):
+		if self.add_discount and flt(self.discount_amount) > 0:
+			discount_limit = flt(frappe.db.get_single_value("BB Academy Settings", "discount_amount_limit"))
+			if flt(self.discount_amount) > discount_limit:
+				frappe.throw(_("Discount Amount cannot exceed the limit of {0}").format(discount_limit))
 
 	def validate_coupons(self):
 		"""Re-derive coupon_amount from the codes, against the student's own

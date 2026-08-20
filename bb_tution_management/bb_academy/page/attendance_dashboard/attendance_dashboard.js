@@ -87,7 +87,7 @@ class AttendanceDashboard {
         }
         frappe.call({
             method: 'frappe.client.get_list',
-            args: { doctype: 'Batch', fields: ['name'], filters: { 'standard': standard }, limit_page_length: 0 },
+            args: { doctype: 'Batch', fields: ['name'],  limit_page_length: 0 },
             callback: (r) => {
                 let html = '<option value="">All Batches</option>';
                 if(r.message) {
@@ -115,13 +115,13 @@ class AttendanceDashboard {
     }
     
     render_data(d) {
-        // KPIs
+        
         this.wrapper.find('#dash-new').text(d.new_students);
         this.wrapper.find('#dash-absent').text(d.today_absent);
         this.wrapper.find('#dash-abs-5').text(d.absent_5_plus);
         this.wrapper.find('#dash-late-5').text(d.late_5_plus);
         
-        // Distribution Chart
+        
         let sum = d.today_summary;
         this.wrapper.find('#dash-sum-total').text(sum.total);
         
@@ -137,12 +137,12 @@ class AttendanceDashboard {
             tooltipOptions: { formatTooltipY: val => val + ' students' }
         });
         
-        // 30 Days Trend Chart
+        
         let trend_labels = [];
         let trend_p = [];
         let trend_a = [];
         
-        // Group trend_raw by date
+        
         let datesMap = {};
         (d.trend_raw || []).forEach(r => {
             if(!datesMap[r.attendance_date]) datesMap[r.attendance_date] = { p: 0, a: 0, total: 0 };
@@ -176,7 +176,7 @@ class AttendanceDashboard {
             tooltipOptions: { formatTooltipY: val => val + '%' }
         });
         
-        // Standard / Batch Chart
+        
         let sb_title = this.$std.val() ? 'Attendance by Batch' : 'Attendance by Standard';
         this.wrapper.find('#chart-std-title').text(sb_title);
         
@@ -212,7 +212,7 @@ class AttendanceDashboard {
             tooltipOptions: { formatTooltipY: val => val + '%' }
         });
         
-        // Top 10 Absent Chart
+        
         let abs_labels = (d.top_absent || []).map(r => r.student_name);
         let abs_values = (d.top_absent || []).map(r => r.absent_count);
         
@@ -224,7 +224,7 @@ class AttendanceDashboard {
             height: 250
         });
         
-        // Top 10 Late Chart
+        
         let late_labels = (d.top_late || []).map(r => r.student_name);
         let late_values = (d.top_late || []).map(r => r.late_count);
         
