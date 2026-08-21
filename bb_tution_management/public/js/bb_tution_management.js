@@ -33,3 +33,41 @@ $(document).on('ready', function() {
 		return original_make_url.apply(this, arguments);
 	};
 });
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BB Academy — PWA Registration
+   ═══════════════════════════════════════════════════════════════════════ */
+$(document).on('ready', function() {
+    // Inject Manifest Link
+    if (!$("link[rel='manifest']").length) {
+        $('<link>')
+            .appendTo('head')
+            .attr({
+                type: 'application/manifest+json',
+                rel: 'manifest',
+                href: '/assets/bb_tution_management/manifest.json'
+            });
+    }
+
+    // Inject Theme Color
+    if (!$("meta[name='theme-color']").length) {
+        $('<meta>')
+            .appendTo('head')
+            .attr({
+                name: 'theme-color',
+                content: '#FFD700'
+            });
+    }
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/api/method/bb_tution_management.api.sw', { scope: '/' })
+                .then(function(registration) {
+                    console.log('BB Academy PWA SW registered with scope:', registration.scope);
+                }, function(err) {
+                    console.log('BB Academy PWA SW registration failed:', err);
+                });
+        });
+    }
+});
