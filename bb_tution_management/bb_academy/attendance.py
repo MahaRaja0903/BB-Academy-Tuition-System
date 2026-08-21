@@ -3,27 +3,33 @@ from frappe.utils import getdate, today, add_days, get_first_day, get_last_day
 import json
 
 @frappe.whitelist()
-def get_attendance_students(standard, batch, attendance_date):
+def get_attendance_students(standard, batch, attendance_date, gender=None):
     if not frappe.has_permission("Student Attendance", "read"):
         frappe.throw("No permission to read attendance")
-        
+
     date_obj = getdate(attendance_date)
-    
+
     # 1. Check for Holiday
     holiday = get_holiday_details(attendance_date, standard, batch)
     if holiday:
         return {"holiday": holiday, "students": [], "summary": {}}
-        
+
     # 2. Get active students for the standard and batch, filtering by admission_date
+    gender_filter = " AND gender = %s" if gender else ""
+    params = [standard, batch, date_obj]
+    if gender:
+        params.append(gender)
+
     students = frappe.db.sql("""
-        SELECT name, student_name, admission_date
+        SELECT name, student_name, admission_date, gender
         FROM `tabStudent`
         WHERE status = 'Active'
           AND standard = %s
           AND current_batch = %s
           AND admission_date <= %s
+          {gender_filter}
         ORDER BY name ASC
-    """, (standard, batch, date_obj), as_dict=True)
+    """.format(gender_filter=gender_filter), tuple(params), as_dict=True)
     
     student_ids = [s.name for s in students]
     if not student_ids:
@@ -87,6 +93,7 @@ def get_attendance_students(standard, batch, attendance_date):
         result_students.append({
             "student_id": s.name,
             "student_name": s.student_name,
+            "gender": s.gender,
             "today_status": t_stat,
             "previous_status": prev_map.get(s.name, "N/A"),
             "monthly_absent": monthly_map[s.name]["Absent"],
@@ -101,32 +108,31 @@ def get_attendance_students(standard, batch, attendance_date):
 
 
 @frappe.whitelist()
-def save_student_attendance(student, attendance_date, status):
+def save_student_attendance(student, attendance_date, status, late_reason=None):
     if not frappe.has_permission("Student Attendance", "write"):
         frappe.throw("No permission to write attendance")
-        
+
     # Prevent future attendance
     if getdate(attendance_date) > getdate(today()):
         frappe.throw("Cannot mark attendance for future dates")
-        
+
     # Get student info
     stu = frappe.get_doc("Student", student)
-    
+
     # Check if holiday
     holiday = get_holiday_details(attendance_date, stu.standard, stu.current_batch)
     if holiday:
         frappe.throw("Cannot mark attendance on a holiday")
-        
+
     # Check existing
     existing = frappe.db.get_value("Student Attendance", {
         "student": student,
         "attendance_date": attendance_date
     }, "name")
-    
+
     if existing:
         doc = frappe.get_doc("Student Attendance", existing)
         doc.status = status
-        doc.save()
     else:
         doc = frappe.get_doc({
             "doctype": "Student Attendance",
@@ -136,8 +142,12 @@ def save_student_attendance(student, attendance_date, status):
             "attendance_date": attendance_date,
             "status": status
         })
-        doc.insert()
-        
+
+    if status == "Late" and late_reason:
+        doc.remarks = late_reason
+
+    doc.save() if existing else doc.insert()
+
     # Return updated monthly stats
     date_obj = getdate(attendance_date)
     first_day = get_first_day(date_obj)
@@ -160,6 +170,85 @@ def save_student_attendance(student, attendance_date, status):
         "monthly_absent": monthly_map["Absent"],
         "monthly_late": monthly_map["Late"]
     }
+
+@frappe.whitelist()
+def save_bulk_attendance(students, standard, batch, attendance_date, status, late_reason=None):
+    if not frappe.has_permission("Student Attendance", "write"):
+        frappe.throw("No permission to write attendance")
+
+    if getdate(attendance_date) > getdate(today()):
+        frappe.throw("Cannot mark attendance for future dates")
+
+    if isinstance(students, str):
+        students = json.loads(students)
+
+    if not students:
+        frappe.throw("No students selected")
+
+    holiday = get_holiday_details(attendance_date, standard, batch)
+    if holiday:
+        frappe.throw("Cannot mark attendance on a holiday")
+
+    date_obj = getdate(attendance_date)
+
+    existing_rows = frappe.db.sql("""
+        SELECT name, student
+        FROM `tabStudent Attendance`
+        WHERE attendance_date = %s
+          AND student IN %s
+    """, (date_obj, tuple(students)), as_dict=True)
+    existing_map = {r.student: r.name for r in existing_rows}
+
+    student_names = frappe.db.get_all(
+        "Student",
+        filters={"name": ["in", students]},
+        fields=["name", "student_name"],
+    )
+    name_map = {s.name: s.student_name for s in student_names}
+
+    count = 0
+    for student in students:
+        is_existing = student in existing_map
+        if is_existing:
+            doc = frappe.get_doc("Student Attendance", existing_map[student])
+            doc.status = status
+        else:
+            doc = frappe.get_doc({
+                "doctype": "Student Attendance",
+                "student": student,
+                "student_name": name_map.get(student),
+                "standard": standard,
+                "batch": batch,
+                "attendance_date": attendance_date,
+                "status": status
+            })
+
+        if status == "Late" and late_reason:
+            doc.remarks = late_reason
+
+        doc.save() if is_existing else doc.insert()
+
+        count += 1
+
+    return {"status": "success", "count": count}
+
+
+@frappe.whitelist()
+def get_late_reasons():
+    if not frappe.has_permission("Student Attendance", "read"):
+        return []
+
+    rows = frappe.db.sql("""
+        SELECT remarks, MAX(modified) as last_used
+        FROM `tabStudent Attendance`
+        WHERE status = 'Late' AND remarks IS NOT NULL AND remarks != ''
+        GROUP BY remarks
+        ORDER BY last_used DESC
+        LIMIT 20
+    """, as_dict=True)
+
+    return [r.remarks for r in rows]
+
 
 @frappe.whitelist()
 def get_holiday_details(attendance_date, standard, batch):

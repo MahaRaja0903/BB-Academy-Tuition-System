@@ -1,101 +1,993 @@
-.attendance-manager .att-header {
-    background: #fff;
+/* ==========================================================================
+   Attendance Manager — scoped design system
+   Built entirely on Frappe desk CSS variables (colors, radius, shadows) so
+   the page inherits light/dark theme support automatically.
+   ========================================================================== */
+
+.attendance-manager {
+    --att-radius: var(--border-radius-md, 8px);
+    --att-radius-sm: var(--border-radius, 6px);
+    --att-gap: 14px;
+    color: var(--text-color);
+}
+
+.attendance-manager * {
+    box-sizing: border-box;
+}
+
+.attendance-manager button {
+    font-family: inherit;
+}
+
+/* --------------------------------------------------------------------------
+   Control panel
+   -------------------------------------------------------------------------- */
+
+.attendance-manager .att-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 18px 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--att-radius);
+    box-shadow: var(--card-shadow, var(--shadow-sm));
+    padding: 16px 18px;
+    margin-bottom: var(--att-gap);
+}
+
+.attendance-manager .att-panel-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    flex: 1 1 320px;
+}
+
+.attendance-manager .att-field {
+    min-width: 150px;
+    flex: 1 1 150px;
+}
+
+.attendance-manager .att-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.attendance-manager .att-field label i {
+    width: 14px;
+    margin-right: 4px;
+    color: var(--gray-600);
+}
+
+.attendance-manager .att-panel-date {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.attendance-manager .att-date-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+}
+
+.attendance-manager .att-date-label i {
+    width: 14px;
+    margin-right: 4px;
+    color: var(--gray-600);
+}
+
+.attendance-manager .att-date-stepper {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--border-color);
+    border-radius: var(--att-radius-sm);
+    background: var(--control-bg, var(--gray-100));
+    overflow: hidden;
+}
+
+.attendance-manager .att-date-nav-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.attendance-manager .att-date-nav-btn:hover {
+    background: var(--gray-200);
+}
+
+.attendance-manager .att-date-nav-btn:active {
+    background: var(--gray-300);
+}
+
+.attendance-manager .att-date-input {
+    border: none;
+    background: var(--card-bg);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    padding: 0 10px;
+    height: 36px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--heading-color);
+    min-width: 150px;
+    text-align: center;
+}
+
+.attendance-manager .att-date-input:focus {
+    outline: none;
+    box-shadow: var(--highlight-shadow);
+}
+
+.attendance-manager .att-panel-actions {
+    margin-left: auto;
+}
+
+.attendance-manager .att-holiday-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-muted);
+    border-radius: var(--att-radius-sm);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.attendance-manager .att-holiday-btn:hover {
+    background: var(--bg-yellow);
+    color: var(--text-on-yellow);
+    border-color: var(--yellow-300, var(--border-color));
+}
+
+/* --------------------------------------------------------------------------
+   KPI cards
+   -------------------------------------------------------------------------- */
+
+.attendance-manager .att-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: var(--att-gap);
+}
+
+.attendance-manager .att-kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--att-radius);
+    box-shadow: var(--card-shadow, var(--shadow-sm));
+    padding: 14px 14px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.attendance-manager .att-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.attendance-manager .att-kpi-card:focus-visible {
+    outline: 2px solid var(--blue-500);
+    outline-offset: 2px;
+}
+
+.attendance-manager .att-kpi-card.is-active {
+    border-color: currentColor;
+    box-shadow: var(--shadow-md);
+}
+
+.attendance-manager .att-kpi-icon {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--att-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.attendance-manager .att-kpi-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.attendance-manager .att-kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--heading-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.attendance-manager .att-kpi-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.attendance-manager .att-kpi-total .att-kpi-icon { background: var(--bg-blue); color: var(--text-on-blue); }
+.attendance-manager .att-kpi-total.is-active { color: var(--blue-600); }
+
+.attendance-manager .att-kpi-present .att-kpi-icon { background: var(--bg-green); color: var(--text-on-green); }
+.attendance-manager .att-kpi-present.is-active { color: var(--green-600); }
+
+.attendance-manager .att-kpi-absent .att-kpi-icon { background: var(--bg-red); color: var(--text-on-red); }
+.attendance-manager .att-kpi-absent.is-active { color: var(--red-600); }
+
+.attendance-manager .att-kpi-late .att-kpi-icon { background: var(--bg-orange); color: var(--text-on-orange); }
+.attendance-manager .att-kpi-late.is-active { color: var(--orange-600, var(--text-on-orange)); }
+
+.attendance-manager .att-kpi-pending .att-kpi-icon { background: var(--bg-yellow); color: var(--text-on-yellow); }
+.attendance-manager .att-kpi-pending.is-active { color: var(--yellow-700, var(--text-on-yellow)); }
+
+/* --------------------------------------------------------------------------
+   Toolbar — search + show completed + filter chip
+   -------------------------------------------------------------------------- */
+
+.attendance-manager .att-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: var(--att-gap);
+}
+
+.attendance-manager .att-search-wrap {
+    position: relative;
+    flex: 1 1 280px;
+    max-width: 360px;
+}
+
+.attendance-manager .att-search-wrap i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.attendance-manager .att-search-input {
+    width: 100%;
+    height: 38px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--att-radius-sm);
+    background: var(--card-bg);
+    padding: 0 12px 0 34px;
+    font-size: 13px;
+    color: var(--text-color);
+}
+
+.attendance-manager .att-search-input:focus {
+    outline: none;
+    border-color: var(--blue-400, var(--blue-500));
+    box-shadow: var(--highlight-shadow);
+}
+
+.attendance-manager .att-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.attendance-manager .att-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-blue);
+    color: var(--text-on-blue);
+    border-radius: var(--border-radius-full, 999px);
+    padding: 5px 6px 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.attendance-manager .att-filter-chip button {
+    border: none;
+    background: rgba(0, 0, 0, 0.08);
+    color: inherit;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.attendance-manager .att-show-completed-switch {
+    display: flex;
+    align-items: center;
+    padding-left: 1.9rem;
+    white-space: nowrap;
+}
+
+.attendance-manager .att-show-completed-switch .custom-control-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   Bulk selection action bar
+   -------------------------------------------------------------------------- */
+
+.attendance-manager .att-bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--bg-blue);
+    border: 1px solid var(--blue-200, var(--border-color));
+    border-radius: var(--att-radius);
+    padding: 10px 16px;
+    margin-bottom: var(--att-gap);
+    animation: att-bulk-in 0.15s ease;
+}
+
+@keyframes att-bulk-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.attendance-manager .att-bulk-count {
+    font-weight: 600;
+    color: var(--text-on-blue);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.attendance-manager .att-bulk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.attendance-manager .att-bulk-btn {
+    border: 1px solid transparent;
+    border-radius: var(--att-radius-sm);
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.attendance-manager .att-bulk-present { color: var(--green-600); border-color: var(--green-200, var(--border-color)); }
+.attendance-manager .att-bulk-present:hover { background: var(--green-600); color: #fff; }
+
+.attendance-manager .att-bulk-absent { color: var(--red-600); border-color: var(--red-200, var(--border-color)); }
+.attendance-manager .att-bulk-absent:hover { background: var(--red-600); color: #fff; }
+
+.attendance-manager .att-bulk-late { color: var(--orange-600, var(--text-on-orange)); border-color: var(--orange-200, var(--border-color)); }
+.attendance-manager .att-bulk-late:hover { background: var(--orange-500); color: #fff; }
+
+.attendance-manager .att-bulk-clear {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-muted);
+}
+
+.attendance-manager .att-bulk-clear:hover {
+    color: var(--text-color);
+    text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Holiday card
+   -------------------------------------------------------------------------- */
+
+.attendance-manager .att-holiday-card {
+    display: flex;
+    gap: 16px;
+    background: var(--alert-bg-info, var(--bg-blue));
+    border: 1px solid var(--blue-200, var(--border-color));
+    border-radius: var(--att-radius);
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
+    margin-bottom: var(--att-gap);
 }
 
-.attendance-manager .summary-section {
-    font-size: 1.1em;
+.attendance-manager .att-holiday-icon {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-color);
+    color: var(--alert-text-info);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
 }
 
-.attendance-manager .att-table th {
-    background-color: #f4f5f6;
+.attendance-manager .att-holiday-content h4 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: var(--heading-color);
+}
+
+.attendance-manager .att-holiday-content p {
+    margin: 0 0 4px;
+    font-size: 13px;
+    color: var(--text-color);
+}
+
+.attendance-manager .att-holiday-key {
+    display: inline-block;
+    min-width: 60px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.attendance-manager .att-holiday-note {
+    margin-top: 8px !important;
+    color: var(--text-muted) !important;
+    font-style: italic;
+}
+
+/* --------------------------------------------------------------------------
+   Empty / skeleton states (rendered inside the tbody)
+   -------------------------------------------------------------------------- */
+
+.attendance-manager .att-empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+}
+
+.attendance-manager .att-empty-icon {
+    font-size: 34px;
+    color: var(--gray-400);
+    margin-bottom: 12px;
+}
+
+.attendance-manager .att-empty-state h4 {
+    color: var(--heading-color);
+    font-size: 16px;
+    margin-bottom: 6px;
+}
+
+.attendance-manager .att-empty-state p {
+    margin: 0 auto;
+    max-width: 360px;
+    font-size: 13px;
+}
+
+.attendance-manager .att-empty-state.is-success .att-empty-icon { color: var(--green-500); }
+.attendance-manager .att-empty-state.is-success h4 { color: var(--green-600); }
+
+.attendance-manager .att-skeleton-row td {
+    padding: 16px !important;
+}
+
+.attendance-manager .att-skeleton-bar {
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 37%, var(--gray-100) 63%);
+    background-size: 400% 100%;
+    animation: att-skeleton-shine 1.4s ease infinite;
+}
+
+@keyframes att-skeleton-shine {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+}
+
+/* --------------------------------------------------------------------------
+   Student table (desktop)
+   -------------------------------------------------------------------------- */
+
+.attendance-manager .att-table-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--att-radius);
+    box-shadow: var(--card-shadow, var(--shadow-sm));
+    overflow: hidden;
+}
+
+.attendance-manager .att-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 0;
+}
+
+.attendance-manager .att-table thead th {
+    background: var(--subtle-accent, var(--gray-50));
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.attendance-manager .att-col-select {
+    width: 40px;
+    text-align: center !important;
+}
+
+.attendance-manager .att-col-actions {
+    width: 320px;
+}
+
+.attendance-manager .att-table th input[type="checkbox"],
+.attendance-manager .att-row-select {
+    width: 17px;
+    height: 17px;
+    cursor: pointer;
+    accent-color: var(--blue-500);
+}
+
+.attendance-manager .att-table tbody tr.att-student-row {
+    border-left: 3px solid var(--gray-300);
+    transition: background-color 0.12s ease, border-left-color 0.12s ease;
+}
+
+.attendance-manager .att-table tbody tr.att-student-row:hover {
+    background: var(--fg-hover-color, var(--gray-50));
+}
+
+.attendance-manager .att-table tbody tr.att-student-row[data-current-status="Present"] { border-left-color: var(--green-500); }
+.attendance-manager .att-table tbody tr.att-student-row[data-current-status="Absent"] { border-left-color: var(--red-500); }
+.attendance-manager .att-table tbody tr.att-student-row[data-current-status="Late"] { border-left-color: var(--orange-500); }
+
+.attendance-manager .att-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.attendance-manager .att-table tbody tr.att-student-row:last-child td {
+    border-bottom: none;
+}
+
+.attendance-manager .att-td-select {
+    text-align: center;
+}
+
+.attendance-manager .att-student-id {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--heading-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.attendance-manager .att-student-stats {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.attendance-manager .att-stat-chip {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--subtle-fg, var(--gray-100));
+    border-radius: 4px;
+    padding: 1px 6px;
+    display: inline-flex;
+    gap: 3px;
+}
+
+.attendance-manager .att-stat-chip b {
+    font-weight: 700;
+}
+
+.attendance-manager .att-stat-absent b { color: var(--red-600); }
+.attendance-manager .att-stat-late b { color: var(--orange-600, var(--text-on-orange)); }
+
+.attendance-manager .att-student-name {
+    font-size: 13.5px;
+    color: var(--text-color);
+}
+
+.attendance-manager .att-gender-icon {
+    margin-left: 6px;
+    color: var(--gray-500);
+}
+
+.attendance-manager .att-prev-label {
+    display: none;
+}
+
+.attendance-manager .att-prev-badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: var(--border-radius-full, 999px);
+    background: var(--bg-gray);
+    color: var(--text-on-gray);
+}
+
+.attendance-manager .att-prev-badge[data-status="Present"] { background: var(--bg-green); color: var(--text-on-green); }
+.attendance-manager .att-prev-badge[data-status="Absent"] { background: var(--bg-red); color: var(--text-on-red); }
+.attendance-manager .att-prev-badge[data-status="Late"] { background: var(--bg-orange); color: var(--text-on-orange); }
+
+.attendance-manager .att-status-group {
+    display: flex;
+    gap: 6px;
 }
 
 .attendance-manager .att-status-btn {
-    font-weight: bold;
-    padding: 10px;
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 0;
+    padding: 7px 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--att-radius-sm);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
-/* Custom colors for buttons */
-.btn-outline-success.active, .btn-outline-success:active, .btn-outline-success:hover {
-    background-color: #28a745 !important;
-    color: white !important;
+.attendance-manager .att-status-btn input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
 }
 
-.btn-outline-danger.active, .btn-outline-danger:active, .btn-outline-danger:hover {
-    background-color: #dc3545 !important;
-    color: white !important;
+.attendance-manager .att-status-btn:hover {
+    border-color: var(--gray-400);
 }
 
-.btn-outline-secondary.active, .btn-outline-secondary:active, .btn-outline-secondary:hover {
-    background-color: #6c757d !important;
-    color: white !important;
+/* Unselected state — each button carries its own semantic color so the
+   three choices are visually distinct even before anything is picked. */
+.attendance-manager .att-status-present {
+    background: var(--bg-green);
+    border-color: var(--green-200);
+    color: var(--text-on-green);
 }
 
-.badge-danger {
-    background-color: #dc3545;
+.attendance-manager .att-status-present:hover {
+    border-color: var(--green-400);
 }
 
-.badge-secondary {
-    background-color: #6c757d;
+.attendance-manager .att-status-absent {
+    background: var(--bg-red);
+    border-color: var(--red-200);
+    color: var(--text-on-red);
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .attendance-manager .att-header {
-        padding: 10px;
+.attendance-manager .att-status-absent:hover {
+    border-color: var(--red-400);
+}
+
+.attendance-manager .att-status-late {
+    background: var(--bg-orange);
+    border-color: var(--orange-200);
+    color: var(--text-on-orange);
+}
+
+.attendance-manager .att-status-late:hover {
+    border-color: var(--orange-400);
+}
+
+/* Selected state — solid fill in the same semantic color. */
+.attendance-manager .att-status-present.active {
+    background: var(--green-600);
+    border-color: var(--green-600);
+    color: #fff;
+}
+
+.attendance-manager .att-status-absent.active {
+    background: var(--red-600);
+    border-color: var(--red-600);
+    color: #fff;
+}
+
+.attendance-manager .att-status-late.active {
+    background: var(--orange-500);
+    border-color: var(--orange-500);
+    color: #fff;
+}
+
+/* --------------------------------------------------------------------------
+   Sticky header on tall lists (desktop / tablet only)
+   -------------------------------------------------------------------------- */
+
+@media (min-width: 768px) {
+    .attendance-manager .att-table-scroll {
+        max-height: 68vh;
+        overflow-y: auto;
     }
-    
-    .attendance-manager .summary-section .d-flex {
+
+    .attendance-manager .att-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive — tablet (992px and down): tighten KPI + panel spacing
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 992px) {
+    .attendance-manager .att-kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .attendance-manager .att-panel-actions {
+        margin-left: 0;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive — mobile (767px and down): control panel + toolbar stacking
+   and table -> card transformation
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+    .attendance-manager .att-panel {
         flex-direction: column;
-        align-items: flex-start !important;
+        align-items: stretch;
+        padding: 14px;
     }
-    .attendance-manager .summary-section .d-flex > div {
-        margin-bottom: 8px;
+
+    .attendance-manager .att-panel-filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        /* Reset the desktop width-basis (320px) — .att-panel is now a column
+           flex, so an unset flex-basis here would be read as a height and
+           blow up this block with dead space below the fields. */
+        flex: none;
+    }
+
+    .attendance-manager .att-field {
+        min-width: 0;
+        flex: none;
+    }
+
+    .attendance-manager .att-field-gender {
+        grid-column: 1 / -1;
+    }
+
+    .attendance-manager .att-panel-date {
         width: 100%;
     }
-    .attendance-manager #att-search {
-        width: 100% !important;
+
+    .attendance-manager .att-date-stepper {
+        width: 100%;
     }
-    
+
+    .attendance-manager .att-date-input {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .attendance-manager .att-panel-actions {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .attendance-manager .att-holiday-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .attendance-manager .att-kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .attendance-manager .att-kpi-total {
+        grid-column: span 2;
+    }
+
+    .attendance-manager .att-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .attendance-manager .att-search-wrap {
+        max-width: none;
+        /* Same fix as .att-panel-filters: .att-toolbar is now a column flex,
+           so the desktop width-basis (280px) would otherwise be read as a
+           height and leave a tall empty gap below the search input. */
+        flex: none;
+    }
+
+    .attendance-manager .att-toolbar-right {
+        margin-left: 0;
+        justify-content: space-between;
+    }
+
+    .attendance-manager .att-bulk-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .attendance-manager .att-bulk-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .attendance-manager .att-bulk-clear {
+        grid-column: span 2;
+    }
+
+    .attendance-manager .att-holiday-card {
+        flex-direction: column;
+        text-align: left;
+    }
+
+    /* ---- table -> card transform ---- */
+    .attendance-manager .att-table-scroll {
+        overflow-x: visible;
+    }
+
     .attendance-manager .att-table thead {
         display: none;
     }
-    .attendance-manager .att-table, 
-    .attendance-manager .att-table tbody, 
-    .attendance-manager .att-table tr, 
-    .attendance-manager .att-table td {
+
+    .attendance-manager .att-table,
+    .attendance-manager .att-table tbody {
         display: block;
         width: 100%;
     }
-    .attendance-manager .att-table tr {
-        margin-bottom: 15px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 15px;
-        background: #fff;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+
+    .attendance-manager .att-table tbody tr.att-placeholder-row {
+        display: block;
     }
-    .attendance-manager .att-table td {
-        border: none;
-        padding: 5px 0;
+
+    .attendance-manager .att-table tbody tr.att-student-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "id     select"
+            "name   name"
+            "prev   prev"
+            "actions actions";
+        row-gap: 10px;
+        column-gap: 10px;
+        border-left: 4px solid var(--gray-300);
+        border-bottom: none;
+        border-radius: var(--att-radius);
+        padding: 14px;
+        margin: 0 0 12px;
+        background: var(--card-bg);
+        box-shadow: var(--card-shadow, var(--shadow-sm));
     }
-    .attendance-manager .att-table td:nth-child(1) {
-        border-bottom: 1px solid #eee;
-        padding-bottom: 10px;
-        margin-bottom: 10px;
+
+    .attendance-manager .att-table tbody tr.att-student-row td {
+        display: block;
+        width: auto;
+        padding: 0;
+        border-bottom: none;
     }
-    .attendance-manager .att-table td:nth-child(3):before {
-        content: "Previous Day: ";
-        font-weight: bold;
+
+    .attendance-manager .att-td-select {
+        grid-area: select;
+        align-self: start;
+        text-align: right;
     }
-    
-    /* Make buttons stack on very small screens or use icons */
+
+    .attendance-manager .att-td-id { grid-area: id; }
+
+    .attendance-manager .att-td-name {
+        grid-area: name;
+        padding-top: 10px !important;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .attendance-manager .att-td-prev {
+        grid-area: prev;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .attendance-manager .att-prev-label {
+        display: inline;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .attendance-manager .att-td-actions { grid-area: actions; }
+
+    .attendance-manager .att-status-group {
+        gap: 8px;
+    }
+
     .attendance-manager .att-status-btn {
-        padding: 10px 5px;
-        font-size: 0.9em;
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px 4px;
+        min-height: 52px;
+        font-size: 11.5px;
+    }
+
+    .attendance-manager .att-status-btn i {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .attendance-manager .att-kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .attendance-manager .att-kpi-value {
+        font-size: 19px;
+    }
+
+    .attendance-manager .att-row-select,
+    .attendance-manager .att-table th input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+@media (max-width: 360px) {
+    .attendance-manager .att-status-btn span {
+        display: none;
+    }
+
+    .attendance-manager .att-status-btn i {
+        font-size: 17px;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Wide desktop — give the panel breathing room without ballooning
+   -------------------------------------------------------------------------- */
+
+@media (min-width: 1200px) {
+    .attendance-manager .att-kpi-value {
+        font-size: 24px;
     }
 }

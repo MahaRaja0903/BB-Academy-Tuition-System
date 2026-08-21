@@ -1,8 +1,470 @@
-.attendance-dashboard .stat-card {
-    cursor: pointer;
-    transition: transform 0.2s;
+/* ==========================================================================
+   Attendance Dashboard — scoped design system
+   Built on Frappe desk CSS variables (colors, radius, shadows) so the page
+   inherits light/dark theme support automatically, and matches the sibling
+   Attendance Manager page's visual language.
+   ========================================================================== */
+
+.attendance-dashboard {
+    --dash-radius: var(--border-radius-md, 8px);
+    --dash-radius-sm: var(--border-radius, 6px);
+    --dash-gap: 16px;
+    color: var(--text-color);
+    position: relative;
 }
-.attendance-dashboard .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+
+.attendance-dashboard * {
+    box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   Control bar
+   -------------------------------------------------------------------------- */
+
+.attendance-dashboard .dash-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 14px 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--card-shadow, var(--shadow-sm));
+    padding: 16px 18px;
+    margin-bottom: var(--dash-gap);
+}
+
+.attendance-dashboard .dash-panel-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    flex: 1 1 320px;
+}
+
+.attendance-dashboard .dash-field {
+    min-width: 140px;
+    flex: 1 1 140px;
+}
+
+.attendance-dashboard .dash-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.attendance-dashboard .dash-field label i {
+    width: 14px;
+    margin-right: 4px;
+    color: var(--gray-600);
+}
+
+.attendance-dashboard .dash-panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.attendance-dashboard .dash-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid transparent;
+    border-radius: var(--dash-radius-sm);
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.attendance-dashboard .dash-btn:hover {
+    text-decoration: none;
+}
+
+.attendance-dashboard .dash-btn-primary {
+    background: var(--blue-600);
+    border-color: var(--blue-600);
+    color: #fff;
+}
+
+.attendance-dashboard .dash-btn-primary:hover {
+    background: var(--blue-700, var(--blue-600));
+    color: #fff;
+}
+
+.attendance-dashboard .dash-btn-secondary {
+    background: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-muted);
+}
+
+.attendance-dashboard .dash-btn-secondary:hover {
+    background: var(--bg-yellow);
+    color: var(--text-on-yellow);
+    border-color: var(--yellow-300, var(--border-color));
+}
+
+/* --------------------------------------------------------------------------
+   KPI cards
+   -------------------------------------------------------------------------- */
+
+.attendance-dashboard .dash-kpi-row {
+    margin-bottom: 0;
+    row-gap: 14px;
+}
+
+.attendance-dashboard .dash-kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--card-shadow, var(--shadow-sm));
+    padding: 14px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.attendance-dashboard .dash-kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
+.attendance-dashboard .dash-kpi-card:active {
+    transform: translateY(-1px);
+}
+
+.attendance-dashboard .dash-kpi-icon {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--dash-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+}
+
+.attendance-dashboard .dash-kpi-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.attendance-dashboard .dash-kpi-value {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--heading-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.attendance-dashboard .dash-kpi-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+.attendance-dashboard .dash-kpi-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.attendance-dashboard .dash-kpi-blue .dash-kpi-icon { background: var(--bg-blue); color: var(--text-on-blue); }
+.attendance-dashboard .dash-kpi-red .dash-kpi-icon { background: var(--bg-red); color: var(--text-on-red); }
+.attendance-dashboard .dash-kpi-orange .dash-kpi-icon { background: var(--bg-orange); color: var(--text-on-orange); }
+.attendance-dashboard .dash-kpi-amber .dash-kpi-icon { background: var(--bg-yellow); color: var(--text-on-yellow); }
+
+/* --------------------------------------------------------------------------
+   Chart cards
+   -------------------------------------------------------------------------- */
+
+.attendance-dashboard .dash-chart-row {
+    margin-top: var(--dash-gap);
+    margin-bottom: 0;
+    row-gap: var(--dash-gap);
+}
+
+.attendance-dashboard .dash-chart-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--card-shadow, var(--shadow-sm));
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.attendance-dashboard .dash-chart-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--subtle-accent, var(--gray-50));
+}
+
+.attendance-dashboard .dash-chart-header i {
+    color: var(--gray-600);
+    font-size: 13px;
+    flex: 0 0 auto;
+}
+
+.attendance-dashboard .dash-chart-header h6 {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--heading-color);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.attendance-dashboard .dash-chart-sub {
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 11.5px;
+}
+
+.attendance-dashboard .dash-chart-body {
+    padding: 14px 16px;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.attendance-dashboard .dash-chart-canvas-wrap {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+.attendance-dashboard .dash-chart-canvas {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.attendance-dashboard .dash-chart-canvas svg {
+    max-width: 100%;
+}
+
+.attendance-dashboard .dash-chart-total {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.attendance-dashboard .dash-chart-total span {
+    font-weight: 700;
+    color: var(--heading-color);
+}
+
+/* Empty state, shown in place of a chart with no data */
+.attendance-dashboard .dash-chart-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-muted);
+    background: var(--card-bg);
+}
+
+.attendance-dashboard .dash-chart-empty i {
+    font-size: 28px;
+    color: var(--gray-300);
+}
+
+.attendance-dashboard .dash-chart-empty p {
+    margin: 0;
+    font-size: 12.5px;
+}
+
+/* --------------------------------------------------------------------------
+   Quick Reports grid
+   -------------------------------------------------------------------------- */
+
+.attendance-dashboard .dash-reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+}
+
+.attendance-dashboard .dash-report-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--dash-radius-sm);
+    background: var(--card-bg);
+    color: var(--text-color);
+    padding: 10px 12px;
+    font-size: 12.5px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.attendance-dashboard .dash-report-btn:hover {
+    background: var(--bg-blue);
+    color: var(--text-on-blue);
+    border-color: var(--blue-200, var(--border-color));
+    text-decoration: none;
+}
+
+.attendance-dashboard .dash-report-btn i {
+    flex: 0 0 auto;
+    width: 14px;
+    text-align: center;
+    color: var(--gray-600);
+}
+
+.attendance-dashboard .dash-report-btn:hover i {
+    color: inherit;
+}
+
+/* --------------------------------------------------------------------------
+   Loading overlay
+   -------------------------------------------------------------------------- */
+
+.attendance-dashboard .dash-content-area {
+    position: relative;
+}
+
+.attendance-dashboard .dash-loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--card-bg);
+    opacity: 0.6;
+    z-index: 20;
+    display: none;
+    border-radius: var(--dash-radius);
+}
+
+.attendance-dashboard.is-loading .dash-loading-overlay {
+    display: block;
+}
+
+.attendance-dashboard .dash-loading-spinner {
+    position: fixed;
+    top: 90px;
+    right: 24px;
+    z-index: 21;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-full, 999px);
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    box-shadow: var(--shadow-md);
+}
+
+.attendance-dashboard.is-loading .dash-loading-spinner {
+    display: flex;
+}
+
+.attendance-dashboard .dash-loading-spinner i {
+    color: var(--blue-500);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive — tablet and down
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 991px) {
+    .attendance-dashboard .dash-kpi-value {
+        font-size: 21px;
+    }
+}
+
+@media (max-width: 767px) {
+    .attendance-dashboard .dash-panel {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 14px;
+    }
+
+    .attendance-dashboard .dash-panel-filters {
+        /* Reset the desktop width-basis — .dash-panel is now a column flex,
+           so an unset flex-basis here would be read as a height. */
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .attendance-dashboard .dash-field {
+        min-width: 0;
+        flex: none;
+    }
+
+    .attendance-dashboard .dash-panel-actions {
+        width: 100%;
+        margin-left: 0;
+        flex-direction: column;
+    }
+
+    .attendance-dashboard .dash-btn {
+        width: 100%;
+    }
+
+    .attendance-dashboard .dash-loading-spinner {
+        top: auto;
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+        justify-content: center;
+    }
+}
+
+@media (min-width: 576px) and (max-width: 767px) {
+    .attendance-dashboard .dash-panel-filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .attendance-dashboard .dash-field:nth-child(3) {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 480px) {
+    .attendance-dashboard .dash-kpi-card {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .attendance-dashboard .dash-kpi-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 15px;
+    }
+
+    .attendance-dashboard .dash-kpi-value {
+        font-size: 19px;
+    }
+
+    .attendance-dashboard .dash-kpi-label {
+        font-size: 11.5px;
+    }
 }
