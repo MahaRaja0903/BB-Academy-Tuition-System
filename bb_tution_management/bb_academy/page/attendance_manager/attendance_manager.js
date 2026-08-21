@@ -481,7 +481,8 @@ class AttendanceManager {
             row = row.replace(/\${monthly_late}/g, s.monthly_late);
             row = row.replace(/\${previous_status}/g, s.previous_status);
             row = row.replace(/\${gender}/g, s.gender || "");
-            row = row.replace(/\${gender_icon}/g, s.gender === 'Female' ? 'fa-venus' : (s.gender === 'Male' ? 'fa-mars' : ''));
+            row = row.replace(/\${gender_icon}/g, s.gender === 'Female' ? 'fa-female' : (s.gender === 'Male' ? 'fa-male' : ''));
+            row = row.replace(/\${gender_icon_class}/g, s.gender === 'Female' ? 'att-gender-icon-female' : (s.gender === 'Male' ? 'att-gender-icon-male' : ''));
 
             row = row.replace(/\${present_active}/g, s.today_status === 'Present' ? 'active' : '');
             row = row.replace(/\${present_checked}/g, s.today_status === 'Present' ? 'checked' : '');
