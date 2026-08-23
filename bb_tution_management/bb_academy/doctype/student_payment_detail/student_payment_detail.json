@@ -37,7 +37,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "\nNot Paid\nPaid\nPartial\nNot Joined",
+   "options": "\nNot Paid\nPaid\nPartial\nNo Fees\nNot Joined",
    "read_only": 1
   },
   {
@@ -76,7 +76,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-18 16:37:52.092251",
+ "modified": "2026-08-23 15:31:41.890264",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Payment Detail",

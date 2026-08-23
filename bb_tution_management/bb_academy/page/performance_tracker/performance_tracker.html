@@ -1,0 +1,189 @@
+<div class="performance-manager">
+
+    <!-- Control panel -->
+    <div class="att-panel">
+        <div class="att-panel-filters">
+            <div class="att-field att-field-standard">
+                <label for="perf-standard"><i class="fa fa-graduation-cap"></i> Standard</label>
+                <select id="perf-standard" class="form-control">
+                    <option value="">Select Standard</option>
+                </select>
+            </div>
+            <div class="att-field att-field-batch">
+                <label for="perf-batch"><i class="fa fa-users"></i> Batch</label>
+                <select id="perf-batch" class="form-control" disabled>
+                    <option value="">Select Batch</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="att-panel-date">
+            <span class="att-date-label"><i class="fa fa-calendar"></i> Date</span>
+            <div class="att-date-stepper">
+                <button type="button" class="att-date-nav-btn" id="btn-prev-day" title="Previous Day"><i class="fa fa-arrow-left"></i></button>
+                <input type="date" id="perf-date" class="att-date-input">
+                <button type="button" class="att-date-nav-btn" id="btn-next-day" title="Next Day"><i class="fa fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="att-toolbar">
+        <div class="att-search-wrap">
+            <i class="fa fa-search"></i>
+            <input type="text" id="perf-search" class="att-search-input" placeholder="Search student name or ID">
+        </div>
+    </div>
+
+    <!-- Student table / cards -->
+    <div class="att-table-card">
+        <div class="table-responsive att-table-scroll">
+            <table class="att-table" id="perf-table">
+                <thead>
+                    <tr>
+                        <th class="att-col-id">Student ID</th>
+                        <th class="att-col-name">Student Name</th>
+                        <th class="att-col-actions" style="width: 60%">Performance Tracker</th>
+                    </tr>
+                </thead>
+                <tbody id="perf-tbody">
+                    <tr class="att-placeholder-row"><td colspan="3">
+                        <div class="att-empty-state">
+                            <div class="att-empty-icon"><i class="fa fa-graduation-cap"></i></div>
+                            <h4>Select Standard &amp; Batch</h4>
+                            <p>Choose a Standard and Batch above to load students and track performance.</p>
+                        </div>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<template id="perf-row-template">
+    <tr class="perf-student-row" data-id="${student_id}" data-name="${student_name_lower}">
+        <td class="att-td-id">
+            <div class="att-student-id">${student_id}</div>
+        </td>
+        <td class="att-td-name">
+            <span class="att-student-name">${student_name}</span>
+            <i class="fa ${gender_icon} att-gender-icon ${gender_icon_class}" title="${gender}"></i>
+        </td>
+        <td class="att-td-actions">
+            <div class="perf-metrics-container">
+                
+                <!-- Study -->
+                <div class="perf-metric-row">
+                    <label class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input perf-toggle" data-type="study" ${study_checked}>
+                        <span class="custom-control-label">Study</span>
+                    </label>
+                    <div class="perf-options" style="display: ${study_display};">
+                        <div class="btn-group" data-toggle="buttons">
+                            <label class="btn btn-sm btn-outline-success ${study_good}">
+                                <input type="radio" name="study_${student_id}" value="Good" ${study_good_c}> Good
+                            </label>
+                            <label class="btn btn-sm btn-outline-warning ${study_bad}">
+                                <input type="radio" name="study_${student_id}" value="Bad" ${study_bad_c}> Bad
+                            </label>
+                            <label class="btn btn-sm btn-outline-danger ${study_poor}">
+                                <input type="radio" name="study_${student_id}" value="Poor" ${study_poor_c}> Poor
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test -->
+                <div class="perf-metric-row">
+                    <label class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input perf-toggle" data-type="test" ${test_checked}>
+                        <span class="custom-control-label">Test</span>
+                    </label>
+                    <div class="perf-options" style="display: ${test_display};">
+                        <div class="btn-group" data-toggle="buttons">
+                            <label class="btn btn-sm btn-outline-success ${test_good}">
+                                <input type="radio" name="test_${student_id}" value="Good" ${test_good_c}> Good
+                            </label>
+                            <label class="btn btn-sm btn-outline-warning ${test_bad}">
+                                <input type="radio" name="test_${student_id}" value="Bad" ${test_bad_c}> Bad
+                            </label>
+                            <label class="btn btn-sm btn-outline-danger ${test_poor}">
+                                <input type="radio" name="test_${student_id}" value="Poor" ${test_poor_c}> Poor
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Maths Test -->
+                <div class="perf-metric-row">
+                    <label class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input perf-toggle" data-type="maths_test" ${mtest_checked}>
+                        <span class="custom-control-label">Maths Test</span>
+                    </label>
+                    <div class="perf-options" style="display: ${mtest_display};">
+                        <div class="btn-group" data-toggle="buttons">
+                            <label class="btn btn-sm btn-outline-success ${mtest_good}">
+                                <input type="radio" name="mtest_${student_id}" value="Good" ${mtest_good_c}> Good
+                            </label>
+                            <label class="btn btn-sm btn-outline-warning ${mtest_bad}">
+                                <input type="radio" name="mtest_${student_id}" value="Bad" ${mtest_bad_c}> Bad
+                            </label>
+                            <label class="btn btn-sm btn-outline-danger ${mtest_poor}">
+                                <input type="radio" name="mtest_${student_id}" value="Poor" ${mtest_poor_c}> Poor
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Discipline -->
+                <div class="perf-metric-row">
+                    <label class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input perf-toggle" data-type="discipline" ${disc_checked}>
+                        <span class="custom-control-label">Discipline</span>
+                    </label>
+                    <div class="perf-options" style="display: ${disc_display};">
+                        <div class="btn-group" data-toggle="buttons">
+                            <label class="btn btn-sm btn-outline-success ${disc_good}">
+                                <input type="radio" name="disc_${student_id}" value="Good" ${disc_good_c}> Good
+                            </label>
+                            <label class="btn btn-sm btn-outline-warning ${disc_bad}">
+                                <input type="radio" name="disc_${student_id}" value="Bad" ${disc_bad_c}> Bad
+                            </label>
+                            <label class="btn btn-sm btn-outline-danger ${disc_critical}">
+                                <input type="radio" name="disc_${student_id}" value="Critical" ${disc_critical_c}> Critical
+                            </label>
+                        </div>
+                        <div class="disc-activities" style="margin-top: 5px;">
+                            <input type="text" class="form-control form-control-sm bad-activities-input" placeholder="Select Bad Activities" style="display: ${bad_act_display};" value="${bad_activities}">
+                            <input type="text" class="form-control form-control-sm critical-activities-input" placeholder="Select Critical Activities" style="display: ${crit_act_display};" value="${critical_activities}">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-2 text-right">
+                    <button class="btn btn-primary btn-sm btn-save-perf">Save</button>
+                </div>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<style>
+.perf-metrics-container {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+.perf-metric-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.perf-metric-row .custom-checkbox {
+    width: 120px;
+    margin-bottom: 0;
+}
+.perf-options {
+    flex-grow: 1;
+}
+</style>
