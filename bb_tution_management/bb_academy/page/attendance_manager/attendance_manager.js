@@ -33,7 +33,7 @@ class AttendanceManager {
         this.$tbody = this.wrapper.find('#att-tbody');
         this.$hol_msg = this.wrapper.find('#holiday-message');
         this.$table = this.wrapper.find('#att-table');
-        this.$select_all = this.wrapper.find('#att-select-all');
+        this.$select_all = this.wrapper.find('#att-toolbar-select-all');
         this.$bulk_bar = this.wrapper.find('#att-bulk-bar');
         this.$bulk_count = this.wrapper.find('#bulk-count');
         this.$kpi_grid = this.wrapper.find('#att-kpi-grid');
@@ -480,9 +480,10 @@ class AttendanceManager {
             row = row.replace(/\${monthly_absent}/g, s.monthly_absent);
             row = row.replace(/\${monthly_late}/g, s.monthly_late);
             row = row.replace(/\${previous_status}/g, s.previous_status);
+            row = row.replace(/\${new_joiner_class}/g, s.is_new_joiner ? 'att-new-joiner' : '');
             row = row.replace(/\${gender}/g, s.gender || "");
-            row = row.replace(/\${gender_icon}/g, s.gender === 'Female' ? 'fa-female' : (s.gender === 'Male' ? 'fa-male' : ''));
-            row = row.replace(/\${gender_icon_class}/g, s.gender === 'Female' ? 'att-gender-icon-female' : (s.gender === 'Male' ? 'att-gender-icon-male' : ''));
+            row = row.replace(/\${gender_icon}/g, s.gender === 'Girls' ? 'fa-female' : (s.gender === 'Boys' ? 'fa-male' : ''));
+            row = row.replace(/\${gender_icon_class}/g, s.gender === 'Girls' ? 'att-gender-icon-female' : (s.gender === 'Boys' ? 'att-gender-icon-male' : ''));
 
             row = row.replace(/\${present_active}/g, s.today_status === 'Present' ? 'active' : '');
             row = row.replace(/\${present_checked}/g, s.today_status === 'Present' ? 'checked' : '');

@@ -324,6 +324,19 @@
     cursor: pointer;
 }
 
+.attendance-manager .att-select-all-switch {
+    display: flex;
+    align-items: center;
+    padding-left: 1.5rem;
+    white-space: nowrap;
+}
+
+.attendance-manager .att-select-all-switch .custom-control-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
 .attendance-manager .att-show-completed-switch {
     display: flex;
     align-items: center;
@@ -592,6 +605,10 @@
     font-size: 14px;
     color: var(--heading-color);
     font-variant-numeric: tabular-nums;
+}
+
+.attendance-manager .att-student-id.att-new-joiner {
+    color: var(--purple-600, #9333ea) !important;
 }
 
 .attendance-manager .att-student-stats {

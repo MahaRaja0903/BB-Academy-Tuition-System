@@ -19,8 +19,8 @@
                 <label for="att-gender"><i class="fa fa-venus-mars"></i> Gender</label>
                 <select id="att-gender" class="form-control">
                     <option value="">All</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
+                    <option value="Boys">Boys</option>
+                    <option value="Girls">Girls</option>
                 </select>
             </div>
         </div>
@@ -91,6 +91,10 @@
                 <span>Showing <strong id="att-filter-chip-label"></strong></span>
                 <button type="button" id="att-filter-chip-clear" title="Clear filter"><i class="fa fa-times"></i></button>
             </span>
+            <div class="custom-control custom-checkbox att-select-all-switch">
+                <input type="checkbox" class="custom-control-input" id="att-toolbar-select-all">
+                <label class="custom-control-label" for="att-toolbar-select-all">Select All</label>
+            </div>
             <div class="custom-control custom-switch att-show-completed-switch">
                 <input type="checkbox" class="custom-control-input" id="att-show-completed">
                 <label class="custom-control-label" for="att-show-completed">Show Completed</label>
@@ -126,7 +130,7 @@
             <table class="att-table" id="att-table">
                 <thead>
                     <tr>
-                        <th class="att-col-select"><input type="checkbox" id="att-select-all" title="Select all"></th>
+                        <th class="att-col-select"></th>
                         <th class="att-col-id">Student ID &amp; Stats</th>
                         <th class="att-col-name">Student Name</th>
                         <th class="att-col-prev">Previous Day</th>
@@ -153,7 +157,7 @@
             <input type="checkbox" class="att-row-select" data-id="${student_id}">
         </td>
         <td class="att-td-id">
-            <div class="att-student-id">${student_id}</div>
+            <div class="att-student-id ${new_joiner_class}">${student_id}</div>
             <div class="att-student-stats">
                 <span class="att-stat-chip att-stat-absent">Absent <b class="att-absent-count">${monthly_absent}</b></span>
                 <span class="att-stat-chip att-stat-late">Late <b class="att-late-count">${monthly_late}</b></span>

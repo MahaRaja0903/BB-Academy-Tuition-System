@@ -101,7 +101,7 @@
    "fieldname": "gender",
    "fieldtype": "Select",
    "label": "Gender",
-   "options": "Male\nFemale"
+   "options": "Boys\nGirls"
   },
   {
    "fieldname": "column_break_2",

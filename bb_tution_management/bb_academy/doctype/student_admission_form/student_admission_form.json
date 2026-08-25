@@ -121,7 +121,7 @@
    "fieldname": "gender",
    "fieldtype": "Select",
    "label": "Gender",
-   "options": "Male\nFemale\nOther"
+   "options": "Boys\nGirls\nOther"
   },
   {
    "fieldname": "school_name",

@@ -107,7 +107,7 @@
    "fieldtype": "Select",
    "in_standard_filter": 1,
    "label": "Gender",
-   "options": "\nMale\nFemale",
+   "options": "\nBoys\nGirls",
    "reqd": 1
   },
   {

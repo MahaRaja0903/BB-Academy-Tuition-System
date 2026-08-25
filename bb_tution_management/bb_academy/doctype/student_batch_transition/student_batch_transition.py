@@ -43,7 +43,7 @@ class StudentBatchTransition(Document):
 		if self.student and self.new_batch and self.status:
 			student_doc = frappe.get_doc("Student", self.student)
 			gender = student_doc.gender
-			pronoun = "His" if gender == "Male" else ("Her" if gender == "Female" else "Their")
+			pronoun = "His" if gender == "Boys" else ("Her" if gender == "Girls" else "Their")
 
 			if self.status == "Promotion":
 				status_html = "<span style='color: #10b981; font-weight: bold;'>Promoted</span>"

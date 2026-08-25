@@ -266,8 +266,8 @@ class PerformanceManager {
             row = row.replace(/\${student_name}/g, s.student_name);
             row = row.replace(/\${student_name_lower}/g, (s.student_name || "").toLowerCase());
             row = row.replace(/\${gender}/g, s.gender || "");
-            row = row.replace(/\${gender_icon}/g, s.gender === 'Female' ? 'fa-female' : (s.gender === 'Male' ? 'fa-male' : ''));
-            row = row.replace(/\${gender_icon_class}/g, s.gender === 'Female' ? 'att-gender-icon-female' : (s.gender === 'Male' ? 'att-gender-icon-male' : ''));
+            row = row.replace(/\${gender_icon}/g, s.gender === 'Girls' ? 'fa-female' : (s.gender === 'Boys' ? 'fa-male' : ''));
+            row = row.replace(/\${gender_icon_class}/g, s.gender === 'Girls' ? 'att-gender-icon-female' : (s.gender === 'Boys' ? 'att-gender-icon-male' : ''));
 
             // Study
             row = row.replace(/\${study_checked}/g, s.study ? 'checked' : '');

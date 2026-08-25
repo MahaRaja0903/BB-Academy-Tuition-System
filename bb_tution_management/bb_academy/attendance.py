@@ -90,6 +90,13 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
         elif t_stat == 'Late': summary["late"] += 1
         else: summary["pending"] += 1
         
+        # Calculate if new joiner (joined within 7 days of attendance date)
+        is_new_joiner = False
+        if s.admission_date:
+            days_diff = (date_obj - s.admission_date).days
+            if 0 <= days_diff <= 7:
+                is_new_joiner = True
+
         result_students.append({
             "student_id": s.name,
             "student_name": s.student_name,
@@ -97,7 +104,8 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
             "today_status": t_stat,
             "previous_status": prev_map.get(s.name, "N/A"),
             "monthly_absent": monthly_map[s.name]["Absent"],
-            "monthly_late": monthly_map[s.name]["Late"]
+            "monthly_late": monthly_map[s.name]["Late"],
+            "is_new_joiner": is_new_joiner
         })
         
     return {
