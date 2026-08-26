@@ -32,6 +32,7 @@
   "monthly_fee",
   "referred_by",
   "referred_by_student_id",
+  "fees_paid_amount",
   "parent_details_section",
   "father_name",
   "father_mobile_number",
@@ -255,13 +256,18 @@
    "fieldtype": "Select",
    "label": "Blood Group",
    "options": "A+\nA-\nB+\nB-\nAB+\nAB-\nO+\nO-"
+  },
+  {
+   "fieldname": "fees_paid_amount",
+   "fieldtype": "Currency",
+   "label": "Fees Paid Amount"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-19 15:07:22.472184",
+ "modified": "2026-08-26 15:37:09.123936",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

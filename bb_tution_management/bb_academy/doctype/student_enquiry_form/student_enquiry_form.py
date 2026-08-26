@@ -74,3 +74,14 @@ def make_admission_form(source_name, target_doc=None):
 		"application_date": frappe.utils.today()
 	})
 	return adm_form
+
+@frappe.whitelist()
+def get_short_url(long_url):
+	import requests
+	try:
+		response = requests.get(f"https://tinyurl.com/api-create.php?url={long_url}", timeout=5)
+		if response.status_code == 200:
+			return response.text
+	except Exception:
+		pass
+	return long_url

@@ -6,15 +6,15 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "enquiry_details_section",
   "naming_series",
+  "enquiry_details_section",
   "enquiry_date",
+  "standard",
   "status",
   "column_break_1",
   "academic_year",
-  "standard",
-  "group",
   "referred_by",
+  "group",
   "applicant_details_section",
   "applicant_name",
   "gender",
@@ -23,10 +23,8 @@
   "school_name",
   "parent_details_section",
   "parent_name",
-  "parent_mobile",
   "column_break_3",
-  "email",
-  "address",
+  "parent_mobile",
   "follow_up_section",
   "source",
   "remarks",
@@ -43,6 +41,7 @@
    "default": "BB-ENQ-.YYYY.-.#####",
    "fieldname": "naming_series",
    "fieldtype": "Select",
+   "hidden": 1,
    "label": "Naming Series",
    "options": "BB-ENQ-.YYYY.-.#####",
    "reqd": 1
@@ -141,16 +140,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "email",
-   "fieldtype": "Data",
-   "label": "Email"
-  },
-  {
-   "fieldname": "address",
-   "fieldtype": "Small Text",
-   "label": "Address"
-  },
-  {
    "fieldname": "follow_up_section",
    "fieldtype": "Section Break",
    "label": "Enquiry & Follow-up Information"
@@ -191,7 +180,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-12 00:22:29.762439",
+ "modified": "2026-08-26 14:40:46.448847",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Enquiry Form",

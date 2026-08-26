@@ -283,3 +283,21 @@ def get_admission_form_options(standard=None):
 @frappe.whitelist()
 def get_monthly_fee(standard, batch):
 	return get_fee_structure_monthly_fee(standard, batch) or 0
+
+@frappe.whitelist(allow_guest=True)
+def get_enquiry_details(enquiry_name):
+	if not frappe.db.exists("Student Enquiry Form", enquiry_name):
+		return {}
+	
+	doc = frappe.get_doc("Student Enquiry Form", enquiry_name)
+	return {
+		"student_enquiry": doc.name,
+		"student_name": doc.applicant_name,
+		"gender": doc.gender,
+		"date_of_birth": doc.date_of_birth,
+		"school_name": doc.school_name,
+		"referred_by": doc.referred_by,
+		"standard": doc.standard,
+		"group": doc.group,
+		"parent_mobile": doc.parent_mobile
+	}
