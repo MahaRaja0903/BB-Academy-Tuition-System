@@ -26,13 +26,14 @@ def execute(filters=None):
         {"fieldname": "pct", "label": "%", "fieldtype": "Data", "width": 80}
     ])
     
-    std_cond = f" AND standard = '{filters.get('standard')}'" if filters.get('standard') else ""
-    batch_cond = f" AND batch = '{filters.get('batch')}'" if filters.get('batch') else ""
+    std_cond = f" AND a.standard = '{filters.get('standard')}'" if filters.get('standard') else ""
+    batch_cond = f" AND s.current_batch = '{filters.get('batch')}'" if filters.get('batch') else ""
     
     data = frappe.db.sql(f"""
-        SELECT student, student_name, attendance_date, status
-        FROM `tabStudent Attendance`
-        WHERE attendance_date BETWEEN %(from_date)s AND %(to_date)s
+        SELECT a.student, a.student_name, a.attendance_date, a.status
+        FROM `tabStudent Attendance` a
+        JOIN `tabStudent` s ON a.student = s.name
+        WHERE a.attendance_date BETWEEN %(from_date)s AND %(to_date)s
         {std_cond} {batch_cond}
     """, filters, as_dict=True)
     

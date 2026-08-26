@@ -100,10 +100,13 @@ class AttendanceManager {
 
             if (status === 'Late') {
                 let old_status = $tr.attr('data-current-status') || '';
+                let lp_reason = $input.attr('data-lp-reason') || '';
+                let desc = lp_reason ? `<div style="color: green; font-weight: bold;"><i class="fa fa-info-circle"></i> Parents informed for late reason</div>` : 'Pick a reason for the late entry.';
+                
                 this.prompt_late_reason(
                     (late_reason) => this.mark_attendance(student, status, $input, late_reason),
                     () => this.revert_status_selection($tr, old_status),
-                    { title: 'Mark Late', primary_label: 'Mark Late' }
+                    { title: 'Mark Late', primary_label: 'Mark Late', default_reason: lp_reason, description: desc }
                 );
             } else {
                 this.mark_attendance(student, status, $input);
@@ -162,6 +165,24 @@ class AttendanceManager {
         this.wrapper.find('#att-filter-chip-clear').on('click', () => {
             this.set_status_filter(null);
         });
+
+        this.wrapper.find('#birthday-alert').on('click', () => {
+            if (!this.raw_students) return;
+            let birthday_students = this.raw_students.filter(s => s.is_birthday);
+            if (birthday_students.length === 0) return;
+            
+            let html = '<ul style="margin-bottom: 0; padding-left: 20px;">';
+            birthday_students.forEach(s => {
+                html += `<li style="margin-bottom: 5px;"><b>${s.student_name}</b> (${s.student_id})</li>`;
+            });
+            html += '</ul>';
+            
+            frappe.msgprint({
+                title: __('Birthdays Today 🎂'),
+                message: html,
+                indicator: 'blue'
+            });
+        });
     }
 
     set_status_filter(filter_key) {
@@ -199,13 +220,7 @@ class AttendanceManager {
     // it's saved as free text either way.
     prompt_late_reason(on_confirm, on_cancel, opts) {
         opts = opts || {};
-
-        frappe.call({
-            method: 'bb_tution_management.bb_academy.attendance.get_late_reasons',
-            callback: (r) => {
-                this.show_late_reason_dialog(r.message || [], on_confirm, on_cancel, opts);
-            }
-        });
+        this.show_late_reason_dialog(null, on_confirm, on_cancel, opts);
     }
 
     show_late_reason_dialog(reason_options, on_confirm, on_cancel, opts) {
@@ -215,13 +230,16 @@ class AttendanceManager {
             title: opts.title || 'Mark Late',
             fields: [
                 {
+                    fieldname: 'html_desc',
+                    fieldtype: 'HTML',
+                    options: opts.description ? `<div style="margin-bottom: 10px;">${opts.description}</div>` : ''
+                },
+                {
                     fieldname: 'late_reason',
-                    fieldtype: 'Autocomplete',
-                    options: reason_options,
-                    ignore_validation: 1,
+                    fieldtype: 'Data',
                     label: 'Late Reason',
                     reqd: 1,
-                    description: opts.description || 'Pick a recent reason from the list, or type a new one.'
+                    default: opts.default_reason || ''
                 }
             ],
             primary_action_label: opts.primary_label || 'Mark Late',
@@ -449,6 +467,14 @@ class AttendanceManager {
         this.wrapper.find('#sum-total').text(students.length);
         this.update_kpi_active_state();
 
+        let birthday_students = students.filter(s => s.is_birthday);
+        if (birthday_students.length > 0) {
+            this.wrapper.find('#birthday-alert').show();
+            this.wrapper.find('#birthday-count-text').text(birthday_students.length);
+        } else {
+            this.wrapper.find('#birthday-alert').hide();
+        }
+
         if(students.length === 0) {
             this.$tbody.html(this.empty_state_html('fa-graduation-cap', 'No Students Found',
                 'No active students found for this Standard and Batch on the selected date.'));
@@ -484,6 +510,27 @@ class AttendanceManager {
             row = row.replace(/\${gender}/g, s.gender || "");
             row = row.replace(/\${gender_icon}/g, s.gender === 'Girls' ? 'fa-female' : (s.gender === 'Boys' ? 'fa-male' : ''));
             row = row.replace(/\${gender_icon_class}/g, s.gender === 'Girls' ? 'att-gender-icon-female' : (s.gender === 'Boys' ? 'att-gender-icon-male' : ''));
+            
+            let lp_msg = "";
+            let lp_disabled = "";
+            let lp_disabled_attr = "";
+            let lp_reason = "";
+            if(s.has_late_permission) {
+                lp_msg = `<div style="font-size: 11px; color: #856404; background: #fff3cd; padding: 2px 5px; border-radius: 3px; margin-top: 5px;"><i class="fa fa-info-circle"></i> Parents informed for late reason: ${s.late_reason}</div>`;
+                lp_disabled = "disabled";
+                lp_disabled_attr = "disabled";
+                lp_reason = s.late_reason;
+            }
+            row = row.replace(/\${lp_msg}/g, lp_msg);
+            row = row.replace(/\${lp_disabled}/g, lp_disabled);
+            row = row.replace(/\${lp_disabled_attr}/g, lp_disabled_attr);
+            row = row.replace(/\${lp_reason}/g, lp_reason);
+            
+            let bday_icon = s.is_birthday ? '<i class="fa fa-birthday-cake" style="color: #d63384; margin-left: 6px;" title="Birthday Today!"></i>' : '';
+            row = row.replace(/\${birthday_icon}/g, bday_icon);
+
+            let avatar_html = frappe.get_avatar('avatar-large', s.student_name, s.image).replace('<img ', '<img loading="lazy" ');
+            row = row.replace(/\${avatar_html}/g, avatar_html);
 
             row = row.replace(/\${present_active}/g, s.today_status === 'Present' ? 'active' : '');
             row = row.replace(/\${present_checked}/g, s.today_status === 'Present' ? 'checked' : '');
@@ -580,7 +627,7 @@ class AttendanceManager {
                 {
                     title: 'Mark Late',
                     primary_label: 'Mark Late',
-                    description: `Mark ${students.length} selected student(s) as Late. Pick an existing reason, or type a new one to create it.`
+                    description: `Mark ${students.length} selected student(s) as Late. Pick a reason.`
                 }
             );
             return;

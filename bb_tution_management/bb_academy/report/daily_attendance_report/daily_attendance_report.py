@@ -14,21 +14,22 @@ def execute(filters=None):
     ]
     
     conditions = ""
-    if filters.get("attendance_date"): conditions += " AND attendance_date = %(attendance_date)s"
-    if filters.get("standard"): conditions += " AND standard = %(standard)s"
-    if filters.get("batch"): conditions += " AND batch = %(batch)s"
+    if filters.get("attendance_date"): conditions += " AND a.attendance_date = %(attendance_date)s"
+    if filters.get("standard"): conditions += " AND a.standard = %(standard)s"
+    if filters.get("batch"): conditions += " AND s.current_batch = %(batch)s"
     if filters.get("status") and filters.get("status") != "All":
         if filters.get("status") == "Pending":
             # Pending means active student with no attendance record
             return get_pending_students(columns, filters)
         else:
-            conditions += " AND status = %(status)s"
+            conditions += " AND a.status = %(status)s"
             
     data = frappe.db.sql(f"""
-        SELECT student, student_name, standard, batch, attendance_date, status, modified_by
-        FROM `tabStudent Attendance`
-        WHERE docstatus < 2 {conditions}
-        ORDER BY student ASC
+        SELECT a.student, a.student_name, a.standard, s.current_batch as batch, a.attendance_date, a.status, a.modified_by
+        FROM `tabStudent Attendance` a
+        JOIN `tabStudent` s ON a.student = s.name
+        WHERE a.docstatus < 2 {conditions}
+        ORDER BY a.student ASC
     """, filters, as_dict=True)
     
     return columns, data

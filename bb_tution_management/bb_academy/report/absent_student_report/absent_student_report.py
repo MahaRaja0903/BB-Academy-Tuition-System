@@ -15,13 +15,14 @@ def execute(filters=None):
     min_absent = filters.get("min_absent") or 1
     
     data = frappe.db.sql("""
-        SELECT student, student_name, standard, batch,
-               SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END) as absent_days,
-               COUNT(name) as working_days,
-               SUM(CASE WHEN status IN ('Present', 'Late') THEN 1 ELSE 0 END) as att_days
-        FROM `tabStudent Attendance`
-        WHERE attendance_date BETWEEN %(from_date)s AND %(to_date)s
-        GROUP BY student, student_name, standard, batch
+        SELECT a.student, a.student_name, a.standard, s.current_batch as batch,
+               SUM(CASE WHEN a.status='Absent' THEN 1 ELSE 0 END) as absent_days,
+               COUNT(a.name) as working_days,
+               SUM(CASE WHEN a.status IN ('Present', 'Late') THEN 1 ELSE 0 END) as att_days
+        FROM `tabStudent Attendance` a
+        JOIN `tabStudent` s ON a.student = s.name
+        WHERE a.attendance_date BETWEEN %(from_date)s AND %(to_date)s
+        GROUP BY a.student, a.student_name, a.standard, s.current_batch
         HAVING absent_days >= %(min_absent)s
         ORDER BY absent_days DESC
     """, {"from_date": filters.get("from_date"), "to_date": filters.get("to_date"), "min_absent": min_absent}, as_dict=True)

@@ -38,6 +38,9 @@
             <button class="att-holiday-btn" id="btn-assign-holiday">
                 <i class="fa fa-calendar-plus-o"></i> <span>Assign Holiday</span>
             </button>
+            <div id="birthday-alert" style="display: none; margin-top: 10px; cursor: pointer; color: #d63384; font-size: 13px; font-weight: 600; text-align: center; border: 1px solid #fbcfe8; background: #fdf2f8; border-radius: 6px; padding: 6px 12px; transition: all 0.2s;" title="Click to see who is celebrating!">
+                <i class="fa fa-birthday-cake"></i> <span id="birthday-count-text">0</span> Birthdays Today
+            </div>
         </div>
     </div>
 
@@ -131,8 +134,8 @@
                 <thead>
                     <tr>
                         <th class="att-col-select"></th>
-                        <th class="att-col-id">Student ID &amp; Stats</th>
                         <th class="att-col-name">Student Name</th>
+                        <th class="att-col-id">Student ID &amp; Stats</th>
                         <th class="att-col-prev">Previous Day</th>
                         <th class="att-col-actions">Today&apos;s Attendance</th>
                     </tr>
@@ -156,6 +159,16 @@
         <td class="att-td-select">
             <input type="checkbox" class="att-row-select" data-id="${student_id}">
         </td>
+        <td class="att-td-name">
+            <div class="att-student-profile" style="display: flex; align-items: center; gap: 10px;">
+                <div class="att-student-name-wrap" style="display: flex; align-items: center;">
+                    <span class="att-student-name">${student_name}</span>
+                    <i class="fa ${gender_icon} att-gender-icon ${gender_icon_class}" title="${gender}" style="margin-left: 6px;"></i>
+                    ${birthday_icon}
+                </div>
+                ${avatar_html}
+            </div>
+        </td>
         <td class="att-td-id">
             <div class="att-student-id ${new_joiner_class}">${student_id}</div>
             <div class="att-student-stats">
@@ -163,29 +176,26 @@
                 <span class="att-stat-chip att-stat-late">Late <b class="att-late-count">${monthly_late}</b></span>
             </div>
         </td>
-        <td class="att-td-name">
-            <span class="att-student-name">${student_name}</span>
-            <i class="fa ${gender_icon} att-gender-icon ${gender_icon_class}" title="${gender}"></i>
-        </td>
         <td class="att-td-prev">
             <span class="att-prev-label">Previous</span>
             <span class="att-prev-badge" data-status="${previous_status}">${previous_status}</span>
         </td>
         <td class="att-td-actions">
             <div class="att-status-group" data-toggle="buttons">
-                <label class="btn att-status-btn att-status-present ${present_active}">
-                    <input type="radio" name="att_${student_id}" value="Present" autocomplete="off" ${present_checked}>
+                <label class="btn att-status-btn att-status-present ${present_active} ${lp_disabled}">
+                    <input type="radio" name="att_${student_id}" value="Present" autocomplete="off" ${present_checked} ${lp_disabled_attr}>
                     <i class="fa fa-check-circle"></i><span>Present</span>
                 </label>
-                <label class="btn att-status-btn att-status-absent ${absent_active}">
-                    <input type="radio" name="att_${student_id}" value="Absent" autocomplete="off" ${absent_checked}>
+                <label class="btn att-status-btn att-status-absent ${absent_active} ${lp_disabled}">
+                    <input type="radio" name="att_${student_id}" value="Absent" autocomplete="off" ${absent_checked} ${lp_disabled_attr}>
                     <i class="fa fa-times-circle"></i><span>Absent</span>
                 </label>
                 <label class="btn att-status-btn att-status-late ${late_active}">
-                    <input type="radio" name="att_${student_id}" value="Late" autocomplete="off" ${late_checked}>
+                    <input type="radio" name="att_${student_id}" value="Late" autocomplete="off" ${late_checked} data-lp-reason="${lp_reason}">
                     <i class="fa fa-clock-o"></i><span>Late</span>
                 </label>
             </div>
+            ${lp_msg}
         </td>
     </tr>
 </template>

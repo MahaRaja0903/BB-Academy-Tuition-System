@@ -1,0 +1,64 @@
+<div class="late-permission">
+    <div class="lp-panel">
+        <div class="lp-panel-filters">
+            <div class="lp-field lp-field-standard">
+                <label for="lp-standard"><i class="fa fa-graduation-cap"></i> Standard</label>
+                <select id="lp-standard" class="form-control">
+                    <option value="">Select Standard</option>
+                </select>
+            </div>
+            <div class="lp-field lp-field-batch">
+                <label for="lp-batch"><i class="fa fa-users"></i> Batch</label>
+                <select id="lp-batch" class="form-control" disabled>
+                    <option value="">Select Batch</option>
+                </select>
+            </div>
+            <div class="lp-field lp-field-gender">
+                <label for="lp-gender"><i class="fa fa-venus-mars"></i> Gender</label>
+                <select id="lp-gender" class="form-control">
+                    <option value="">All</option>
+                    <option value="Boys">Boys</option>
+                    <option value="Girls">Girls</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="lp-panel-date">
+            <span class="lp-date-label"><i class="fa fa-calendar"></i> Date</span>
+            <div class="lp-date-stepper">
+                <button type="button" class="lp-date-nav-btn" id="btn-prev-day" title="Previous Day"><i class="fa fa-arrow-left"></i></button>
+                <input type="date" id="lp-date" class="lp-date-input">
+                <button type="button" class="lp-date-nav-btn" id="btn-next-day" title="Next Day"><i class="fa fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="lp-table-card">
+        <div class="table-responsive lp-table-scroll">
+            <table class="lp-table table" id="lp-table">
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Student Name</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="lp-tbody">
+                    <tr><td colspan="4" class="text-center">Select Standard and Batch</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<template id="lp-row-template">
+    <tr data-id="${student_id}">
+        <td>${student_id}</td>
+        <td>${student_name}</td>
+        <td>${status_badge}</td>
+        <td>
+            ${action_button}
+        </td>
+    </tr>
+</template>

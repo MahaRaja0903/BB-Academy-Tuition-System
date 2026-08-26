@@ -21,14 +21,14 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
         params.append(gender)
 
     students = frappe.db.sql("""
-        SELECT name, student_name, admission_date, gender
+        SELECT name, student_name, admission_date, gender, date_of_birth, image
         FROM `tabStudent`
         WHERE status = 'Active'
           AND standard = %s
           AND current_batch = %s
           AND admission_date <= %s
           {gender_filter}
-        ORDER BY name ASC
+        ORDER BY TRIM(SUBSTRING_INDEX(student_name, '.', -1)) ASC
     """.format(gender_filter=gender_filter), tuple(params), as_dict=True)
     
     student_ids = [s.name for s in students]
@@ -79,6 +79,14 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
     for row in monthly_att:
         monthly_map[row.student][row.status] = row.cnt
         
+    # 6. Get Late Permissions
+    late_permissions = frappe.db.sql("""
+        SELECT student, late_reason, parents_informed
+        FROM `tabLate Permission`
+        WHERE date = %s AND student IN %s
+    """, (date_obj, tuple(student_ids)), as_dict=True)
+    lp_map = {p.student: p for p in late_permissions}
+
     # Combine data
     result_students = []
     summary = {"present": 0, "absent": 0, "late": 0, "pending": 0}
@@ -96,6 +104,13 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
             days_diff = (date_obj - s.admission_date).days
             if 0 <= days_diff <= 7:
                 is_new_joiner = True
+                
+        is_birthday = False
+        if s.date_of_birth:
+            if s.date_of_birth.month == date_obj.month and s.date_of_birth.day == date_obj.day:
+                is_birthday = True
+
+        lp = lp_map.get(s.name)
 
         result_students.append({
             "student_id": s.name,
@@ -105,7 +120,12 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
             "previous_status": prev_map.get(s.name, "N/A"),
             "monthly_absent": monthly_map[s.name]["Absent"],
             "monthly_late": monthly_map[s.name]["Late"],
-            "is_new_joiner": is_new_joiner
+            "is_new_joiner": is_new_joiner,
+            "is_birthday": is_birthday,
+            "image": s.image or "",
+            "has_late_permission": 1 if lp else 0,
+            "late_reason": lp.late_reason if lp else "",
+            "parents_informed": lp.parents_informed if lp else 0
         })
         
     return {
@@ -146,7 +166,6 @@ def save_student_attendance(student, attendance_date, status, late_reason=None):
             "doctype": "Student Attendance",
             "student": student,
             "standard": stu.standard,
-            "batch": stu.current_batch,
             "attendance_date": attendance_date,
             "status": status
         })
@@ -226,7 +245,6 @@ def save_bulk_attendance(students, standard, batch, attendance_date, status, lat
                 "student": student,
                 "student_name": name_map.get(student),
                 "standard": standard,
-                "batch": batch,
                 "attendance_date": attendance_date,
                 "status": status
             })
@@ -374,7 +392,7 @@ def get_attendance_dashboard_data(academic_year=None, standard=None, batch=None,
     
     # 2. Today's Absent
     att_std_filter = " AND standard = %(standard)s " if standard else ""
-    att_batch_filter = " AND batch = %(batch)s " if batch else ""
+    att_batch_filter = " AND student IN (SELECT name FROM `tabStudent` WHERE current_batch = %(batch)s) " if batch else ""
     today_absent_query = f"""
         SELECT COUNT(name) FROM `tabStudent Attendance`
         WHERE attendance_date = %(date)s AND status = 'Absent'
@@ -468,11 +486,12 @@ def get_attendance_dashboard_data(academic_year=None, standard=None, batch=None,
         """, {"first_day": first_day_month, "last_day": last_day_month}, as_dict=True)
     else:
         batch_summary = frappe.db.sql(f"""
-            SELECT batch, status, count(name) as cnt
-            FROM `tabStudent Attendance`
-            WHERE attendance_date BETWEEN %(first_day)s AND %(last_day)s
-            {att_std_filter}
-            GROUP BY batch, status
+            SELECT s.current_batch as batch, a.status, count(a.name) as cnt
+            FROM `tabStudent Attendance` a
+            JOIN `tabStudent` s ON a.student = s.name
+            WHERE a.attendance_date BETWEEN %(first_day)s AND %(last_day)s
+            {att_std_filter.replace('standard', 'a.standard')}
+            GROUP BY s.current_batch, a.status
         """, {"first_day": first_day_month, "last_day": last_day_month, "standard": standard}, as_dict=True)
         
     # Last 30 Days Trend

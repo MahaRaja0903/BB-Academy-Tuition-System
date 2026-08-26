@@ -12,10 +12,11 @@ def execute(filters=None):
     ]
     
     data = frappe.db.sql("""
-        SELECT attendance_date, DAYNAME(attendance_date) as day, standard, batch, status
-        FROM `tabStudent Attendance`
-        WHERE student = %(student)s AND attendance_date BETWEEN %(from_date)s AND %(to_date)s
-        ORDER BY attendance_date ASC
+        SELECT a.attendance_date, DAYNAME(a.attendance_date) as day, a.standard, s.current_batch as batch, a.status
+        FROM `tabStudent Attendance` a
+        JOIN `tabStudent` s ON a.student = s.name
+        WHERE a.student = %(student)s AND a.attendance_date BETWEEN %(from_date)s AND %(to_date)s
+        ORDER BY a.attendance_date ASC
     """, filters, as_dict=True)
     
     # Calculate summary

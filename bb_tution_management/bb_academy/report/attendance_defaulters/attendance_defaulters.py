@@ -16,14 +16,15 @@ def execute(filters=None):
     threshold = filters.get("threshold") or 75
     
     data = frappe.db.sql("""
-        SELECT student, student_name, standard, batch,
-               SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END) as present,
-               SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END) as absent,
-               SUM(CASE WHEN status='Late' THEN 1 ELSE 0 END) as late,
-               COUNT(name) as working_days
-        FROM `tabStudent Attendance`
-        WHERE attendance_date BETWEEN %(from_date)s AND %(to_date)s
-        GROUP BY student, student_name, standard, batch
+        SELECT a.student, a.student_name, a.standard, s.current_batch as batch,
+               SUM(CASE WHEN a.status='Present' THEN 1 ELSE 0 END) as present,
+               SUM(CASE WHEN a.status='Absent' THEN 1 ELSE 0 END) as absent,
+               SUM(CASE WHEN a.status='Late' THEN 1 ELSE 0 END) as late,
+               COUNT(a.name) as working_days
+        FROM `tabStudent Attendance` a
+        JOIN `tabStudent` s ON a.student = s.name
+        WHERE a.attendance_date BETWEEN %(from_date)s AND %(to_date)s
+        GROUP BY a.student, a.student_name, a.standard, s.current_batch
     """, filters, as_dict=True)
     
     out = []

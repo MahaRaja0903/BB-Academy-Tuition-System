@@ -14,15 +14,16 @@ def execute(filters=None):
     ]
     
     data = frappe.db.sql("""
-        SELECT standard, batch, 
-               COUNT(DISTINCT student) as total_students,
-               COUNT(name) as working_days,
-               SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END) as present,
-               SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END) as absent,
-               SUM(CASE WHEN status='Late' THEN 1 ELSE 0 END) as late
-        FROM `tabStudent Attendance`
-        WHERE attendance_date BETWEEN %(from_date)s AND %(to_date)s
-        GROUP BY standard, batch
+        SELECT a.standard, s.current_batch as batch, 
+               COUNT(DISTINCT a.student) as total_students,
+               COUNT(a.name) as working_days,
+               SUM(CASE WHEN a.status='Present' THEN 1 ELSE 0 END) as present,
+               SUM(CASE WHEN a.status='Absent' THEN 1 ELSE 0 END) as absent,
+               SUM(CASE WHEN a.status='Late' THEN 1 ELSE 0 END) as late
+        FROM `tabStudent Attendance` a
+        JOIN `tabStudent` s ON a.student = s.name
+        WHERE a.attendance_date BETWEEN %(from_date)s AND %(to_date)s
+        GROUP BY a.standard, s.current_batch
     """, filters, as_dict=True)
     
     for r in data:

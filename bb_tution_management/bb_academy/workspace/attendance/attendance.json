@@ -45,6 +45,26 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Late Permission Manager",
+   "link_count": 0,
+   "link_to": "late_permission",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Performance Tracker",
+   "link_count": 0,
+   "link_to": "performance-tracker",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Attendance Holiday",
    "link_count": 0,
    "link_to": "Attendance Holiday",

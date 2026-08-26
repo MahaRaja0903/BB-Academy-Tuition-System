@@ -18,14 +18,15 @@ def execute(filters=None):
     # We will compute month start/end based on a Month filter. Since frappe doesn't have a Month field easily, we'll use from/to date.
     data = frappe.db.sql("""
         SELECT 
-            student, student_name, standard, batch,
-            COUNT(name) as working_days,
-            SUM(CASE WHEN status='Present' THEN 1 ELSE 0 END) as present,
-            SUM(CASE WHEN status='Absent' THEN 1 ELSE 0 END) as absent,
-            SUM(CASE WHEN status='Late' THEN 1 ELSE 0 END) as late
-        FROM `tabStudent Attendance`
-        WHERE attendance_date BETWEEN %(from_date)s AND %(to_date)s
-        GROUP BY student, student_name, standard, batch
+            a.student, a.student_name, a.standard, s.current_batch as batch,
+            COUNT(a.name) as working_days,
+            SUM(CASE WHEN a.status='Present' THEN 1 ELSE 0 END) as present,
+            SUM(CASE WHEN a.status='Absent' THEN 1 ELSE 0 END) as absent,
+            SUM(CASE WHEN a.status='Late' THEN 1 ELSE 0 END) as late
+        FROM `tabStudent Attendance` a
+        JOIN `tabStudent` s ON a.student = s.name
+        WHERE a.attendance_date BETWEEN %(from_date)s AND %(to_date)s
+        GROUP BY a.student, a.student_name, a.standard, s.current_batch
     """, filters, as_dict=True)
     
     for r in data:
