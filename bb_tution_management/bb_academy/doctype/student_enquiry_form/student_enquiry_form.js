@@ -41,27 +41,60 @@ frappe.ui.form.on("Student Enquiry Form", {
 			frm.add_custom_button(__("Generate Admission URL"), () => {
 				let base_url = frappe.urllib.get_base_url() + "/admission/new";
 				let final_url = base_url + "?student_enquiry=" + encodeURIComponent(frm.doc.name);
-
 				let whatsapp_message = encodeURIComponent(`Hello ${frm.doc.applicant_name || ''}, please complete your admission form for BB Academy here: \n${final_url}`);
-				let phone_param = frm.doc.parent_mobile ? `&phone=${frm.doc.parent_mobile.replace(/[^0-9]/g, '')}` : '';
-				let whatsapp_link = `https://api.whatsapp.com/send?text=${whatsapp_message}${phone_param}`;
 
-				frappe.msgprint({
-					title: __('Admission URL Generated'),
-					message: `
-						<p>${__('Share this link with the student to fill their admission form:')}</p>
-						<p><a href="${final_url}" target="_blank" style="word-break: break-all;">${final_url}</a></p>
-						<div class="mt-3">
-							<button class="btn btn-default btn-sm" onclick="frappe.utils.copy_to_clipboard('${final_url}')">
-								${__('Copy to Clipboard')}
-							</button>
-							<a href="${whatsapp_link}" target="_blank" class="btn btn-success btn-sm ml-2 text-white" style="background-color: #25D366; border-color: #25D366;">
-								<i class="fa fa-whatsapp"></i> ${__('Share via WhatsApp')}
-							</a>
-						</div>
-					`,
-					indicator: 'green'
-				});
+				let show_dialog = (phone) => {
+					let phone_param = phone ? `&phone=${phone.replace(/[^0-9]/g, '')}` : '';
+					let whatsapp_link = `https://api.whatsapp.com/send?text=${whatsapp_message}${phone_param}`;
+					
+					frappe.msgprint({
+						title: __('Admission URL Generated'),
+						message: `
+							<p>${__('Share this link with the student to fill their admission form:')}</p>
+							<p><a href="${final_url}" target="_blank" style="word-break: break-all;">${final_url}</a></p>
+							<div class="mt-3">
+								<button class="btn btn-default btn-sm" onclick="frappe.utils.copy_to_clipboard('${final_url}')">
+									${__('Copy to Clipboard')}
+								</button>
+								<a href="${whatsapp_link}" target="_blank" class="btn btn-success btn-sm ml-2 text-white" style="background-color: #25D366; border-color: #25D366;">
+									<i class="fa fa-whatsapp"></i> ${__('Share via WhatsApp')}
+								</a>
+							</div>
+						`,
+						indicator: 'green'
+					});
+				};
+
+				let father_num = frm.doc.father_number;
+				let mother_num = frm.doc.mother_number;
+
+				if (father_num && mother_num) {
+					let d = new frappe.ui.Dialog({
+						title: 'Select Number for WhatsApp',
+						fields: [
+							{
+								label: 'Mobile Number',
+								fieldname: 'mobile_number',
+								fieldtype: 'Select',
+								options: `Father: ${father_num}\nMother: ${mother_num}`,
+								reqd: 1
+							}
+						],
+						primary_action_label: 'Generate Link',
+						primary_action: (values) => {
+							let selected_phone = values.mobile_number.includes('Father') ? father_num : mother_num;
+							d.hide();
+							show_dialog(selected_phone);
+						}
+					});
+					d.show();
+				} else if (father_num) {
+					show_dialog(father_num);
+				} else if (mother_num) {
+					show_dialog(mother_num);
+				} else {
+					show_dialog(null);
+				}
 			}).removeClass('btn-default').addClass('btn-success text-white');
 		}
 

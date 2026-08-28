@@ -31,6 +31,13 @@
   "column_break_2",
   "current_batch",
   "group",
+  "section_break_zaum",
+  "attendance_batch_set",
+  "attendance_batch",
+  "section_break_yiib",
+  "attendance_batch_start_date",
+  "column_break_wenc",
+  "attendance_batch_end_date",
   "fee_details_section",
   "starting_payment",
   "reason_for_discounting_starting_amount",
@@ -364,12 +371,53 @@
   {
    "fieldname": "column_break_kjub",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_zaum",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "description": "If This Check Box is Checked the The Student Can Have the Temporary Batch For Attendance ",
+   "fieldname": "attendance_batch_set",
+   "fieldtype": "Check",
+   "label": "Attendance Batch Set"
+  },
+  {
+   "depends_on": "eval:doc.attendance_batch_set == 1",
+   "fieldname": "attendance_batch",
+   "fieldtype": "Link",
+   "label": "Attendance Batch",
+   "mandatory_depends_on": "eval:doc.attendance_batch_set == 1",
+   "options": "Batch"
+  },
+  {
+   "fieldname": "section_break_yiib",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.attendance_batch_set == 1",
+   "fieldname": "attendance_batch_start_date",
+   "fieldtype": "Date",
+   "label": "Attendance Batch Start Date",
+   "mandatory_depends_on": "eval:doc.attendance_batch_set == 1"
+  },
+  {
+   "fieldname": "column_break_wenc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.attendance_batch_set == 1",
+   "fieldname": "attendance_batch_end_date",
+   "fieldtype": "Date",
+   "label": "Attendance Batch End Date",
+   "mandatory_depends_on": "eval:doc.attendance_batch_set == 1"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-26 15:24:51.522377",
+ "modified": "2026-08-27 22:43:09.010672",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

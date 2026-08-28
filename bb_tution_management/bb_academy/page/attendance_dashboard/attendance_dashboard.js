@@ -55,9 +55,9 @@ class AttendanceDashboard {
                     'attendance_date': this.$date.val(),
                     'status': 'Absent'
                 });
-            } else if (action === 'absent-5') {
+            } else if (action === 'absent-5' || action === 'absent-10') {
                 frappe.set_route('query-report', 'Absent Student Report');
-            } else if (action === 'late-5') {
+            } else if (action === 'late-5' || action === 'late-10') {
                 frappe.set_route('query-report', 'Late Entry Report');
             }
         });
@@ -188,6 +188,8 @@ class AttendanceDashboard {
         this.wrapper.find('#dash-absent').text(d.today_absent);
         this.wrapper.find('#dash-abs-5').text(d.absent_5_plus);
         this.wrapper.find('#dash-late-5').text(d.late_5_plus);
+        this.wrapper.find('#dash-abs-10').text(d.absent_10_plus);
+        this.wrapper.find('#dash-late-10').text(d.late_10_plus);
 
 
         let sum = d.today_summary;

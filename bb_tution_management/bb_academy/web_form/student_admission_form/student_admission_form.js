@@ -108,6 +108,11 @@ frappe.ready(function () {
 							if (enq.school_name) promises.push(frappe.web_form.set_value("school_name", enq.school_name));
 							if (enq.referred_by) promises.push(frappe.web_form.set_value("referred_by", enq.referred_by));
 							
+							if (enq.father_name) promises.push(frappe.web_form.set_value("father_name", enq.father_name));
+							if (enq.mother_name) promises.push(frappe.web_form.set_value("mother_name", enq.mother_name));
+							if (enq.father_mobile_number) promises.push(frappe.web_form.set_value("father_mobile_number", enq.father_mobile_number));
+							if (enq.mother_mobile_number) promises.push(frappe.web_form.set_value("mother_mobile_number", enq.mother_mobile_number));
+							
 							if (enq.standard && academic_order_by_standard[enq.standard]) {
 								promises.push(frappe.web_form.set_value("standard", enq.standard));
 							}

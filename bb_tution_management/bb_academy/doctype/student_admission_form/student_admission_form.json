@@ -27,6 +27,7 @@
   "group",
   "standard_academic_order",
   "assigned_batch",
+  "fees_due_date",
   "column_break_3",
   "starting_payment",
   "monthly_fee",
@@ -261,13 +262,18 @@
    "fieldname": "fees_paid_amount",
    "fieldtype": "Currency",
    "label": "Fees Paid Amount"
+  },
+  {
+   "fieldname": "fees_due_date",
+   "fieldtype": "Int",
+   "label": "Fees Due Date"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-26 15:37:09.123936",
+ "modified": "2026-08-27 23:49:29.305107",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

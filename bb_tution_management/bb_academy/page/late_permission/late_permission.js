@@ -82,9 +82,14 @@ class LatePermissionManager {
     }
 
     load_batches(standard) {
+        if(!standard) {
+            this.$batch.html('<option value="">Select Batch</option>').prop('disabled', true);
+            return;
+        }
+        
         frappe.call({
             method: "frappe.client.get_list",
-            args: { doctype: "Batch", filters: { standard: standard }, fields: ["name"] },
+            args: { doctype: "Batch", fields: ["name"], limit_page_length: 0 },
             callback: (r) => {
                 let opts = '<option value="">Select Batch</option>';
                 if(r.message) {
@@ -151,9 +156,9 @@ class LatePermissionManager {
         frappe.prompt([
             {
                 fieldname: 'late_reason',
-                fieldtype: 'Select',
+                fieldtype: 'Link',
                 label: 'Late Reason',
-                options: 'Traffic\nHealth Issue\nFamily Emergency\nOther',
+                options: 'Late Entry Reason',
                 reqd: 1
             }
         ], (values) => {

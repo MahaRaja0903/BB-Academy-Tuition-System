@@ -66,11 +66,11 @@ def make_admission_form(source_name, target_doc=None):
 		"gender": enquiry.gender,
 		"date_of_birth": enquiry.date_of_birth,
 		"school_name": enquiry.school_name,
-		"father_name": enquiry.parent_name,
-		# The enquiry holds a single parent contact; the admission form splits
-		# it into father / mother, so carry it over as the father's number.
-		"father_mobile_number": enquiry.parent_mobile,
-		"address": enquiry.address,
+		"father_name": enquiry.father_name,
+		"mother_name": enquiry.mother_name,
+		"father_mobile_number": enquiry.father_number,
+		"mother_mobile_number": enquiry.mother_number,
+		"address": enquiry.get("address") if hasattr(enquiry, "address") else None,
 		"application_date": frappe.utils.today()
 	})
 	return adm_form

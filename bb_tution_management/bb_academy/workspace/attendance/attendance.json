@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\": \"attHeader\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\">Attendance</span>\", \"col\": 12}}, {\"id\": \"attCard\", \"type\": \"card\", \"data\": {\"card_name\": \"Attendance\", \"col\": 4}}, {\"id\": \"attReportsCard\", \"type\": \"card\", \"data\": {\"card_name\": \"Attendance Reports\", \"col\": 4}}]",
- "creation": "2026-08-21 00:00:00.000000",
+ "content": "[{\"id\":\"attHeader\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Attendance</span>\",\"col\":12}},{\"id\":\"attCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance\",\"col\":4}},{\"id\":\"attReportsCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance Reports\",\"col\":4}}]",
+ "creation": "2026-08-21 00:00:00",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -13,75 +13,6 @@
  "is_hidden": 0,
  "label": "Attendance",
  "links": [
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Attendance",
-   "link_count": 0,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Attendance Dashboard",
-   "link_count": 0,
-   "link_to": "attendance-dashboard",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Attendance Manager",
-   "link_count": 0,
-   "link_to": "attendance-manager",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Late Permission Manager",
-   "link_count": 0,
-   "link_to": "late_permission",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Performance Tracker",
-   "link_count": 0,
-   "link_to": "performance-tracker",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Attendance Holiday",
-   "link_count": 0,
-   "link_to": "Attendance Holiday",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Student Attendance",
-   "link_count": 0,
-   "link_to": "Student Attendance",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
   {
    "hidden": 0,
    "is_query_report": 0,
@@ -180,9 +111,78 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Attendance",
+   "link_count": 6,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Attendance Dashboard",
+   "link_count": 0,
+   "link_to": "attendance-dashboard",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Attendance Manager",
+   "link_count": 0,
+   "link_to": "attendance-manager",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Attendance Holiday",
+   "link_count": 0,
+   "link_to": "Attendance Holiday",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Student Attendance",
+   "link_count": 0,
+   "link_to": "Student Attendance",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Late Permission",
+   "link_count": 0,
+   "link_to": "late_permission",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Performance Tracker",
+   "link_count": 0,
+   "link_to": "performance-tracker",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-08-21 00:00:00.000000",
+ "modified": "2026-08-28 02:05:55.797155",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Attendance",

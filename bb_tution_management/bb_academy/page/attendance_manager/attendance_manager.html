@@ -161,10 +161,12 @@
         </td>
         <td class="att-td-name">
             <div class="att-student-profile" style="display: flex; align-items: center; gap: 10px;">
-                <div class="att-student-name-wrap" style="display: flex; align-items: center;">
-                    <span class="att-student-name">${student_name}</span>
-                    <i class="fa ${gender_icon} att-gender-icon ${gender_icon_class}" title="${gender}" style="margin-left: 6px;"></i>
+                <div class="att-student-name-wrap" style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
+                    <span class="att-student-name" style="${new_student_name_style}">${student_name}</span>
+                    <i class="fa ${gender_icon} att-gender-icon ${gender_icon_class}" title="${gender}"></i>
                     ${birthday_icon}
+                    ${new_student_badge}
+                    ${temporary_batch_badge}
                 </div>
                 ${avatar_html}
             </div>

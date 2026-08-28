@@ -153,7 +153,8 @@ after_migrate = "bb_tution_management.bb_academy.setup.setup_bb_academy"
 scheduler_events = {
 	"daily": [
 		"bb_tution_management.bb_academy.sms.send_birthday_wishes",
-		"bb_tution_management.bb_academy.sms.send_fee_reminders"
+		"bb_tution_management.bb_academy.sms.send_fee_reminders",
+		"bb_tution_management.bb_academy.doctype.student.student.check_attendance_batch_expiry"
 	],
 	"monthly": [
 		# "bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice.auto_generate_monthly_invoices"

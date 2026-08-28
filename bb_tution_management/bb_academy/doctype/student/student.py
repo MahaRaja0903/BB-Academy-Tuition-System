@@ -428,3 +428,32 @@ def get_academic_year_for_standard(standard):
 	)
 	return academic_year
 
+
+def check_attendance_batch_expiry():
+	"""
+	Check all students with attendance_batch_set=1.
+	If today is past attendance_batch_end_date, reset the flags and clear the dates.
+	"""
+	from frappe.utils import today, getdate
+	current_date = getdate(today())
+	
+	students_to_reset = frappe.get_all(
+		"Student",
+		filters={
+			"attendance_batch_set": 1,
+			"attendance_batch_end_date": ["<", current_date]
+		}
+	)
+	
+	for student in students_to_reset:
+		doc = frappe.get_doc("Student", student.name)
+		doc.attendance_batch_set = 0
+		doc.attendance_batch = None
+		doc.attendance_batch_start_date = None
+		doc.attendance_batch_end_date = None
+		# Skip tracking batch change or fee updates for this background task if possible
+		doc.flags.ignore_batch_history = True
+		doc.flags.ignore_fee_fetch = True
+		doc.save(ignore_permissions=True)
+
+

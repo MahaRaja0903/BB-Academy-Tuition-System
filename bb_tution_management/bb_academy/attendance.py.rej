@@ -1,0 +1,11 @@
+--- bb_tution_management/bb_academy/attendance.py.original	2026-08-28 02:22:00.000000000 +0530
++++ bb_tution_management/bb_academy/attendance.py	2026-08-28 02:23:00.000000000 +0530
+@@ -160,7 +169,7 @@
+     stu = frappe.get_doc("Student", student)
+ 
+     # Check if holiday
+-    batch = stu.current_batch
++    batch = stu.attendance_batch if stu.attendance_batch_set else stu.current_batch
+     holiday = get_holiday_details(attendance_date, stu.standard, batch)
+     if holiday:
+         frappe.throw("Cannot mark attendance on a holiday")

@@ -4,7 +4,7 @@
 import frappe
 from frappe.model.document import Document
 from frappe import _
-from frappe.utils import cint
+from frappe.utils import cint, flt
 
 from bb_tution_management.bb_academy.doctype.fee_structure.fee_structure import (
 	get_monthly_fee as get_fee_structure_monthly_fee,
@@ -35,6 +35,14 @@ class StudentAdmissionForm(Document):
 		self.validate_group()
 		self.fetch_fees()
 		self.validate_admission_number()
+		self.validate_fees_paid()
+
+	def validate_fees_paid(self):
+		if self.starting_payment:
+			min_required = flt(self.starting_payment) * 0.5
+			paid_amount = flt(self.fees_paid_amount)
+			if paid_amount < min_required:
+				frappe.throw(_("Fees Paid Amount must be at least 50% of the Starting Payment (Minimum: {0})").format(min_required))
 
 	def fetch_academic_year(self):
 		if not self.standard:
@@ -121,6 +129,49 @@ class StudentAdmissionForm(Document):
 	def on_submit(self):
 		self.create_student_record()
 		self.update_enquiry_status()
+		self.create_fee_invoice()
+
+	def create_fee_invoice(self):
+		if not self.starting_payment:
+			return
+
+		student_name = frappe.db.get_value("Student", {"admission_number": self.admission_number}, "name")
+		if not student_name:
+			return
+
+		try:
+			invoice = frappe.get_doc({
+				"doctype": "Fee Invoice",
+				"student": student_name,
+				"invoice_date": frappe.utils.today(),
+				"is_starting_fee": 1,
+				"monthly_fee": self.starting_payment,
+				"paid_amount": flt(self.fees_paid_amount),
+				"payment_method": "Cash",
+				"fees_details": [{
+					"month": "Starting Payment",
+					"amount_need_to_pay": self.starting_payment,
+					"paid_amount": flt(self.fees_paid_amount)
+				}]
+			})
+			invoice.insert(ignore_permissions=True)
+			invoice.submit()
+			frappe.msgprint(
+				_("Fee Invoice {0} created successfully for {1}.").format(
+					frappe.bold(invoice.name), frappe.bold(self.student_name)
+				),
+				indicator="green"
+			)
+		except Exception:
+			frappe.log_error(
+				title=f"Fee Invoice creation failed for Admission {self.name}",
+				message=frappe.get_traceback(with_context=True),
+			)
+			frappe.throw(
+				_("Could not create the Fee Invoice for {0}. The admission has not been fully processed.").format(
+					frappe.bold(self.student_name or self.name)
+				)
+			)
 
 	def create_student_record(self):
 		if not self.admission_number:
@@ -299,5 +350,9 @@ def get_enquiry_details(enquiry_name):
 		"referred_by": doc.referred_by,
 		"standard": doc.standard,
 		"group": doc.group,
-		"parent_mobile": doc.parent_mobile
+		"parent_mobile": doc.parent_mobile,
+		"father_name": doc.father_name,
+		"mother_name": doc.mother_name,
+		"father_mobile_number": doc.father_number,
+		"mother_mobile_number": doc.mother_number
 	}

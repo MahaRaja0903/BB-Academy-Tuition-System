@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:HOL-{holiday_date}",
+ "autoname": "format:HOL-{holiday_date}-{####}",
  "creation": "2026-08-20 14:45:40.570760",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -27,7 +27,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Holiday Type",
-   "options": "Rain\nGovernment Holiday\nSchool Holiday\nEmergency\nOther",
+   "options": "Rain\nGovernment Holiday\nSchool Holiday\nEmergency\nSunday\nKPI Meeting\nOther",
    "reqd": 1
   },
   {
@@ -62,7 +62,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-20 14:45:40.570760",
+ "modified": "2026-08-27 20:11:54.683120",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Attendance Holiday",

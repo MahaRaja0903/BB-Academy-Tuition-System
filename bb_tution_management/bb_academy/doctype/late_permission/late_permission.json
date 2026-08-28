@@ -40,7 +40,8 @@
   },
   {
    "fieldname": "late_reason",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
+   "options": "Late Entry Reason",
    "in_list_view": 1,
    "label": "Late Reason",
    "reqd": 1

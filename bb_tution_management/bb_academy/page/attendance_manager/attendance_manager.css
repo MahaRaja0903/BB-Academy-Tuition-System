@@ -1020,3 +1020,30 @@
         font-size: 24px;
     }
 }
+
+/* Make student avatar square-shaped, bigger */
+.attendance-manager .att-student-profile .avatar,
+.attendance-manager .att-student-profile .avatar-frame {
+    border-radius: 0px !important;
+    width: 78px !important;
+    height: 78px !important;
+    min-width: 78px;
+    object-fit: cover;
+}
+
+/* Mobile specific positioning for the avatar */
+@media (max-width: 767px) {
+    .attendance-manager .att-table tbody tr.att-student-row {
+        position: relative !important;
+    }
+    .attendance-manager .att-student-profile .avatar,
+    .attendance-manager .att-student-profile .avatar-frame {
+        position: absolute !important;
+        right: 5px !important;
+        bottom: 46px !important;
+        margin: 0 !important;
+        top: auto !important;
+        left: auto !important;
+        z-index: 2;
+    }
+}

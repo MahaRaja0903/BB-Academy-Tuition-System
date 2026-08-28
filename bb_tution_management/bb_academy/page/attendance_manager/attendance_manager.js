@@ -236,7 +236,8 @@ class AttendanceManager {
                 },
                 {
                     fieldname: 'late_reason',
-                    fieldtype: 'Data',
+                    fieldtype: 'Link',
+                    options: 'Late Entry Reason',
                     label: 'Late Reason',
                     reqd: 1,
                     default: opts.default_reason || ''
@@ -529,6 +530,15 @@ class AttendanceManager {
             let bday_icon = s.is_birthday ? '<i class="fa fa-birthday-cake" style="color: #d63384; margin-left: 6px;" title="Birthday Today!"></i>' : '';
             row = row.replace(/\${birthday_icon}/g, bday_icon);
 
+            let new_student_badge = s.is_new_joiner ? '<span style="background-color: #ff9800; color: white; font-size: 10px; margin-left: 8px; padding: 2px 6px; border-radius: 12px; font-weight: bold;"><i class="fa fa-star"></i> New Student</span>' : '';
+            row = row.replace(/\${new_student_badge}/g, new_student_badge);
+            
+            let temp_batch_badge = s.is_temporary ? `<span style="background-color: #9c27b0; color: white; font-size: 10px; padding: 2px 6px; border-radius: 12px; font-weight: bold;" title="Temporarily moved from Batch ${s.original_batch}"><i class="fa fa-exchange"></i> Actual Batch: ${s.original_batch}</span>` : '';
+            row = row.replace(/\${temporary_batch_badge}/g, temp_batch_badge);
+
+            let new_student_name_style = s.is_new_joiner ? 'color: #ff9800; font-weight: bold;' : '';
+            row = row.replace(/\${new_student_name_style}/g, new_student_name_style);
+
             let avatar_html = frappe.get_avatar('avatar-large', s.student_name, s.image).replace('<img ', '<img loading="lazy" ');
             row = row.replace(/\${avatar_html}/g, avatar_html);
 
@@ -687,7 +697,7 @@ class AttendanceManager {
             title: 'Assign Holiday',
             fields: [
                 { fieldname: 'date', fieldtype: 'Date', label: 'Date', reqd: 1, default: this.$date.val() },
-                { fieldname: 'holiday_type', fieldtype: 'Select', label: 'Holiday Type', options: "Rain\nGovernment Holiday\nSchool Holiday\nEmergency\nOther", reqd: 1 },
+                { fieldname: 'holiday_type', fieldtype: 'Select', label: 'Holiday Type', options: "Rain\nGovernment Holiday\nSchool Holiday\nEmergency\nSunday\nKPI Meeting\nOther", reqd: 1 },
                 { fieldname: 'reason', fieldtype: 'Small Text', label: 'Reason', reqd: 1 },
                 { fieldname: 'scope', fieldtype: 'Select', label: 'Scope', options: "Entire School\nStandard\nStandard + Batch", reqd: 1 },
                 { fieldname: 'standard', fieldtype: 'Link', options: 'Standard', label: 'Standard', depends_on: "eval:in_list(['Standard', 'Standard + Batch'], doc.scope)" },

@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "format:ATT-{student}-{attendance_date}",
  "creation": "2026-08-20 14:45:39.392159",
@@ -47,8 +48,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Batch",
-   "options": "Batch",
-   "reqd": 1
+   "options": "Batch"
   },
   {
    "fieldname": "attendance_date",
@@ -76,7 +76,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-20 14:45:39.392159",
+ "modified": "2026-08-26 23:54:40.574198",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Attendance",

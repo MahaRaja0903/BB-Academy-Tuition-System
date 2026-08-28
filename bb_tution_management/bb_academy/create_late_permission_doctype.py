@@ -16,7 +16,7 @@ def create_doctype():
                 {"fieldname": "student", "fieldtype": "Link", "options": "Student", "label": "Student", "reqd": 1, "in_list_view": 1},
                 {"fieldname": "student_name", "fieldtype": "Data", "label": "Student Name", "fetch_from": "student.student_name", "read_only": 1, "in_list_view": 1},
                 {"fieldname": "date", "fieldtype": "Date", "label": "Date", "reqd": 1, "in_list_view": 1, "in_standard_filter": 1},
-                {"fieldname": "late_reason", "fieldtype": "Data", "label": "Late Reason", "reqd": 1, "in_list_view": 1},
+                {"fieldname": "late_reason", "fieldtype": "Link", "options": "Late Entry Reason", "label": "Late Reason", "reqd": 1, "in_list_view": 1},
                 {"fieldname": "parents_informed", "fieldtype": "Check", "label": "Parents Informed", "default": 1}
             ],
             "permissions": [

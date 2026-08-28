@@ -1,0 +1,78 @@
+--- bb_tution_management/bb_academy/attendance.py.original	2026-08-28 02:22:00.000000000 +0530
++++ bb_tution_management/bb_academy/attendance.py	2026-08-28 02:23:00.000000000 +0530
+@@ -25,7 +25,10 @@
+         FROM `tabStudent`
+         WHERE status = 'Active'
+           AND standard = %s
+-          AND current_batch = %s
++          AND (
++              (IFNULL(attendance_batch_set, 0) = 1 AND attendance_batch = %s)
++              OR (IFNULL(attendance_batch_set, 0) = 0 AND current_batch = %s)
++          )
+           AND admission_date <= %s
+           {gender_filter}
+         ORDER BY TRIM(SUBSTRING_INDEX(student_name, '.', -1)) ASC
+@@ -116,6 +119,10 @@
+ 
+         lp = lp_map.get(s.name)
+ 
++        is_temporary = False
++        if s.attendance_batch_set == 1 and s.current_batch != batch:
++            is_temporary = True
++
+         result_students.append({
+             "student_id": s.name,
+             "student_name": s.student_name,
+@@ -128,7 +135,9 @@
+             "image": s.image or "",
+             "has_late_permission": 1 if lp else 0,
+             "late_reason": lp.late_reason if lp else "",
+-            "parents_informed": lp.parents_informed if lp else 0
++            "parents_informed": lp.parents_informed if lp else 0,
++            "is_temporary": is_temporary,
++            "original_batch": s.current_batch
+         })
+         
+     return {
+@@ -151,7 +160,7 @@
+     stu = frappe.get_doc("Student", student)
+ 
+     # Check if holiday
+-    batch = stu.current_batch
++    batch = stu.attendance_batch if stu.attendance_batch_set else stu.current_batch
+     holiday = get_holiday_details(attendance_date, stu.standard, batch)
+     if holiday:
+         frappe.throw("Cannot mark attendance on a holiday")
+@@ -398,7 +407,7 @@
+     
+     # Base filters
+     std_filter = " AND standard = %(standard)s " if standard else ""
+-    batch_filter = " AND current_batch = %(batch)s " if batch else ""
++    batch_filter = " AND ((IFNULL(attendance_batch_set, 0) = 1 AND attendance_batch = %(batch)s) OR (IFNULL(attendance_batch_set, 0) = 0 AND current_batch = %(batch)s)) " if batch else ""
+     
+     # 1. New Students
+     sevendays_ago = add_days(date_obj, -6)
+@@ -414,7 +423,7 @@
+     
+     # 2. Today's Absent
+     att_std_filter = " AND standard = %(standard)s " if standard else ""
+-    att_batch_filter = " AND student IN (SELECT name FROM `tabStudent` WHERE current_batch = %(batch)s) " if batch else ""
++    att_batch_filter = " AND student IN (SELECT name FROM `tabStudent` WHERE ((IFNULL(attendance_batch_set, 0) = 1 AND attendance_batch = %(batch)s) OR (IFNULL(attendance_batch_set, 0) = 0 AND current_batch = %(batch)s))) " if batch else ""
+     today_absent_query = f"""
+         SELECT COUNT(name) FROM `tabStudent Attendance`
+         WHERE attendance_date = %(date)s AND status = 'Absent'
+@@ -532,13 +541,13 @@
+         """, {"first_day": first_day_month, "last_day": last_day_month}, as_dict=True)
+     else:
+         batch_summary = frappe.db.sql(f"""
+-            SELECT s.current_batch as batch, a.status, count(a.name) as cnt
++            SELECT IF(IFNULL(s.attendance_batch_set, 0) = 1, s.attendance_batch, s.current_batch) as batch, a.status, count(a.name) as cnt
+             FROM `tabStudent Attendance` a
+             JOIN `tabStudent` s ON a.student = s.name
+             WHERE a.attendance_date BETWEEN %(first_day)s AND %(last_day)s
+             {att_std_filter.replace('standard', 'a.standard')}
+-            GROUP BY s.current_batch, a.status
++            GROUP BY IF(IFNULL(s.attendance_batch_set, 0) = 1, s.attendance_batch, s.current_batch), a.status
+         """, {"first_day": first_day_month, "last_day": last_day_month, "standard": standard}, as_dict=True)
+         
+     # Last 30 Days Trend
