@@ -7,8 +7,8 @@ def execute(filters=None):
     to_date = getdate(filters.get("to_date"))
     
     columns = [
-        {"fieldname": "student", "label": "Student ID", "fieldtype": "Link", "options": "Student", "width": 120},
-        {"fieldname": "student_name", "label": "Student Name", "fieldtype": "Data", "width": 200}
+        {"fieldname": "student", "label": "Student ID", "fieldtype": "Link", "options": "Student", "width": 120, "sticky": True},
+        {"fieldname": "student_name", "label": "Student Name", "fieldtype": "Data", "width": 200, "sticky": True}
     ]
     
     # Add day columns
@@ -121,4 +121,19 @@ def execute(filters=None):
         out.append(row)
         
     out.sort(key=lambda x: x["student"])
-    return columns, out
+
+    late_days = filters.get("late_days")
+    absent_days = filters.get("absent_days")
+
+    final_out = []
+    for row in out:
+        include = True
+        if late_days not in (None, "") and row["late"] < int(late_days):
+            include = False
+        if absent_days not in (None, "") and row["absent"] < int(absent_days):
+            include = False
+            
+        if include:
+            final_out.append(row)
+
+    return columns, final_out

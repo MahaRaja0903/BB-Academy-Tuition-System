@@ -4,18 +4,18 @@
    the page inherits light/dark theme support automatically.
    ========================================================================== */
 
-.attendance-manager {
+.lp-manager {
     --lp-radius: var(--border-radius-md, 8px);
     --lp-radius-sm: var(--border-radius, 6px);
     --lp-gap: 14px;
     color: var(--text-color);
 }
 
-.attendance-manager * {
+.lp-manager * {
     box-sizing: border-box;
 }
 
-.attendance-manager button {
+.lp-manager button {
     font-family: inherit;
 }
 
@@ -23,7 +23,7 @@
    Control panel
    -------------------------------------------------------------------------- */
 
-.attendance-manager .lp-panel {
+.lp-manager .lp-panel {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
@@ -36,19 +36,19 @@
     margin-bottom: var(--lp-gap);
 }
 
-.attendance-manager .lp-panel-filters {
+.lp-manager .lp-panel-filters {
     display: flex;
     flex-wrap: wrap;
     gap: 14px;
     flex: 1 1 320px;
 }
 
-.attendance-manager .lp-field {
+.lp-manager .lp-field {
     min-width: 150px;
     flex: 1 1 150px;
 }
 
-.attendance-manager .lp-field label {
+.lp-manager .lp-field label {
     display: block;
     font-size: 12px;
     font-weight: 600;
@@ -57,33 +57,33 @@
     margin-bottom: 4px;
 }
 
-.attendance-manager .lp-field label i {
+.lp-manager .lp-field label i {
     width: 14px;
     margin-right: 4px;
     color: var(--gray-600);
 }
 
-.attendance-manager .lp-panel-date {
+.lp-manager .lp-panel-date {
     display: flex;
     flex-direction: column;
     gap: 4px;
     flex: 0 0 auto;
 }
 
-.attendance-manager .lp-date-label {
+.lp-manager .lp-date-label {
     font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.02em;
     color: var(--text-muted);
 }
 
-.attendance-manager .lp-date-label i {
+.lp-manager .lp-date-label i {
     width: 14px;
     margin-right: 4px;
     color: var(--gray-600);
 }
 
-.attendance-manager .lp-date-stepper {
+.lp-manager .lp-date-stepper {
     display: flex;
     align-items: stretch;
     border: 1px solid var(--border-color);
@@ -92,7 +92,7 @@
     overflow: hidden;
 }
 
-.attendance-manager .lp-date-nav-btn {
+.lp-manager .lp-date-nav-btn {
     border: none;
     background: transparent;
     color: var(--text-color);
@@ -104,15 +104,15 @@
     transition: background-color 0.15s ease;
 }
 
-.attendance-manager .lp-date-nav-btn:hover {
+.lp-manager .lp-date-nav-btn:hover {
     background: var(--gray-200);
 }
 
-.attendance-manager .lp-date-nav-btn:active {
+.lp-manager .lp-date-nav-btn:active {
     background: var(--gray-300);
 }
 
-.attendance-manager .lp-date-input {
+.lp-manager .lp-date-input {
     border: none;
     background: var(--card-bg);
     border-left: 1px solid var(--border-color);
@@ -126,19 +126,19 @@
     text-align: center;
 }
 
-.attendance-manager .lp-date-input:focus {
+.lp-manager .lp-date-input:focus {
     outline: none;
     box-shadow: var(--highlight-shadow);
 }
 
-.attendance-manager .lp-panel-actions {
+.lp-manager .lp-panel-actions {
     margin-left: auto;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
 }
 
-.attendance-manager .lp-holiday-btn {
+.lp-manager .lp-holiday-btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -154,7 +154,7 @@
     white-space: nowrap;
 }
 
-.attendance-manager .lp-holiday-btn:hover {
+.lp-manager .lp-holiday-btn:hover {
     background: var(--bg-yellow);
     color: var(--text-on-yellow);
     border-color: var(--yellow-300, var(--border-color));
@@ -164,14 +164,14 @@
    KPI cards
    -------------------------------------------------------------------------- */
 
-.attendance-manager .lp-kpi-grid {
+.lp-manager .lp-kpi-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 12px;
     margin-bottom: var(--lp-gap);
 }
 
-.attendance-manager .lp-kpi-card {
+.lp-manager .lp-kpi-card {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -185,22 +185,22 @@
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-.attendance-manager .lp-kpi-card:hover {
+.lp-manager .lp-kpi-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
 }
 
-.attendance-manager .lp-kpi-card:focus-visible {
+.lp-manager .lp-kpi-card:focus-visible {
     outline: 2px solid var(--blue-500);
     outline-offset: 2px;
 }
 
-.attendance-manager .lp-kpi-card.is-active {
+.lp-manager .lp-kpi-card.is-active {
     border-color: currentColor;
     box-shadow: var(--shadow-md);
 }
 
-.attendance-manager .lp-kpi-icon {
+.lp-manager .lp-kpi-icon {
     flex: 0 0 auto;
     width: 38px;
     height: 38px;
@@ -211,14 +211,14 @@
     font-size: 16px;
 }
 
-.attendance-manager .lp-kpi-body {
+.lp-manager .lp-kpi-body {
     display: flex;
     flex-direction: column;
     gap: 1px;
     min-width: 0;
 }
 
-.attendance-manager .lp-kpi-value {
+.lp-manager .lp-kpi-value {
     font-size: 22px;
     font-weight: 700;
     line-height: 1.1;
@@ -226,7 +226,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.attendance-manager .lp-kpi-label {
+.lp-manager .lp-kpi-label {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-muted);
@@ -234,26 +234,26 @@
     letter-spacing: 0.03em;
 }
 
-.attendance-manager .lp-kpi-total .lp-kpi-icon { background: var(--bg-blue); color: var(--text-on-blue); }
-.attendance-manager .lp-kpi-total.is-active { color: var(--blue-600); }
+.lp-manager .lp-kpi-total .lp-kpi-icon { background: var(--bg-blue); color: var(--text-on-blue); }
+.lp-manager .lp-kpi-total.is-active { color: var(--blue-600); }
 
-.attendance-manager .lp-kpi-present .lp-kpi-icon { background: var(--bg-green); color: var(--text-on-green); }
-.attendance-manager .lp-kpi-present.is-active { color: var(--green-600); }
+.lp-manager .lp-kpi-present .lp-kpi-icon { background: var(--bg-green); color: var(--text-on-green); }
+.lp-manager .lp-kpi-present.is-active { color: var(--green-600); }
 
-.attendance-manager .lp-kpi-absent .lp-kpi-icon { background: var(--bg-red); color: var(--text-on-red); }
-.attendance-manager .lp-kpi-absent.is-active { color: var(--red-600); }
+.lp-manager .lp-kpi-absent .lp-kpi-icon { background: var(--bg-red); color: var(--text-on-red); }
+.lp-manager .lp-kpi-absent.is-active { color: var(--red-600); }
 
-.attendance-manager .lp-kpi-late .lp-kpi-icon { background: var(--bg-orange); color: var(--text-on-orange); }
-.attendance-manager .lp-kpi-late.is-active { color: var(--orange-600, var(--text-on-orange)); }
+.lp-manager .lp-kpi-late .lp-kpi-icon { background: var(--bg-orange); color: var(--text-on-orange); }
+.lp-manager .lp-kpi-late.is-active { color: var(--orange-600, var(--text-on-orange)); }
 
-.attendance-manager .lp-kpi-pending .lp-kpi-icon { background: var(--bg-yellow); color: var(--text-on-yellow); }
-.attendance-manager .lp-kpi-pending.is-active { color: var(--yellow-700, var(--text-on-yellow)); }
+.lp-manager .lp-kpi-pending .lp-kpi-icon { background: var(--bg-yellow); color: var(--text-on-yellow); }
+.lp-manager .lp-kpi-pending.is-active { color: var(--yellow-700, var(--text-on-yellow)); }
 
 /* --------------------------------------------------------------------------
    Toolbar — search + show completed + filter chip
    -------------------------------------------------------------------------- */
 
-.attendance-manager .lp-toolbar {
+.lp-manager .lp-toolbar {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -261,13 +261,13 @@
     margin-bottom: var(--lp-gap);
 }
 
-.attendance-manager .lp-search-wrap {
+.lp-manager .lp-search-wrap {
     position: relative;
     flex: 1 1 280px;
     max-width: 360px;
 }
 
-.attendance-manager .lp-search-wrap i {
+.lp-manager .lp-search-wrap i {
     position: absolute;
     left: 12px;
     top: 50%;
@@ -276,7 +276,7 @@
     font-size: 13px;
 }
 
-.attendance-manager .lp-search-input {
+.lp-manager .lp-search-input {
     width: 100%;
     height: 38px;
     border: 1px solid var(--border-color);
@@ -287,13 +287,13 @@
     color: var(--text-color);
 }
 
-.attendance-manager .lp-search-input:focus {
+.lp-manager .lp-search-input:focus {
     outline: none;
     border-color: var(--blue-400, var(--blue-500));
     box-shadow: var(--highlight-shadow);
 }
 
-.attendance-manager .lp-toolbar-right {
+.lp-manager .lp-toolbar-right {
     display: flex;
     align-items: center;
     gap: 14px;
@@ -301,7 +301,7 @@
     flex-wrap: wrap;
 }
 
-.attendance-manager .lp-filter-chip {
+.lp-manager .lp-filter-chip {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -313,7 +313,7 @@
     font-weight: 500;
 }
 
-.attendance-manager .lp-filter-chip button {
+.lp-manager .lp-filter-chip button {
     border: none;
     background: rgba(0, 0, 0, 0.08);
     color: inherit;
@@ -327,27 +327,27 @@
     cursor: pointer;
 }
 
-.attendance-manager .lp-select-all-switch {
+.lp-manager .lp-select-all-switch {
     display: flex;
     align-items: center;
     padding-left: 1.5rem;
     white-space: nowrap;
 }
 
-.attendance-manager .lp-select-all-switch .custom-control-label {
+.lp-manager .lp-select-all-switch .custom-control-label {
     font-size: 13px;
     color: var(--text-muted);
     cursor: pointer;
 }
 
-.attendance-manager .lp-show-completed-switch {
+.lp-manager .lp-show-completed-switch {
     display: flex;
     align-items: center;
     padding-left: 1.9rem;
     white-space: nowrap;
 }
 
-.attendance-manager .lp-show-completed-switch .custom-control-label {
+.lp-manager .lp-show-completed-switch .custom-control-label {
     font-size: 13px;
     color: var(--text-muted);
     cursor: pointer;
@@ -357,7 +357,7 @@
    Bulk selection action bar
    -------------------------------------------------------------------------- */
 
-.attendance-manager .lp-bulk-bar {
+.lp-manager .lp-bulk-bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -376,7 +376,7 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-.attendance-manager .lp-bulk-count {
+.lp-manager .lp-bulk-count {
     font-weight: 600;
     color: var(--text-on-blue);
     font-size: 13px;
@@ -385,13 +385,13 @@
     gap: 6px;
 }
 
-.attendance-manager .lp-bulk-actions {
+.lp-manager .lp-bulk-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
 
-.attendance-manager .lp-bulk-btn {
+.lp-manager .lp-bulk-btn {
     border: 1px solid transparent;
     border-radius: var(--lp-radius-sm);
     padding: 7px 14px;
@@ -407,22 +407,22 @@
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.attendance-manager .lp-bulk-present { color: var(--green-600); border-color: var(--green-200, var(--border-color)); }
-.attendance-manager .lp-bulk-present:hover { background: var(--green-600); color: #fff; }
+.lp-manager .lp-bulk-present { color: var(--green-600); border-color: var(--green-200, var(--border-color)); }
+.lp-manager .lp-bulk-present:hover { background: var(--green-600); color: #fff; }
 
-.attendance-manager .lp-bulk-absent { color: var(--red-600); border-color: var(--red-200, var(--border-color)); }
-.attendance-manager .lp-bulk-absent:hover { background: var(--red-600); color: #fff; }
+.lp-manager .lp-bulk-absent { color: var(--red-600); border-color: var(--red-200, var(--border-color)); }
+.lp-manager .lp-bulk-absent:hover { background: var(--red-600); color: #fff; }
 
-.attendance-manager .lp-bulk-late { color: var(--orange-600, var(--text-on-orange)); border-color: var(--orange-200, var(--border-color)); }
-.attendance-manager .lp-bulk-late:hover { background: var(--orange-500); color: #fff; }
+.lp-manager .lp-bulk-late { color: var(--orange-600, var(--text-on-orange)); border-color: var(--orange-200, var(--border-color)); }
+.lp-manager .lp-bulk-late:hover { background: var(--orange-500); color: #fff; }
 
-.attendance-manager .lp-bulk-clear {
+.lp-manager .lp-bulk-clear {
     background: transparent;
     border-color: transparent;
     color: var(--text-muted);
 }
 
-.attendance-manager .lp-bulk-clear:hover {
+.lp-manager .lp-bulk-clear:hover {
     color: var(--text-color);
     text-decoration: underline;
 }
@@ -431,7 +431,7 @@
    Holiday card
    -------------------------------------------------------------------------- */
 
-.attendance-manager .lp-holiday-card {
+.lp-manager .lp-holiday-card {
     display: flex;
     gap: 16px;
     background: var(--alert-bg-info, var(--bg-blue));
@@ -441,7 +441,7 @@
     margin-bottom: var(--lp-gap);
 }
 
-.attendance-manager .lp-holiday-icon {
+.lp-manager .lp-holiday-icon {
     flex: 0 0 auto;
     width: 44px;
     height: 44px;
@@ -454,26 +454,26 @@
     font-size: 18px;
 }
 
-.attendance-manager .lp-holiday-content h4 {
+.lp-manager .lp-holiday-content h4 {
     margin: 0 0 8px;
     font-size: 16px;
     color: var(--heading-color);
 }
 
-.attendance-manager .lp-holiday-content p {
+.lp-manager .lp-holiday-content p {
     margin: 0 0 4px;
     font-size: 13px;
     color: var(--text-color);
 }
 
-.attendance-manager .lp-holiday-key {
+.lp-manager .lp-holiday-key {
     display: inline-block;
     min-width: 60px;
     font-weight: 600;
     color: var(--text-muted);
 }
 
-.attendance-manager .lp-holiday-note {
+.lp-manager .lp-holiday-note {
     margin-top: 8px !important;
     color: var(--text-muted) !important;
     font-style: italic;
@@ -483,38 +483,38 @@
    Empty / skeleton states (rendered inside the tbody)
    -------------------------------------------------------------------------- */
 
-.attendance-manager .lp-empty-state {
+.lp-manager .lp-empty-state {
     text-align: center;
     padding: 48px 20px;
     color: var(--text-muted);
 }
 
-.attendance-manager .lp-empty-icon {
+.lp-manager .lp-empty-icon {
     font-size: 34px;
     color: var(--gray-400);
     margin-bottom: 12px;
 }
 
-.attendance-manager .lp-empty-state h4 {
+.lp-manager .lp-empty-state h4 {
     color: var(--heading-color);
     font-size: 16px;
     margin-bottom: 6px;
 }
 
-.attendance-manager .lp-empty-state p {
+.lp-manager .lp-empty-state p {
     margin: 0 auto;
     max-width: 360px;
     font-size: 13px;
 }
 
-.attendance-manager .lp-empty-state.is-success .lp-empty-icon { color: var(--green-500); }
-.attendance-manager .lp-empty-state.is-success h4 { color: var(--green-600); }
+.lp-manager .lp-empty-state.is-success .lp-empty-icon { color: var(--green-500); }
+.lp-manager .lp-empty-state.is-success h4 { color: var(--green-600); }
 
-.attendance-manager .lp-skeleton-row td {
+.lp-manager .lp-skeleton-row td {
     padding: 16px !important;
 }
 
-.attendance-manager .lp-skeleton-bar {
+.lp-manager .lp-skeleton-bar {
     height: 14px;
     border-radius: 4px;
     background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 37%, var(--gray-100) 63%);
@@ -531,7 +531,7 @@
    Student table (desktop)
    -------------------------------------------------------------------------- */
 
-.attendance-manager .lp-table-card {
+.lp-manager .lp-table-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--lp-radius);
@@ -539,14 +539,14 @@
     overflow: hidden;
 }
 
-.attendance-manager .lp-table {
+.lp-manager .lp-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
     margin: 0;
 }
 
-.attendance-manager .lp-table thead th {
+.lp-manager .lp-table thead th {
     background: var(--subtle-accent, var(--gray-50));
     color: var(--text-muted);
     font-size: 11px;
@@ -559,68 +559,66 @@
     white-space: nowrap;
 }
 
-.attendance-manager .lp-col-select {
+.lp-manager .lp-col-select {
     width: 40px;
     text-align: center !important;
 }
 
-.attendance-manager .lp-col-actions {
+.lp-manager .lp-col-actions {
     width: 320px;
 }
 
-.attendance-manager .lp-table th input[type="checkbox"],
-.attendance-manager .lp-row-select {
+.lp-manager .lp-table th input[type="checkbox"],
+.lp-manager .lp-row-select {
     width: 17px;
     height: 17px;
     cursor: pointer;
     accent-color: var(--blue-500);
 }
 
-.attendance-manager .lp-table tbody tr.lp-student-row {
+.lp-manager .lp-table tbody tr.lp-student-row {
     border-left: 3px solid var(--gray-300);
     transition: background-color 0.12s ease, border-left-color 0.12s ease;
 }
 
-.attendance-manager .lp-table tbody tr.lp-student-row:hover {
+.lp-manager .lp-table tbody tr.lp-student-row:hover {
     background: var(--fg-hover-color, var(--gray-50));
 }
 
-.attendance-manager .lp-table tbody tr.lp-student-row[data-current-status="Present"] { border-left-color: var(--green-500); }
-.attendance-manager .lp-table tbody tr.lp-student-row[data-current-status="Absent"] { border-left-color: var(--red-500); }
-.attendance-manager .lp-table tbody tr.lp-student-row[data-current-status="Late"] { border-left-color: var(--orange-500); }
+.lp-manager .lp-table tbody tr.lp-student-row[data-current-status="Present"] { border-left-color: var(--green-500); }
+.lp-manager .lp-table tbody tr.lp-student-row[data-current-status="Absent"] { border-left-color: var(--red-500); }
+.lp-manager .lp-table tbody tr.lp-student-row[data-current-status="Late"] { border-left-color: var(--orange-500); }
 
-.attendance-manager .lp-table td {
+.lp-manager .lp-table td {
     padding: 10px 14px;
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
 }
 
-.attendance-manager .lp-table tbody tr.lp-student-row:last-child td {
+.lp-manager .lp-table tbody tr.lp-student-row:last-child td {
     border-bottom: none;
 }
 
-.attendance-manager .lp-td-select {
-    text-align: center;
-}
 
-.attendance-manager .lp-student-id {
+
+.lp-manager .lp-student-id {
     font-weight: 700;
     font-size: 14px;
     color: var(--heading-color);
     font-variant-numeric: tabular-nums;
 }
 
-.attendance-manager .lp-student-id.lp-new-joiner {
+.lp-manager .lp-student-id.lp-new-joiner {
     color: var(--purple-600, #9333ea) !important;
 }
 
-.attendance-manager .lp-student-stats {
+.lp-manager .lp-student-stats {
     display: flex;
     gap: 6px;
     margin-top: 4px;
 }
 
-.attendance-manager .lp-stat-chip {
+.lp-manager .lp-stat-chip {
     font-size: 11px;
     color: var(--text-muted);
     background: var(--subtle-fg, var(--gray-100));
@@ -630,37 +628,35 @@
     gap: 3px;
 }
 
-.attendance-manager .lp-stat-chip b {
+.lp-manager .lp-stat-chip b {
     font-weight: 700;
 }
 
-.attendance-manager .lp-stat-absent b { color: var(--red-600); }
-.attendance-manager .lp-stat-late b { color: var(--orange-600, var(--text-on-orange)); }
+.lp-manager .lp-stat-absent b { color: var(--red-600); }
+.lp-manager .lp-stat-late b { color: var(--orange-600, var(--text-on-orange)); }
 
-.attendance-manager .lp-student-name {
+.lp-manager .lp-student-name {
     font-size: 13.5px;
     color: var(--text-color);
 }
 
-.attendance-manager .lp-gender-icon {
+.lp-manager .lp-gender-icon {
     margin-left: 6px;
     font-size: 12px;
     color: var(--gray-500);
 }
 
-.attendance-manager .lp-gender-icon-female {
+.lp-manager .lp-gender-icon-female {
     color: #ff69b4;
 }
 
-.attendance-manager .lp-gender-icon-male {
+.lp-manager .lp-gender-icon-male {
     color: #2196f3;
 }
 
-.attendance-manager .lp-prev-label {
-    display: none;
-}
 
-.attendance-manager .lp-prev-badge {
+
+.lp-manager .lp-prev-badge {
     display: inline-block;
     font-size: 12px;
     font-weight: 600;
@@ -670,16 +666,16 @@
     color: var(--text-on-gray);
 }
 
-.attendance-manager .lp-prev-badge[data-status="Present"] { background: var(--bg-green); color: var(--text-on-green); }
-.attendance-manager .lp-prev-badge[data-status="Absent"] { background: var(--bg-red); color: var(--text-on-red); }
-.attendance-manager .lp-prev-badge[data-status="Late"] { background: var(--bg-orange); color: var(--text-on-orange); }
+.lp-manager .lp-prev-badge[data-status="Present"] { background: var(--bg-green); color: var(--text-on-green); }
+.lp-manager .lp-prev-badge[data-status="Absent"] { background: var(--bg-red); color: var(--text-on-red); }
+.lp-manager .lp-prev-badge[data-status="Late"] { background: var(--bg-orange); color: var(--text-on-orange); }
 
-.attendance-manager .lp-status-group {
+.lp-manager .lp-status-group {
     display: flex;
     gap: 6px;
 }
 
-.attendance-manager .lp-status-btn {
+.lp-manager .lp-status-btn {
     flex: 1 1 0;
     display: flex;
     align-items: center;
@@ -698,62 +694,62 @@
     transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
-.attendance-manager .lp-status-btn input {
+.lp-manager .lp-status-btn input {
     position: absolute;
     opacity: 0;
     pointer-events: none;
 }
 
-.attendance-manager .lp-status-btn:hover {
+.lp-manager .lp-status-btn:hover {
     border-color: var(--gray-400);
 }
 
 /* Unselected state — each button carries its own semantic color so the
    three choices are visually distinct even before anything is picked. */
-.attendance-manager .lp-status-present {
+.lp-manager .lp-status-present {
     background: var(--bg-green);
     border-color: var(--green-200);
     color: var(--text-on-green);
 }
 
-.attendance-manager .lp-status-present:hover {
+.lp-manager .lp-status-present:hover {
     border-color: var(--green-400);
 }
 
-.attendance-manager .lp-status-absent {
+.lp-manager .lp-status-absent {
     background: var(--bg-red);
     border-color: var(--red-200);
     color: var(--text-on-red);
 }
 
-.attendance-manager .lp-status-absent:hover {
+.lp-manager .lp-status-absent:hover {
     border-color: var(--red-400);
 }
 
-.attendance-manager .lp-status-late {
+.lp-manager .lp-status-late {
     background: var(--bg-orange);
     border-color: var(--orange-200);
     color: var(--text-on-orange);
 }
 
-.attendance-manager .lp-status-late:hover {
+.lp-manager .lp-status-late:hover {
     border-color: var(--orange-400);
 }
 
 /* Selected state — solid fill in the same semantic color. */
-.attendance-manager .lp-status-present.active {
+.lp-manager .lp-status-present.active {
     background: var(--green-600);
     border-color: var(--green-600);
     color: #fff;
 }
 
-.attendance-manager .lp-status-absent.active {
+.lp-manager .lp-status-absent.active {
     background: var(--red-600);
     border-color: var(--red-600);
     color: #fff;
 }
 
-.attendance-manager .lp-status-late.active {
+.lp-manager .lp-status-late.active {
     background: var(--orange-500);
     border-color: var(--orange-500);
     color: #fff;
@@ -764,12 +760,12 @@
    -------------------------------------------------------------------------- */
 
 @media (min-width: 768px) {
-    .attendance-manager .lp-table-scroll {
+    .lp-manager .lp-table-scroll {
         max-height: 68vh;
         overflow-y: auto;
     }
 
-    .attendance-manager .lp-table thead th {
+    .lp-manager .lp-table thead th {
         position: sticky;
         top: 0;
         z-index: 2;
@@ -781,11 +777,11 @@
    -------------------------------------------------------------------------- */
 
 @media (max-width: 992px) {
-    .attendance-manager .lp-kpi-grid {
+    .lp-manager .lp-kpi-grid {
         grid-template-columns: repeat(3, 1fr);
     }
 
-    .attendance-manager .lp-panel-actions {
+    .lp-manager .lp-panel-actions {
         margin-left: 0;
     }
 }
@@ -796,13 +792,13 @@
    -------------------------------------------------------------------------- */
 
 @media (max-width: 767px) {
-    .attendance-manager .lp-panel {
+    .lp-manager .lp-panel {
         flex-direction: column;
         align-items: stretch;
         padding: 14px;
     }
 
-    .attendance-manager .lp-panel-filters {
+    .lp-manager .lp-panel-filters {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 12px;
@@ -812,53 +808,53 @@
         flex: none;
     }
 
-    .attendance-manager .lp-field {
+    .lp-manager .lp-field {
         min-width: 0;
         flex: none;
     }
 
-    .attendance-manager .lp-field-gender {
+    .lp-manager .lp-field-gender {
         grid-column: 1 / -1;
     }
 
-    .attendance-manager .lp-panel-date {
+    .lp-manager .lp-panel-date {
         width: 100%;
     }
 
-    .attendance-manager .lp-date-stepper {
+    .lp-manager .lp-date-stepper {
         width: 100%;
     }
 
-    .attendance-manager .lp-date-input {
+    .lp-manager .lp-date-input {
         flex: 1;
         min-width: 0;
     }
 
-    .attendance-manager .lp-panel-actions {
+    .lp-manager .lp-panel-actions {
         width: 100%;
         margin-left: 0;
     }
 
-    .attendance-manager .lp-holiday-btn {
+    .lp-manager .lp-holiday-btn {
         width: 100%;
         justify-content: center;
     }
 
-    .attendance-manager .lp-kpi-grid {
+    .lp-manager .lp-kpi-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 10px;
     }
 
-    .attendance-manager .lp-kpi-total {
+    .lp-manager .lp-kpi-total {
         grid-column: span 2;
     }
 
-    .attendance-manager .lp-toolbar {
+    .lp-manager .lp-toolbar {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .attendance-manager .lp-search-wrap {
+    .lp-manager .lp-search-wrap {
         max-width: none;
         /* Same fix as .lp-panel-filters: .lp-toolbar is now a column flex,
            so the desktop width-basis (280px) would otherwise be read as a
@@ -866,58 +862,58 @@
         flex: none;
     }
 
-    .attendance-manager .lp-toolbar-right {
+    .lp-manager .lp-toolbar-right {
         margin-left: 0;
         justify-content: space-between;
     }
 
-    .attendance-manager .lp-bulk-bar {
+    .lp-manager .lp-bulk-bar {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .attendance-manager .lp-bulk-actions {
+    .lp-manager .lp-bulk-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
     }
 
-    .attendance-manager .lp-bulk-clear {
+    .lp-manager .lp-bulk-clear {
         grid-column: span 2;
     }
 
-    .attendance-manager .lp-holiday-card {
+    .lp-manager .lp-holiday-card {
         flex-direction: column;
         text-align: left;
     }
 
     /* ---- table -> card transform ---- */
-    .attendance-manager .lp-table-scroll {
+    .lp-manager .lp-table-scroll {
         overflow-x: visible;
     }
 
-    .attendance-manager .lp-table thead {
+    .lp-manager .lp-table thead {
         display: none;
     }
 
-    .attendance-manager .lp-table,
-    .attendance-manager .lp-table tbody {
+    .lp-manager .lp-table,
+    .lp-manager .lp-table tbody {
         display: block;
         width: 100%;
     }
 
-    .attendance-manager .lp-table tbody tr.lp-placeholder-row {
+    .lp-manager .lp-table tbody tr.lp-placeholder-row {
         display: block;
     }
 
-    .attendance-manager .lp-table tbody tr.lp-student-row {
+    .lp-manager .lp-table tbody tr.lp-student-row {
         display: grid;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: 1fr;
         grid-template-areas:
-            "name   select"
-            "id     id"
-            "prev   prev"
-            "actions actions";
+            "id"
+            "name"
+            "status"
+            "actions";
         row-gap: 10px;
         column-gap: 10px;
         border-left: 4px solid var(--gray-300);
@@ -929,50 +925,34 @@
         box-shadow: var(--card-shadow, var(--shadow-sm));
     }
 
-    .attendance-manager .lp-table tbody tr.lp-student-row td {
+    .lp-manager .lp-table tbody tr.lp-student-row td {
         display: block;
         width: auto;
         padding: 0;
         border-bottom: none;
     }
 
-    .attendance-manager .lp-td-select {
-        grid-area: select;
-        align-self: start;
-        text-align: right;
-    }
+    
 
-    .attendance-manager .lp-td-id { grid-area: id; }
+    .lp-manager .lp-td-id { grid-area: id; }
 
-    .attendance-manager .lp-td-name {
+    .lp-manager .lp-td-name {
         grid-area: name;
         padding-top: 10px !important;
         border-top: 1px solid var(--border-color);
     }
 
-    .attendance-manager .lp-td-prev {
-        grid-area: prev;
-        display: flex;
-        align-items: center;
+    .lp-manager .lp-td-status { grid-area: status; }
+
+    
+
+    .lp-manager .lp-td-actions { grid-area: actions; }
+
+    .lp-manager .lp-status-group {
         gap: 8px;
     }
 
-    .attendance-manager .lp-prev-label {
-        display: inline;
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-    }
-
-    .attendance-manager .lp-td-actions { grid-area: actions; }
-
-    .attendance-manager .lp-status-group {
-        gap: 8px;
-    }
-
-    .attendance-manager .lp-status-btn {
+    .lp-manager .lp-status-btn {
         flex-direction: column;
         gap: 4px;
         padding: 10px 4px;
@@ -980,33 +960,33 @@
         font-size: 11.5px;
     }
 
-    .attendance-manager .lp-status-btn i {
+    .lp-manager .lp-status-btn i {
         font-size: 15px;
     }
 }
 
 @media (max-width: 480px) {
-    .attendance-manager .lp-kpi-grid {
+    .lp-manager .lp-kpi-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .attendance-manager .lp-kpi-value {
+    .lp-manager .lp-kpi-value {
         font-size: 19px;
     }
 
-    .attendance-manager .lp-row-select,
-    .attendance-manager .lp-table th input[type="checkbox"] {
+    .lp-manager .lp-row-select,
+    .lp-manager .lp-table th input[type="checkbox"] {
         width: 22px;
         height: 22px;
     }
 }
 
 @media (max-width: 360px) {
-    .attendance-manager .lp-status-btn span {
+    .lp-manager .lp-status-btn span {
         display: none;
     }
 
-    .attendance-manager .lp-status-btn i {
+    .lp-manager .lp-status-btn i {
         font-size: 17px;
     }
 }
@@ -1016,7 +996,7 @@
    -------------------------------------------------------------------------- */
 
 @media (min-width: 1200px) {
-    .attendance-manager .lp-kpi-value {
+    .lp-manager .lp-kpi-value {
         font-size: 24px;
     }
 }

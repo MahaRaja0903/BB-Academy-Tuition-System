@@ -22,6 +22,7 @@ class LatePermissionManager {
         this.$batch = this.wrapper.find('#lp-batch');
         this.$gender = this.wrapper.find('#lp-gender');
         this.$date = this.wrapper.find('#lp-date');
+        this.$search = this.wrapper.find('#lp-search');
         this.$tbody = this.wrapper.find('#lp-tbody');
 
         this.$date.val(frappe.datetime.get_today());
@@ -43,7 +44,6 @@ class LatePermissionManager {
 
         this.$batch.on('change', () => this.load_students());
         this.$gender.on('change', () => this.load_students());
-        
         this.$date.on('change', () => this.load_students());
 
         this.wrapper.find('#btn-prev-day').on('click', () => {
@@ -56,6 +56,10 @@ class LatePermissionManager {
             this.load_students();
         });
         
+        this.$search.on('input', (e) => {
+            this.apply_filters();
+        });
+        
         this.$tbody.on('click', '.btn-grant-permission', (e) => {
             let student = $(e.currentTarget).closest('tr').data('id');
             this.prompt_permission(student);
@@ -64,6 +68,18 @@ class LatePermissionManager {
         this.$tbody.on('click', '.btn-revoke-permission', (e) => {
             let student = $(e.currentTarget).closest('tr').data('id');
             this.revoke_permission(student);
+        });
+    }
+
+    apply_filters() {
+        let term = this.$search.val().toLowerCase();
+        this.wrapper.find('.lp-student-row').each(function() {
+            let txt = $(this).data('id').toLowerCase() + " " + $(this).data('name');
+            if(txt.indexOf(term) > -1) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
         });
     }
 
@@ -109,7 +125,7 @@ class LatePermissionManager {
         let date = this.$date.val();
 
         if(!std || !batch || !date) {
-            this.$tbody.html('<tr><td colspan="4" class="text-center">Select Standard and Batch</td></tr>');
+            this.$tbody.html('<tr class="lp-placeholder-row"><td colspan="4"><div class="lp-empty-state"><div class="lp-empty-icon"><i class="fa fa-graduation-cap"></i></div><h4>Select Standard &amp; Batch</h4><p>Choose a Standard and Batch above to load students.</p></div></td></tr>');
             return;
         }
 
@@ -126,7 +142,7 @@ class LatePermissionManager {
 
     render_students(students) {
         if(students.length === 0) {
-            this.$tbody.html('<tr><td colspan="4" class="text-center">No active students found.</td></tr>');
+            this.$tbody.html('<tr class="lp-placeholder-row"><td colspan="4"><div class="lp-empty-state"><div class="lp-empty-icon"><i class="fa fa-info-circle"></i></div><h4>No students found</h4><p>No active students found for this Standard and Batch.</p></div></td></tr>');
             return;
         }
 
@@ -137,6 +153,8 @@ class LatePermissionManager {
             let row = tmpl;
             row = row.replace(/\${student_id}/g, s.name);
             row = row.replace(/\${student_name}/g, s.student_name);
+            row = row.replace(/\${student_name_lower}/g, (s.student_name || "").toLowerCase());
+            row = row.replace(/\${has_permission}/g, s.has_permission ? "yes" : "no");
             
             if(s.has_permission) {
                 row = row.replace(/\${status_badge}/g, `<span class="badge badge-success">Permission Granted (${s.late_reason})</span>`);
@@ -150,6 +168,7 @@ class LatePermissionManager {
         });
 
         this.$tbody.html(html);
+        this.apply_filters();
     }
     
     prompt_permission(student) {

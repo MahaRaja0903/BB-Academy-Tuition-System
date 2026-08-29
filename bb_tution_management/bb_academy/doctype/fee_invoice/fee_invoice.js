@@ -16,6 +16,14 @@ frappe.ui.form.on("Fee Invoice", {
 		// Render student fee tracking on refresh if student is set
 		if (frm.doc.student) {
 			frm.trigger("render_fee_tracking");
+		} else {
+			// Clear stale HTML from a previously viewed invoice
+			if (frm.fields_dict.student_html) {
+				frm.fields_dict.student_html.$wrapper.html("");
+			}
+			if (frm.fields_dict.fees_paid_details_html) {
+				frm.fields_dict.fees_paid_details_html.$wrapper.html("");
+			}
 		}
 	},
 	before_submit(frm) {

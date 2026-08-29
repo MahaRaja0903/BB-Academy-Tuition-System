@@ -1,4 +1,4 @@
-<div class="late-permission">
+<div class="lp-manager">
     <div class="lp-panel">
         <div class="lp-panel-filters">
             <div class="lp-field lp-field-standard">
@@ -33,19 +33,33 @@
         </div>
     </div>
 
+    <!-- Toolbar -->
+    <div class="lp-toolbar">
+        <div class="lp-search-wrap">
+            <i class="fa fa-search"></i>
+            <input type="text" id="lp-search" class="lp-search-input" placeholder="Search student name or ID">
+        </div>
+    </div>
+
     <div class="lp-table-card">
         <div class="table-responsive lp-table-scroll">
-            <table class="lp-table table" id="lp-table">
+            <table class="lp-table" id="lp-table">
                 <thead>
                     <tr>
-                        <th>Student ID</th>
-                        <th>Student Name</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th class="lp-col-id">Student ID</th>
+                        <th class="lp-col-name">Student Name</th>
+                        <th class="lp-col-status">Status</th>
+                        <th class="lp-col-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="lp-tbody">
-                    <tr><td colspan="4" class="text-center">Select Standard and Batch</td></tr>
+                    <tr class="lp-placeholder-row"><td colspan="4">
+                        <div class="lp-empty-state">
+                            <div class="lp-empty-icon"><i class="fa fa-graduation-cap"></i></div>
+                            <h4>Select Standard &amp; Batch</h4>
+                            <p>Choose a Standard and Batch above to load students.</p>
+                        </div>
+                    </td></tr>
                 </tbody>
             </table>
         </div>
@@ -53,11 +67,21 @@
 </div>
 
 <template id="lp-row-template">
-    <tr data-id="${student_id}">
-        <td>${student_id}</td>
-        <td>${student_name}</td>
-        <td>${status_badge}</td>
-        <td>
+    <tr class="lp-student-row" data-id="${student_id}" data-name="${student_name_lower}" data-status="${has_permission}">
+        <td class="lp-td-id">
+            <div class="lp-student-id">${student_id}</div>
+        </td>
+        <td class="lp-td-name">
+            <div class="lp-student-profile" style="display: flex; align-items: center; gap: 10px;">
+                <div class="lp-student-name-wrap" style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
+                    <span class="lp-student-name">${student_name}</span>
+                </div>
+            </div>
+        </td>
+        <td class="lp-td-status">
+            ${status_badge}
+        </td>
+        <td class="lp-td-actions">
             ${action_button}
         </td>
     </tr>

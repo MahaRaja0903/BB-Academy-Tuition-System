@@ -33,6 +33,12 @@
   "discount_amount",
   "gst_amount",
   "coupon_amount",
+  "section_break_wgsv",
+  "cash",
+  "column_break_qijx",
+  "gpay",
+  "column_break_cwov",
+  "scanner",
   "section_break_pzdt",
   "grand_total",
   "column_break_pqhq",
@@ -228,7 +234,7 @@
    "fieldname": "payment_method",
    "fieldtype": "Select",
    "label": "Payment Method",
-   "options": "\nCash\nGPAY\nScanner",
+   "options": "\nCash\nGPAY\nScanner\nSplit Up",
    "reqd": 1
   },
   {
@@ -253,12 +259,42 @@
    "fieldtype": "Int",
    "label": "Coupon Amount",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_wgsv",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.payment_method == \"Cash\"",
+   "fieldname": "cash",
+   "fieldtype": "Currency",
+   "label": "Cash"
+  },
+  {
+   "fieldname": "column_break_qijx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.payment_method == \"Cash\"",
+   "fieldname": "gpay",
+   "fieldtype": "Currency",
+   "label": "GPAY"
+  },
+  {
+   "fieldname": "column_break_cwov",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.payment_method == \"Cash\"",
+   "fieldname": "scanner",
+   "fieldtype": "Currency",
+   "label": "Scanner"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-12 01:20:21.777434",
+ "modified": "2026-08-29 16:16:14.690143",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",
