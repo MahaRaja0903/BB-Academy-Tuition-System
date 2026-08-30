@@ -226,7 +226,8 @@ class LatePermissionManager {
                 },
                 {
                     fieldname: 'early_out_reason',
-                    fieldtype: 'Small Text',
+                    fieldtype: 'Link',
+                    options: 'Early Exit Reason',
                     label: 'Early Out Reason',
                     reqd: 1
                 }
@@ -256,6 +257,11 @@ class LatePermissionManager {
                     label: 'Late Reason',
                     options: 'Late Entry Reason',
                     reqd: 1
+                },
+                {
+                    fieldname: 'time',
+                    fieldtype: 'Time',
+                    label: 'Time'
                 }
             ], (values) => {
                 frappe.call({
@@ -263,7 +269,8 @@ class LatePermissionManager {
                     args: {
                         student: student,
                         date: this.$date.val(),
-                        late_reason: values.late_reason
+                        late_reason: values.late_reason,
+                        time: values.time || ''
                     },
                     callback: (r) => {
                         if(r.message === 'success') {

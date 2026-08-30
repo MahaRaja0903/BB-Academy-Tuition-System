@@ -1,0 +1,32 @@
+@import 'frappe-ui/style.css';
+/* Desk palette must load after Tailwind's preflight so :root vars win. */
+@import './desk-theme.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  overscroll-behavior-y: none;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Matches the desk page background rather than Tailwind's gray-50 */
+  background-color: var(--gray-50);
+  color: var(--text-color);
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}

@@ -17,6 +17,17 @@ MONTH_NUMBER = {name: idx + 1 for idx, name in enumerate(MONTH_NAMES)}
 
 STARTING_PAYMENT = "Starting Payment"
 
+# Payment Method value that means the money came in as more than one form.
+SPLIT_UP = "Split Up"
+
+# A month settled out of the starting payment rather than paid for on its own,
+# and a month the starting payment has booked but not yet paid for.
+PAID_BY_STARTING_PAYMENT = "Paid By Starting Payment"
+RESERVED = "Reserved"
+
+# Statuses that mean the month is settled -- nothing left to bill or chase.
+SETTLED_STATUSES = ("Paid", PAID_BY_STARTING_PAYMENT, "Not Joined")
+
 # A student who joins on or before this day of the month is billed for the whole
 # month; joining later is billed only for the days that are left in the month.
 PRORATA_CUTOFF_DAY = 10
@@ -25,7 +36,14 @@ PRORATA_CUTOFF_DAY = 10
 def get_academic_months(academic_year):
 	"""Month names of an academic year, in calendar order from its start month.
 
-	e.g. an April -> March year gives [April, May, ... February, March].
+	e.g. an April -> March year gives [April, May, ... February, March], and a
+	June -> April one gives [June, July, ... March, April].
+
+	A year that ends in the month it starts in -- April -> April -- runs a full
+	cycle, so it gives the twelve distinct months from April round to March. The
+	end month is only a stopping point once the year is actually under way; the
+	months are keyed by name, so a thirteenth month repeating April is not
+	something the payment rows can hold.
 	"""
 	if not academic_year:
 		return []
@@ -40,7 +58,7 @@ def get_academic_months(academic_year):
 	m = start_month
 	while True:
 		months.append(MONTH_NAMES[m - 1])
-		if m == end_month:
+		if len(months) == 12 or (m == end_month and len(months) > 1):
 			break
 		m = m % 12 + 1  # next month, wrapping Dec(12) -> Jan(1)
 
@@ -146,7 +164,7 @@ def should_bill_month(student_doc, month, starting_pending):
 		return False
 
 	row = get_payment_row(student_doc, month)
-	if row and row.status in ("Paid", "Not Joined"):
+	if row and row.status in SETTLED_STATUSES:
 		return False
 
 	# While the starting payment is outstanding the months it pays for in
@@ -303,7 +321,66 @@ class FeeInvoice(Document):
 		self.validate_coupons()
 		self.validate_discount_amount()
 		self.calculate_outstanding()
+		self.validate_split_up_payment()
 		# self.update_status()
+
+	def validate_split_up_payment(self):
+		"""A Split Up payment is the Grand Total handed over in more than one
+		form, so Cash + GPAY + Scanner has to add back up to the Grand Total.
+
+		Any other payment method is collected in that one form, so the split
+		fields are cleared instead of being left with stale amounts.
+		"""
+		if self.payment_method != SPLIT_UP:
+			self.cash = 0
+			self.gpay = 0
+			self.scanner = 0
+			return
+
+		currency = frappe.db.get_default("currency") or "INR"
+
+		def money(amount):
+			return frappe.utils.fmt_money(flt(amount), currency=currency)
+
+		parts = [("Cash", flt(self.cash)), ("GPAY", flt(self.gpay)), ("Scanner", flt(self.scanner))]
+
+		for label, amount in parts:
+			if amount < 0:
+				frappe.throw(
+					_("Split Up: {0} cannot be a negative amount.").format(_(label)),
+					title=_("Split Up Payment"),
+				)
+
+		collected = sum(amount for _label, amount in parts)
+		grand_total = flt(self.grand_total)
+
+		breakup = " + ".join(
+			"{0} {1}".format(_(label), money(amount)) for label, amount in parts
+		)
+
+		if not collected:
+			frappe.throw(
+				_("Payment Method is Split Up, so enter how the {0} was collected across Cash, GPAY and Scanner. All three are currently empty.").format(
+					money(grand_total)
+				),
+				title=_("Split Up Payment"),
+			)
+
+		difference = flt(collected - grand_total, 2)
+		if abs(difference) < 0.01:
+			return
+
+		if difference > 0:
+			gap = _("That is {0} more than the Grand Total.").format(money(difference))
+		else:
+			gap = _("That is {0} short of the Grand Total.").format(money(abs(difference)))
+
+		frappe.throw(
+			_("Split Up payment does not match the Grand Total.<br><br>Collected: {0} = <b>{1}</b><br>Grand Total: <b>{2}</b><br><br>{3} Change the amount collected in Cash, GPAY or Scanner so the three together come to {2}.").format(
+				breakup, money(collected), money(grand_total), gap
+			),
+			title=_("Split Up Payment"),
+		)
 
 	def validate_discount_amount(self):
 		if self.add_discount and flt(self.discount_amount) > 0:
@@ -551,10 +628,15 @@ class FeeInvoice(Document):
 		"""Settle the months the starting payment pays for in advance.
 
 		A fully paid starting payment settles both the first full month and the
-		last month of the academic year; half of it settles the first month
-		only. The months are marked Paid without any amount of their own -- the
-		money sits against the starting payment row, so counting it again here
-		would double it in the student's totals.
+		last month of the academic year. Half of it settles the first month and
+		only holds the last one: that month is Reserved -- booked against the
+		rest of the starting payment, but not paid for yet, so it still shows as
+		due.
+
+		A settled month carries Paid By Starting Payment rather than plain Paid,
+		so it is clear on the student's record that no money was collected for
+		that month on its own -- it sits against the starting payment row, and
+		counting it again here would double it in the student's totals.
 		"""
 		starting_fee = flt(starting_row.amount_need_to_pay)
 		if starting_fee <= 0:
@@ -565,26 +647,38 @@ class FeeInvoice(Document):
 		first_month, last_month = get_advance_months(student)
 		monthly_fee = flt(student.monthly_fee or 0)
 
-		def settle(month, covered):
+		def settle(month, status):
 			if not month:
 				return
 			row = get_payment_row(student, month)
 			if not row:
 				row = student.append("payment_details", {"month": month, "amount_paid": 0.0})
 
-			if covered:
-				row.amount_need_to_pay = flt(row.amount_need_to_pay) or monthly_fee
-				row.pending = 0
-				row.status = "Paid"
-			elif flt(row.amount_paid) == 0:
-				# The advance no longer reaches this month and nothing was paid
-				# against it directly, so it goes back to being due.
-				row.amount_need_to_pay = flt(row.amount_need_to_pay) or monthly_fee
-				row.pending = flt(row.amount_need_to_pay)
-				row.status = "Not Paid"
+			if status != PAID_BY_STARTING_PAYMENT and flt(row.amount_paid) != 0:
+				# Money was paid against this month directly, so what the row
+				# already says is the truer reading -- an advance that no longer
+				# reaches this month does not overwrite it.
+				return
 
-		settle(first_month, paid_percentage >= 50)
-		settle(last_month, paid_percentage >= 100)
+			row.amount_need_to_pay = flt(row.amount_need_to_pay) or monthly_fee
+
+			if status == PAID_BY_STARTING_PAYMENT:
+				row.pending = 0
+			else:
+				# Reserved and Not Paid both still owe the month's fee.
+				row.pending = max(0.0, flt(row.amount_need_to_pay) - flt(row.amount_paid))
+
+			row.status = status or "Not Paid"
+
+		settle(
+			first_month,
+			PAID_BY_STARTING_PAYMENT if paid_percentage >= 50 else None,
+		)
+		settle(
+			last_month,
+			PAID_BY_STARTING_PAYMENT if paid_percentage >= 100
+			else (RESERVED if paid_percentage >= 50 else None),
+		)
 
 	def send_receipt_sms(self):
 		if float(self.paid_amount or 0) > 0:
@@ -624,7 +718,9 @@ def update_student_totals(student):
 
 		total_paid += flt(row.amount_paid)
 
-		if row.status == "Paid":
+		# A month settled by the starting payment is already paid for, by the
+		# money sitting on the starting payment row.
+		if row.status in ("Paid", PAID_BY_STARTING_PAYMENT):
 			continue
 
 		billable = flt(row.amount_need_to_pay) or get_month_amount(student, row.month)
@@ -632,3 +728,211 @@ def update_student_totals(student):
 
 	student.total_paid_amount = total_paid
 	student.total_pending_amount = total_pending
+
+
+# ---------------------------------------------------------------------------
+# WhatsApp bill
+# ---------------------------------------------------------------------------
+
+WHATSAPP_PRINT_FORMAT = "Fee Invoice Modern Print"
+
+# wa.me needs a country code; the numbers on file are plain 10 digit Indian ones.
+DEFAULT_COUNTRY_CODE = "91"
+
+
+def normalize_whatsapp_number(number):
+	"""wa.me wants digits only, country code included and no leading +."""
+	digits = "".join(ch for ch in (number or "") if ch.isdigit())
+	if not digits:
+		return ""
+
+	# 0XXXXXXXXXX -> drop the trunk prefix, 00 91 ... -> drop the IDD prefix
+	if len(digits) == 11 and digits.startswith("0"):
+		digits = digits[1:]
+	elif digits.startswith("00"):
+		digits = digits[2:]
+
+	if len(digits) == 10:
+		digits = DEFAULT_COUNTRY_CODE + digits
+
+	return digits
+
+
+def get_bill_attachment_url(invoice):
+	"""Public URL of this invoice's bill PDF, generating and attaching it once.
+
+	WhatsApp click-to-chat cannot carry a file, so the bill travels as a link in
+	the message and has to be readable without logging in.
+	"""
+	file_name = "{0}.pdf".format(invoice.name.replace("/", "-"))
+
+	existing = frappe.get_all(
+		"File",
+		filters={
+			"attached_to_doctype": invoice.doctype,
+			"attached_to_name": invoice.name,
+			"is_private": 0,
+			"file_name": file_name,
+		},
+		fields=["file_url"],
+		order_by="creation desc",
+		limit=1,
+	)
+	if existing:
+		return existing[0].file_url
+
+	try:
+		pdf = frappe.get_print(
+			invoice.doctype,
+			invoice.name,
+			print_format=WHATSAPP_PRINT_FORMAT,
+			as_pdf=True,
+		)
+
+		file_doc = frappe.get_doc({
+			"doctype": "File",
+			"file_name": file_name,
+			"attached_to_doctype": invoice.doctype,
+			"attached_to_name": invoice.name,
+			"is_private": 0,
+			"content": pdf,
+		}).insert(ignore_permissions=True)
+	except Exception:
+		# A missing PDF renderer shouldn't stop the parent being told they paid --
+		# the message just goes without the link.
+		frappe.log_error(
+			frappe.get_traceback(), "Fee Invoice: WhatsApp bill PDF failed"
+		)
+		return ""
+
+	return file_doc.file_url
+
+
+def build_whatsapp_bill_message(invoice, student, bill_url):
+	"""The payment confirmation the parent receives, mirroring the invoice."""
+	currency = frappe.db.get_default("currency") or "INR"
+
+	def money(amount):
+		return frappe.utils.fmt_money(flt(amount), currency=currency)
+
+	rows = [row for row in invoice.get("fees_details", []) if row.month]
+	months = [row.month for row in rows]
+	starting_row = next((row for row in rows if row.month == STARTING_PAYMENT), None)
+
+	lines = [
+		"*{0}*".format(frappe.db.get_default("company") or "BB Academy"),
+		"",
+		_("Your payment has been successfully received."),
+		"",
+		"*{0}*".format(_("Student Details")),
+		"{0}: {1}".format(_("Name"), student.student_name or invoice.student),
+	]
+
+	if student.admission_number:
+		lines.append("{0}: {1}".format(_("Admission No"), student.admission_number))
+	if student.standard:
+		lines.append("{0}: {1}".format(_("Standard"), student.standard))
+	if student.current_batch:
+		lines.append("{0}: {1}".format(_("Batch"), student.current_batch))
+
+	lines += [
+		"",
+		"*{0}*".format(_("Payment Details")),
+		"{0}: {1}".format(_("Invoice No"), invoice.name),
+		"{0}: {1}".format(
+			_("Date"), frappe.utils.formatdate(invoice.invoice_date or nowdate())
+		),
+	]
+
+	if months:
+		lines.append("{0}: {1}".format(_("Month(s) Paid"), ", ".join(months)))
+	if starting_row:
+		# The starting payment settles the first full month at 50% paid and the
+		# last month of the year at 100%; in between the last month is only held.
+		# Same rule as apply_starting_payment_advance.
+		billed = flt(starting_row.amount_need_to_pay)
+		percent = (flt(starting_row.paid_amount) / billed * 100) if billed else 0
+		first_month, last_month = get_advance_months(student)
+
+		covered = []
+		if percent >= 50 and first_month:
+			covered.append(first_month)
+		if percent >= 100 and last_month:
+			covered.append(last_month)
+
+		if covered:
+			lines.append("{0}: {1}".format(
+				_("Starting Payment also covers"), ", ".join(covered)
+			))
+		else:
+			lines.append(_("Starting Payment is not settled in full yet."))
+
+		if 50 <= percent < 100 and last_month:
+			lines.append("{0}: {1} {2}".format(
+				_("Reserved"), last_month,
+				_("is held against the rest of the Starting Payment and is still due."),
+			))
+
+	lines.append("{0}: {1}".format(_("Total Fees"), money(invoice.monthly_fee)))
+
+	if invoice.add_discount and flt(invoice.discount_amount) > 0:
+		lines.append("{0}: -{1}".format(_("Discount"), money(invoice.discount_amount)))
+
+	if invoice.apply_gst_18 and flt(invoice.gst_amount) > 0:
+		lines.append("{0}: {1}".format(_("GST 18%"), money(invoice.gst_amount)))
+
+	if flt(invoice.grand_total) != flt(invoice.monthly_fee):
+		lines.append("{0}: {1}".format(_("Grand Total"), money(invoice.grand_total)))
+
+	coupons = get_coupon_codes(invoice)
+	if coupons and flt(invoice.coupon_amount) > 0:
+		lines.append("{0} ({1}): -{2}".format(
+			_("Coupon"), ", ".join(coupons), money(invoice.coupon_amount)
+		))
+
+	lines.append("*{0}: {1}*".format(_("Amount Paid"), money(invoice.paid_amount)))
+
+	if flt(invoice.balance_amount) > 0:
+		lines.append("{0}: {1}".format(_("Balance Due"), money(invoice.balance_amount)))
+	else:
+		lines.append(_("No balance pending. Thank you!"))
+
+	if bill_url:
+		lines += ["", "{0}: {1}".format(_("Bill Invoice"), bill_url)]
+
+	return "\n".join(lines)
+
+
+@frappe.whitelist()
+def get_whatsapp_bill(invoice):
+	"""Numbers to send this invoice's bill to, plus the message and bill link."""
+	doc = frappe.get_doc("Fee Invoice", invoice)
+	doc.check_permission("read")
+
+	student = frappe.get_doc("Student", doc.student)
+
+	contacts = []
+	for parent in ("Father", "Mother"):
+		fieldname = "{0}_mobile_number".format(parent.lower())
+		raw = (student.get(fieldname) or "").strip()
+		if not raw:
+			continue
+		contacts.append({
+			"parent": parent,
+			"label": _(parent),
+			"name": student.get("{0}_name".format(parent.lower())) or "",
+			"raw": raw,
+			"number": normalize_whatsapp_number(raw),
+			"preferred": student.preferred_mobile_number in (parent, "Both"),
+		})
+
+	bill_url = get_bill_attachment_url(doc)
+	site_url = frappe.utils.get_url()
+
+	return {
+		"contacts": contacts,
+		"bill_url": site_url + bill_url if bill_url else "",
+		"message": build_whatsapp_bill_message(
+			doc, student, site_url + bill_url if bill_url else ""
+		),
+	}

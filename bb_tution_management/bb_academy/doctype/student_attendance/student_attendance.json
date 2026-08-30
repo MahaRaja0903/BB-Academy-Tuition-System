@@ -81,8 +81,9 @@
   },
   {
    "fieldname": "early_out_reason",
-   "fieldtype": "Small Text",
-   "label": "Early Out Reason"
+   "fieldtype": "Link",
+   "label": "Early Out Reason",
+   "options": "Early Exit Reason"
   }
  ],
  "grid_page_length": 50,

@@ -1,0 +1,22 @@
+{
+  "name": "BB Attendance Manager",
+  "short_name": "Attendance",
+  "description": "Black Building Academy - Attendance Manager, Dashboard, Late Permission & Reports",
+  "start_url": "/attendance_manager",
+  "scope": "/attendance_manager/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#FFD700",
+  "icons": [
+    {
+      "src": "/assets/bb_tution_management/images/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/bb_tution_management/images/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

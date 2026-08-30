@@ -1,6 +1,114 @@
 // Copyright (c) 2026, BB Academy and contributors
 // For license information, please see license.txt
 
+// A month settled out of the starting payment rather than paid for on its own,
+// and a month the starting payment has booked but not yet paid for. Kept in step
+// with the same names in fee_invoice.py.
+const PAID_BY_STARTING_PAYMENT = "Paid By Starting Payment";
+const RESERVED = "Reserved";
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+	'July', 'August', 'September', 'October', 'November', 'December'];
+
+const MONTH_SHORT = {
+	January: 'Jan', February: 'Feb', March: 'Mar', April: 'Apr', May: 'May', June: 'Jun',
+	July: 'Jul', August: 'Aug', September: 'Sep', October: 'Oct', November: 'Nov', December: 'Dec'
+};
+
+// The months of the student's own academic year, in the order that year runs --
+// a June-to-April year starts at June, not April. get_student_fee_data works
+// them out from the Academic Year; the April-to-March list is only a fallback
+// for a student who has no academic year set yet.
+function get_academic_month_list(data) {
+	let months = (data && data.academic_months) || [];
+	if (months.length) {
+		return months;
+	}
+	return ['April', 'May', 'June', 'July', 'August', 'September',
+		'October', 'November', 'December', 'January', 'February', 'March'];
+}
+
+// 'YYYY-MM-DD' through new Date() is read as UTC midnight, which slides back a
+// day in any timezone behind it -- enough to make a payment look a day later
+// than it was. Read the parts off the string instead.
+function parse_iso_date(value) {
+	let parts = String(value || '').slice(0, 10).split('-');
+	if (parts.length !== 3) {
+		return null;
+	}
+	return { year: +parts[0], month: +parts[1], day: +parts[2] };
+}
+
+// 5 -> "th", 1 -> "st" ... for spelling a due date as "5th of August".
+function ordinal(day) {
+	day = parseInt(day, 10);
+	if (!day) return '';
+	if (day === 1 || day === 21 || day === 31) return 'st';
+	if (day === 2 || day === 22) return 'nd';
+	if (day === 3 || day === 23) return 'rd';
+	return 'th';
+}
+
+// Whether a month's fee landed after the day it was due, and by how much.
+//
+// Late is measured against the student's own Fees Due Date -- most run on the
+// 5th, so a fixed "after the 15th" rule would call a payment on the 8th prompt
+// when it was three days overdue. A payment made in a later month of the year
+// is late whatever the day; one made in an earlier month was paid in advance.
+function get_payment_timing(data, months, month, pd_date) {
+	let due_day = parseInt(data && data.fees_due_date, 10);
+	if (!pd_date || !due_day) {
+		// No due date on file -- nothing to judge the payment against.
+		return { late: false, days: null };
+	}
+
+	let admission = parse_iso_date(data && data.admission_date);
+	if (admission
+		&& MONTH_NAMES[admission.month - 1] === month
+		&& admission.day > due_day) {
+		// The student joined during this month, after the day its fee would
+		// have fallen due. That date passed before they were enrolled, so this
+		// month has no due date of its own to judge the payment against -- and
+		// this is the pro-rated joining month anyway, billed from the admission
+		// date rather than for the whole month.
+		return { late: false, days: null };
+	}
+
+	let paid = parse_iso_date(pd_date);
+	if (!paid) {
+		return { late: false, days: null };
+	}
+	let paid_month = MONTH_NAMES[paid.month - 1];
+
+	if (paid_month === month) {
+		let days = paid.day - due_day;
+		return days > 0 ? { late: true, days: days } : { late: false, days: null };
+	}
+
+	let fee_idx = months.indexOf(month);
+	let paid_idx = months.indexOf(paid_month);
+	if (fee_idx !== -1 && paid_idx !== -1 && paid_idx > fee_idx) {
+		return { late: true, days: null };
+	}
+
+	return { late: false, days: null };
+}
+
+// How far into that year the student joined, so the months before it read as
+// Not Joined. Measured by position in the year's own month list rather than by
+// calendar month number.
+function get_admission_index(data, months) {
+	if (!data || !data.admission_date) {
+		return 0;
+	}
+	let admission = parse_iso_date(data.admission_date);
+	if (!admission) {
+		return 0;
+	}
+	let idx = months.indexOf(MONTH_NAMES[admission.month - 1]);
+	return idx === -1 ? 0 : idx;
+}
+
 frappe.ui.form.on("Fee Invoice", {
 	setup(frm) {
 		frm.set_query("standard", function() {
@@ -24,6 +132,11 @@ frappe.ui.form.on("Fee Invoice", {
 			if (frm.fields_dict.fees_paid_details_html) {
 				frm.fields_dict.fees_paid_details_html.$wrapper.html("");
 			}
+		}
+
+		// The bill only means anything once the payment is actually posted.
+		if (frm.doc.docstatus === 1) {
+			frm.add_custom_button(__("Generate Bill"), () => generate_bill(frm));
 		}
 	},
 	before_submit(frm) {
@@ -392,17 +505,37 @@ function build_collection_summary_html(frm) {
 		</div>`;
 	}
 
-	// The starting payment settles two months in advance, but only once it is
-	// paid in full -- worth spelling out before the money is committed.
+	// The starting payment settles two months in advance: the first full month
+	// once half of it is in, the last month only once all of it is. Below that
+	// the last month is merely reserved -- worth spelling out before the money
+	// is committed.
 	let starting_row = rows.find(row => row.month === "Starting Payment");
 	if (starting_row && frm.doc.student_detail_json) {
-		let advance = (JSON.parse(frm.doc.student_detail_json).advance_months || []).join(", ");
-		if (advance) {
-			let full = (starting_row.paid_amount || 0) >= (starting_row.amount_need_to_pay || 0);
-			warnings += `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:${full ? "#d1fae5" : "#e0e7ff"};color:${full ? "#065f46" : "#3730a3"};">
-				${full
-					? __("Starting payment is being paid in full, so {0} will be marked Paid.", [advance])
-					: __("Starting payment is not being paid in full, so {0} will not be settled yet.", [advance])}
+		let advance_months = JSON.parse(frm.doc.student_detail_json).advance_months || [];
+		let [first_month, last_month] = advance_months;
+
+		if (first_month) {
+			let billed = starting_row.amount_need_to_pay || 0;
+			let percent = billed ? ((starting_row.paid_amount || 0) / billed) * 100 : 0;
+			let message, background, colour;
+
+			if (percent >= 100) {
+				background = "#d1fae5"; colour = "#065f46";
+				message = last_month
+					? __("Starting payment is being paid in full, so {0} and {1} will be marked Paid by Starting Payment.", [first_month, last_month])
+					: __("Starting payment is being paid in full, so {0} will be marked Paid by Starting Payment.", [first_month]);
+			} else if (percent >= 50) {
+				background = "#e0f2fe"; colour = "#075985";
+				message = last_month
+					? __("Half the starting payment is in, so {0} will be marked Paid by Starting Payment and {1} will be Reserved — still due.", [first_month, last_month])
+					: __("Half the starting payment is in, so {0} will be marked Paid by Starting Payment.", [first_month]);
+			} else {
+				background = "#fef3c7"; colour = "#92400e";
+				message = __("Less than half the starting payment is in, so {0} will not be settled yet.", [advance_months.join(", ")]);
+			}
+
+			warnings += `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:${background};color:${colour};">
+				${message}
 			</div>`;
 		}
 	}
@@ -599,10 +732,11 @@ function get_shared_styles() {
 	}
 	.sft-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 	.sft-dot-early { background-color: #10b981; }
-	.sft-dot-mid { background-color: #f59e0b; }
 	.sft-dot-late { background-color: #ef4444; }
 	.sft-dot-unpaid { background-color: #fee2e2; border: 1px solid #f87171; }
 	.sft-dot-notjoined { background-color: #d1d5db; }
+	.sft-dot-startpay { background-color: #0ea5e9; }
+	.sft-dot-reserved { background-color: #9ca3af; }
 
 	/* Grid */
 	.sft-grid {
@@ -673,17 +807,46 @@ function get_shared_styles() {
 	.card-notpaid .sft-mc-status { background: #fee2e2; color: #b91c1c; }
 	.card-notpaid .sft-mc-icon { background: #ef4444; color: #fff; }
 
-	.card-early .sft-mc-status { background: #d1fae5; color: #065f46; }
+	/* A paid month always reads as paid -- green. How late it was paid is
+	   carried by the icon and the Paid Late tag, never by making a settled
+	   month look like an unpaid one. */
+	.card-early .sft-mc-status,
+	.card-late .sft-mc-status { background: #d1fae5; color: #065f46; }
+
 	.card-early .sft-mc-icon { background: #10b981; color: #fff; }
-
-	.card-mid .sft-mc-status { background: #fef3c7; color: #92400e; }
-	.card-mid .sft-mc-icon { background: #f59e0b; color: #fff; }
-
-	.card-late .sft-mc-status { background: #fee2e2; color: #991b1b; }
 	.card-late .sft-mc-icon { background: #ef4444; color: #fff; }
+
+	.card-late { border-color: #fecaca; background-color: #fffbfb; }
 
 	.card-partial .sft-mc-status { background: #e0e7ff; color: #3730a3; }
 	.card-partial .sft-mc-icon { background: #6366f1; color: #fff; }
+
+	/* Settled out of the starting payment -- paid, but not paid for on its own */
+	.card-startpay { background-color: #f0f9ff; border-color: #bae6fd; }
+	.card-startpay .sft-mc-status { background: #e0f2fe; color: #075985; }
+	.card-startpay .sft-mc-icon { background: #0ea5e9; color: #fff; }
+
+	/* Held against the rest of the starting payment, still due -- greyed out */
+	.card-reserved { background-color: #f9fafb; border-color: #e5e7eb; }
+	.card-reserved .sft-mc-month { color: #6b7280; }
+	.card-reserved .sft-mc-status { background: #e5e7eb; color: #4b5563; }
+	.card-reserved .sft-mc-icon { background: #9ca3af; color: #fff; }
+	.card-reserved .sft-mc-details { color: #9ca3af; }
+
+	/* "Paid by Starting Payment" tag on a month card */
+	.sft-mc-tag {
+		display: inline-block;
+		margin-bottom: 10px;
+		padding: 2px 8px;
+		border-radius: 20px;
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		background: #0ea5e9;
+		color: #fff;
+	}
+	.sft-mc-tag.grey { background: #9ca3af; }
+	.sft-mc-tag.red { background: #ef4444; }
 
 	/* Tooltip */
 	.sft-tooltip-text {
@@ -724,21 +887,15 @@ function get_shared_styles() {
 }
 
 function build_student_details_html(data, fee_month) {
-	const MONTHS = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-	
+	const MONTHS = get_academic_month_list(data);
+
 	// Build payment lookup
 	let payDict = {};
 	(data.payment_details || []).forEach(row => {
 		payDict[row.month] = row;
 	});
 
-	// Calculate admission academic index (April=0 ... March=11)
-	let adAcIndex = 0;
-	if (data.admission_date) {
-		let adDate = new Date(data.admission_date);
-		let m = adDate.getMonth() + 1; // 1-12
-		adAcIndex = m >= 4 ? m - 4 : m + 8;
-	}
+	let adAcIndex = get_admission_index(data, MONTHS);
 
 	// Summary calculations
 	let paid = 0, remaining = 0, late = 0;
@@ -750,13 +907,14 @@ function build_student_details_html(data, fee_month) {
 		} else if (idx < adAcIndex) {
 			status = 'Not Joined';
 		}
-		if (status === 'Paid') {
+		if (status === 'Paid' || status === PAID_BY_STARTING_PAYMENT) {
 			paid++;
-			if (p && p.date) {
-				let d = new Date(p.date).getDate();
-				if (d > 15) late++;
+			// A month covered by the starting payment was never late in its own
+			// right -- the money came in with the starting payment.
+			if (status === 'Paid' && p && get_payment_timing(data, MONTHS, m, p.date).late) {
+				late++;
 			}
-		} else if (status === 'Not Paid' || status === 'Partial') {
+		} else if (status === 'Not Paid' || status === 'Partial' || status === RESERVED) {
 			remaining++;
 		}
 	});
@@ -777,6 +935,31 @@ function build_student_details_html(data, fee_month) {
 	let starting_paid = starting_row ? starting_row.amount_paid : 0;
 	let starting_pending = starting_row ? starting_row.pending : (data.starting_payment || 0);
 
+	// Which months the starting payment has actually settled, and which it is
+	// only holding -- read straight off the statuses it wrote.
+	let coveredMonths = (data.payment_details || [])
+		.filter(row => row.status === PAID_BY_STARTING_PAYMENT && row.month !== 'Starting Payment')
+		.map(row => row.month);
+	let reservedMonths = (data.payment_details || [])
+		.filter(row => row.status === RESERVED)
+		.map(row => row.month);
+
+	let startingCoverHtml = '';
+	if (coveredMonths.length) {
+		startingCoverHtml += `
+			<div class="sft-meta-item">
+				<span class="sft-meta-label" style="color: #6b7280;">Paid by Starting Payment</span>
+				<span class="sft-mc-tag" style="margin-bottom: 0; align-self: flex-start;">${coveredMonths.join(', ')}</span>
+			</div>`;
+	}
+	if (reservedMonths.length) {
+		startingCoverHtml += `
+			<div class="sft-meta-item">
+				<span class="sft-meta-label" style="color: #6b7280;">Reserved</span>
+				<span class="sft-mc-tag grey" style="margin-bottom: 0; align-self: flex-start;">${reservedMonths.join(', ')}</span>
+			</div>`;
+	}
+
 	let startingPaymentHtml = '';
 	if (data.starting_payment > 0) {
 		startingPaymentHtml = `
@@ -789,23 +972,19 @@ function build_student_details_html(data, fee_month) {
 				<span class="sft-meta-label" style="color: #6b7280;">Starting Paid</span>
 				<span class="sft-meta-value" style="color: #10b981; font-size: 15px;">${formatCurrency(starting_paid)}</span>
 			</div>
+			${Number(starting_pending) > 0 ? `
 			<div class="sft-meta-item">
 				<span class="sft-meta-label" style="color: #6b7280;">Starting Pending</span>
 				<span class="sft-meta-value" style="color: #ef4444; font-size: 15px;">${formatCurrency(starting_pending)}</span>
-			</div>
+			</div>` : ``}
+			${startingCoverHtml}
 		</div>`;
 	}
 
 	let dueDateFormatted = '-';
-	if (data.fees_due_date) {
-		let day = parseInt(data.fees_due_date, 10);
-		if (day) {
-			let suffix = 'th';
-			if (day === 1 || day === 21 || day === 31) suffix = 'st';
-			else if (day === 2 || day === 22) suffix = 'nd';
-			else if (day === 3 || day === 23) suffix = 'rd';
-			dueDateFormatted = `${day}${suffix} of ${fee_month && fee_month !== 'Starting Payment' ? fee_month : 'every month'}`;
-		}
+	let dueDay = parseInt(data.fees_due_date, 10);
+	if (dueDay) {
+		dueDateFormatted = `${dueDay}${ordinal(dueDay)} of ${fee_month && fee_month !== 'Starting Payment' ? fee_month : 'every month'}`;
 	}
 
 	return `
@@ -859,10 +1038,11 @@ ${get_shared_styles()}
 			</div>
 		</div>
 		<div class="sft-legend">
-			<div class="sft-legend-item"><div class="sft-dot sft-dot-early"></div>Early (&lt;10th)</div>
-			<div class="sft-legend-item"><div class="sft-dot sft-dot-mid"></div>Mid (10–15)</div>
-			<div class="sft-legend-item"><div class="sft-dot sft-dot-late"></div>Late (&gt;15th)</div>
+			<div class="sft-legend-item"><div class="sft-dot sft-dot-early"></div>Paid on time</div>
+			<div class="sft-legend-item"><div class="sft-dot sft-dot-late"></div>Paid late${dueDay ? ` (after the ${dueDay}${ordinal(dueDay)})` : ''}</div>
 			<div class="sft-legend-item"><div class="sft-dot sft-dot-unpaid"></div>Pending</div>
+			<div class="sft-legend-item"><div class="sft-dot sft-dot-startpay"></div>By Starting Payment</div>
+			<div class="sft-legend-item"><div class="sft-dot sft-dot-reserved"></div>Reserved</div>
 			<div class="sft-legend-item"><div class="sft-dot sft-dot-notjoined"></div>Not Joined</div>
 		</div>
 	</div>
@@ -871,8 +1051,8 @@ ${get_shared_styles()}
 }
 
 function build_fees_paid_details_html(data) {
-	const MONTHS = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-	const SHORT = { April: 'Apr', May: 'May', June: 'Jun', July: 'Jul', August: 'Aug', September: 'Sep', October: 'Oct', November: 'Nov', December: 'Dec', January: 'Jan', February: 'Feb', March: 'Mar' };
+	const MONTHS = get_academic_month_list(data);
+	const SHORT = MONTH_SHORT;
 
 	// Build payment lookup
 	let payDict = {};
@@ -880,13 +1060,7 @@ function build_fees_paid_details_html(data) {
 		payDict[row.month] = row;
 	});
 
-	// Calculate admission academic index (April=0 ... March=11)
-	let adAcIndex = 0;
-	if (data.admission_date) {
-		let adDate = new Date(data.admission_date);
-		let m = adDate.getMonth() + 1; // 1-12
-		adAcIndex = m >= 4 ? m - 4 : m + 8;
-	}
+	let adAcIndex = get_admission_index(data, MONTHS);
 
 	let formatDate = (dateStr) => {
 		if (!dateStr) return 'N/A';
@@ -910,41 +1084,78 @@ function build_fees_paid_details_html(data) {
 			status = 'Not Joined';
 		}
 
+		// Label shown on the status pill. The starting payment statuses read as
+		// plain Paid / Reserved on the card, with the tag below carrying the
+		// "where the money came from" part.
+		let statusLabel = status;
+		let timing = get_payment_timing(data, MONTHS, m, pdDate);
+		let lateText = timing.days
+			? `${timing.days} ${timing.days === 1 ? 'day' : 'days'} late`
+			: 'Paid late';
+
 		if (status === 'Not Joined') {
 			cardClass = 'card-notjoined';
 			icon = '🚫';
+		} else if (status === PAID_BY_STARTING_PAYMENT) {
+			cardClass = 'card-startpay';
+			icon = '★';
+			statusLabel = 'Paid';
+		} else if (status === RESERVED) {
+			cardClass = 'card-reserved';
+			icon = '🔒';
 		} else if (status === 'Paid') {
-			icon = '✔';
-			if (pdDate) {
-				let d = new Date(pdDate).getDate();
-				if (d < 10) cardClass = 'card-early';
-				else if (d <= 15) cardClass = 'card-mid';
-				else cardClass = 'card-late';
-			} else {
-				cardClass = 'card-early';
-			}
+			cardClass = timing.late ? 'card-late' : 'card-early';
+			icon = timing.late ? '⏰' : '✔';
 		} else if (status === 'Partial') {
 			cardClass = 'card-partial';
 			icon = '◐';
 		}
 
+		let tagHtml = '';
+		if (status === PAID_BY_STARTING_PAYMENT) {
+			tagHtml = `<div class="sft-mc-tag">Paid by Starting Payment</div>`;
+		} else if (status === RESERVED) {
+			tagHtml = `<div class="sft-mc-tag grey">Reserved by Starting Payment</div>`;
+		} else if (status === 'Paid' && timing.late) {
+			tagHtml = `<div class="sft-mc-tag red">⏰ ${lateText}</div>`;
+		}
+
 		let tooltipHtml = '';
-		if (pdDate && (status === 'Paid' || status === 'Partial')) {
+		if (pdDate && status === 'Paid' && timing.late) {
+			tooltipHtml = `<div class="sft-tooltip-text">Due ${data.fees_due_date}${ordinal(data.fees_due_date)} ${m} — paid ${formatDate(pdDate)}${timing.days ? ` (${lateText})` : ''}</div>`;
+		} else if (pdDate && (status === 'Paid' || status === 'Partial')) {
 			tooltipHtml = `<div class="sft-tooltip-text">Paid on ${formatDate(pdDate)}</div>`;
+		} else if (status === PAID_BY_STARTING_PAYMENT) {
+			tooltipHtml = `<div class="sft-tooltip-text">Settled out of the Starting Payment</div>`;
+		} else if (status === RESERVED) {
+			tooltipHtml = `<div class="sft-tooltip-text">Held against the rest of the Starting Payment — still due</div>`;
 		}
 
 		let formatCurrency = (val) => {
 			return '₹ ' + Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 		};
 
+		let admission = parse_iso_date(data.admission_date);
+		let is_joining_month = admission && MONTH_NAMES[admission.month - 1] === m;
+
 		let detailLines = '';
 		if (status !== 'Not Joined') {
 			detailLines += `<span>🏠 ${data.current_batch || '-'}</span>`;
 		}
+		if (is_joining_month && status !== 'Not Joined') {
+			detailLines += `<span style="color:#6b7280;">🎓 Joined ${formatDate(data.admission_date)}</span>`;
+		}
 		if ((status === 'Paid' || status === 'Partial') && pdDate) {
 			detailLines += `<span>📅 ${formatDate(pdDate)}</span>`;
+			if (status === 'Paid' && timing.late && data.fees_due_date) {
+				detailLines += `<span style="color:#b91c1c;">⏰ Due ${data.fees_due_date}${ordinal(data.fees_due_date)} ${m}</span>`;
+			}
 		} else if (status === 'Not Paid') {
 			detailLines += `<span>⚠️ Payment Pending</span>`;
+		} else if (status === PAID_BY_STARTING_PAYMENT) {
+			detailLines += `<span>★ No separate payment due</span>`;
+		} else if (status === RESERVED && p) {
+			detailLines += `<span>⚠️ ${formatCurrency(p.pending)} still due</span>`;
 		} else if (status === 'Not Joined') {
 			detailLines += `<span>—</span>`;
 		}
@@ -959,7 +1170,8 @@ function build_fees_paid_details_html(data) {
 					<div class="sft-mc-month">${SHORT[m]}</div>
 					<div class="sft-mc-icon">${icon}</div>
 				</div>
-				<div class="sft-mc-status">${status}</div>
+				<div class="sft-mc-status">${statusLabel}</div>
+				${tagHtml}
 				<div class="sft-mc-details">${detailLines}</div>
 			</div>
 		`;
@@ -976,3 +1188,101 @@ ${get_shared_styles()}
 `;
 }
 
+
+
+// "Generate Bill" -- pick the parent to notify, then hand the payment
+// confirmation to WhatsApp with a link to the bill PDF.
+function generate_bill(frm) {
+	frappe.dom.freeze(__("Preparing the bill..."));
+
+	frappe.call({
+		method: "bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice.get_whatsapp_bill",
+		args: { invoice: frm.doc.name },
+		always: () => frappe.dom.unfreeze(),
+		callback: function(r) {
+			if (!r.message) return;
+			show_whatsapp_bill_dialog(frm, r.message);
+		}
+	});
+}
+
+function show_whatsapp_bill_dialog(frm, bill) {
+	let contacts = bill.contacts || [];
+
+	if (!contacts.length) {
+		frappe.msgprint({
+			title: __("No Mobile Number"),
+			message: __("Neither a father nor a mother mobile number is on record for {0}. Add one on the Student first.",
+				[frm.doc.student_name || frm.doc.student]),
+			indicator: "orange"
+		});
+		return;
+	}
+
+	// The student's Preferred Mobile Number decides what the dialog opens on.
+	let preferred = contacts.find(c => c.preferred) || contacts[0];
+
+	let dialog = new frappe.ui.Dialog({
+		title: __("Send Bill on WhatsApp"),
+		fields: [
+			{
+				fieldtype: "Select",
+				fieldname: "contact",
+				label: __("Send to"),
+				reqd: 1,
+				default: preferred.parent,
+				options: contacts.map(c => ({
+					label: `${c.label}${c.name ? " — " + c.name : ""} (${c.raw})`,
+					value: c.parent
+				}))
+			},
+			{ fieldtype: "Column Break" },
+			{
+				fieldtype: "Data",
+				fieldname: "custom_number",
+				label: __("Or another number"),
+				description: __("Leave blank to use the number picked above.")
+			},
+			{ fieldtype: "Section Break" },
+			{
+				fieldtype: "Small Text",
+				fieldname: "message",
+				label: __("Message"),
+				default: bill.message,
+				reqd: 1
+			},
+			{
+				fieldtype: "HTML",
+				fieldname: "bill_note",
+				options: bill.bill_url
+					? `<div style="padding:10px 12px;border-radius:6px;background:#eff6ff;color:#1e3a8a;font-size:13px;">
+							${__("The bill PDF goes across as a link in the message")} &mdash;
+							<a href="${bill.bill_url}" target="_blank">${__("preview it")}</a>.
+							${__("WhatsApp cannot take a file attachment from a web link, so attach the PDF by hand if a copy in the chat is needed.")}
+						</div>`
+					: `<div style="padding:10px 12px;border-radius:6px;background:#fef3c7;color:#92400e;font-size:13px;">
+							${__("The bill PDF could not be generated, so the message goes without a link.")}
+						</div>`
+			}
+		],
+		primary_action_label: __("Open WhatsApp"),
+		primary_action(values) {
+			let picked = contacts.find(c => c.parent === values.contact) || preferred;
+			let number = (values.custom_number || "").replace(/\D/g, "") || picked.number;
+
+			if (!number) {
+				frappe.msgprint(__("That number has no digits to dial."));
+				return;
+			}
+			// A bare 10 digit number typed in here still needs the country code.
+			if (number.length === 10) number = "91" + number;
+
+			dialog.hide();
+			window.open(`https://wa.me/${number}?text=${encodeURIComponent(values.message)}`, "_blank");
+		},
+		secondary_action_label: __("Cancel")
+	});
+
+	dialog.show();
+	dialog.$wrapper.find('[data-fieldname="message"] textarea').css({ "min-height": "260px", "font-size": "12px" });
+}

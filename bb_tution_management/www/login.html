@@ -11,12 +11,17 @@
 {% macro icon(name, cls='') %}<svg class="ico {{ cls }}" aria-hidden="true"><use href="#bb-{{ name }}"></use></svg>{% endmacro %}
 
 {% macro brand_logo(size='lg') %}
-{% set app_logo = frappe.db.get_single_value('Website Settings', 'app_logo') or '/files/bb_logo.jpeg' %}
+{#
+	Both call sites sit on the navy gradient, so the mark must be transparent.
+	Website Settings' app_logo is a JPEG (an absolute cross-domain URL on this
+	site) and shows a hard rectangle there — use the app's own asset instead:
+	the same artwork with the black matte converted to alpha and trimmed.
+#}
+{% set app_logo = '/assets/bb_tution_management/images/logo-mark.png' %}
 <div class="brand-lockup brand-lockup--{{ size }}">
-	<img class="brand-mark" src="{{ app_logo }}" alt="{{ app_name or 'BB Tuition Academy' }}"
-		onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
-	<span class="brand-mark brand-mark--fallback" style="display: none;">BB</span>
-	<span class="brand-name">{{ app_name or "BB Tuition Academy" }}</span>
+	<img class="brand-mark" src="{{ app_logo }}" alt="{{ app_name or 'BB Academy' }}"
+		onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';">
+	<span class="brand-name-fallback">{{ app_name or "BB Academy" }}</span>
 </div>
 {% endmacro %}
 
@@ -195,28 +200,23 @@
 
 	.brand-top, .brand-mid, .brand-bottom { position: relative; z-index: 2; }
 
-	.brand-lockup { display: flex; align-items: center; gap: 0.75rem; }
+	/* The artwork already spells "BB ACADEMY", so it stands alone — a wordmark
+	   beside it would just repeat the emblem. Transparent PNG trimmed to its
+	   ink: height alone sizes it, no box, no radius, no padding. */
+	.brand-lockup { display: flex; align-items: center; }
 	.brand-lockup .brand-mark {
-		height: 48px;
-		max-width: 160px;
+		display: block;
+		height: 60px;
+		width: auto;
+		max-width: 220px;
 		object-fit: contain;
-		border-radius: 10px;
 	}
-	.brand-mark--fallback {
-		width: 48px;
-		height: 48px;
-		align-items: center;
-		justify-content: center;
-		border-radius: 12px;
-		background: linear-gradient(140deg, var(--bb-gold) 0%, var(--bb-gold-600) 100%);
-		color: var(--bb-navy-800);
-		font-weight: 800;
-		font-size: 1.15rem;
-		letter-spacing: 0.5px;
-	}
-	.brand-lockup .brand-name {
+	/* Shown only if the image fails to load — the name has to survive somehow. */
+	.brand-lockup .brand-name-fallback {
+		display: none;
 		font-weight: 700;
-		font-size: 1.05rem;
+		font-size: 1.2rem;
+		line-height: 1;
 		letter-spacing: 0.2px;
 	}
 
@@ -475,7 +475,7 @@
 			border-radius: 0 0 24px 24px;
 		}
 		.auth__mobile-brand .brand-lockup { flex-direction: column; gap: 0.6rem; }
-		.auth__mobile-brand .brand-name { font-size: 1.15rem; }
+		.auth__mobile-brand .brand-mark { height: 68px; }
 		.auth__mobile-brand .mobile-chips { display: flex; gap: 1.25rem; color: var(--bb-gold); opacity: 0.9; }
 		.auth__mobile-brand .mobile-chips .ico { font-size: 20px; }
 

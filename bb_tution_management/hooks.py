@@ -238,18 +238,22 @@ scheduler_events = {
 # }
 
 
-fixtures = [
+# No Workspace fixture. The BB Academy workspace is a standard one, defined
+# once at bb_academy/workspace/bb_academy/bb_academy.json and synced from there
+# on migrate. It used to be exported as a fixture as well, and because fixtures
+# are applied *after* the module sync, that stale copy silently stamped over the
+# real definition on every migrate -- which is how the Attendance cards kept
+# disappearing from the workspace. Don't re-add it.
 
-    {"doctype": "Workspace", "filters": {"module": "Bb Tution Management"}},
-
-
+website_route_rules = [
+	{'from_route': '/attendance_manager/<path:app_path>', 'to_route': 'attendance_manager'},
 ]
 
-website_route_rules = [{'from_route': '/tuition_app/<path:app_path>', 'to_route': 'tuition_app'},]
-
-# Redirect the built-in "My Account" page to the Desk
+# "/me" is served by bb_tution_management/www/me.html — a module chooser that
+# replaces Frappe's stock "My Account" page. Keep short aliases pointing at it.
 website_redirects = [
-    {"source": "/me", "target": "/app"},
+    {"source": "/modules", "target": "/me"},
+    {"source": "/module-selection", "target": "/me"},
 ]
 
 # Set default home page after login

@@ -1,38 +1,29 @@
 {
  "actions": [],
- "autoname": "{stree_name}-{area}",
- "creation": "2026-08-28 00:10:12.122355",
+ "allow_rename": 1,
+ "autoname": "field:reason",
+ "creation": "2026-08-30 21:30:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "street_name",
-  "area"
+  "reason"
  ],
  "fields": [
   {
-   "fieldname": "street_name",
+   "fieldname": "reason",
    "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Street Name",
-   "reqd": 1
-  },
-  {
-   "fieldname": "area",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Area",
-   "options": "Area",
-   "reqd": 1
+   "label": "Reason",
+   "unique": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-30 21:01:27.448471",
+ "modified": "2026-08-30 21:30:00.000000",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
- "name": "Street Name",
- "naming_rule": "Expression",
+ "name": "Early Exit Reason",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -52,6 +43,5 @@
  "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
- "title_field": "street_name"
+ "states": []
 }

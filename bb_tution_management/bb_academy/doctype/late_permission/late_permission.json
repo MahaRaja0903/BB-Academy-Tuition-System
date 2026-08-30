@@ -10,6 +10,7 @@
   "student",
   "student_name",
   "date",
+  "time",
   "late_reason",
   "parents_informed"
  ],
@@ -41,9 +42,9 @@
   {
    "fieldname": "late_reason",
    "fieldtype": "Link",
-   "options": "Late Entry Reason",
    "in_list_view": 1,
    "label": "Late Reason",
+   "options": "Late Entry Reason",
    "reqd": 1
   },
   {
@@ -51,12 +52,17 @@
    "fieldname": "parents_informed",
    "fieldtype": "Check",
    "label": "Parents Informed"
+  },
+  {
+   "fieldname": "time",
+   "fieldtype": "Time",
+   "label": "Time"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-26 09:34:12.899192",
+ "modified": "2026-08-30 20:56:55.961151",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Late Permission",

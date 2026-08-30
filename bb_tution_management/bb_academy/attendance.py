@@ -1,6 +1,17 @@
 import frappe
-from frappe.utils import getdate, today, add_days, get_first_day, get_last_day
+from frappe.utils import getdate, now, today, add_days, get_first_day, get_last_day
 import json
+
+@frappe.whitelist()
+def get_server_today():
+    """Today's date in the site's timezone.
+
+    The PWA runs on phones, whose timezone/clock need not match the site's.
+    Deriving "today" from the device let it send a date the server considers
+    to be in the future, which save_student_attendance rejects outright.
+    """
+    return today()
+
 
 @frappe.whitelist()
 def get_attendance_students(standard, batch, attendance_date, gender=None):
@@ -144,6 +155,103 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
     }
 
 
+def _validate_status(status):
+    """Check `status` against the doctype's Select options.
+
+    The update path below writes with raw SQL, which bypasses Frappe's
+    _validate_selects(). Without this, an unknown status (e.g. "Vacation")
+    was silently written whenever the row already existed.
+    """
+    options = frappe.get_meta("Student Attendance").get_field("status").options or ""
+    allowed = [o.strip() for o in options.split("\n") if o.strip()]
+    if status not in allowed:
+        frappe.throw(
+            f"Invalid attendance status: {status}. Must be one of {', '.join(allowed)}.",
+            title="Invalid Status",
+        )
+
+
+def _update_attendance_row(student, attendance_date, status, late_reason=None):
+    """UPDATE the single row for this student+date. Returns True if one matched.
+
+    Deliberately a raw UPDATE rather than get_doc().save():
+
+    * Two concurrent saves of the same document trip Frappe's optimistic lock
+      (TimestampMismatchError), which is what a double-tap produces.
+    * InnoDB runs at REPEATABLE READ, so a plain SELECT in this transaction
+      cannot see a row another transaction committed after our snapshot began.
+      An UPDATE performs a "current read" and always sees the latest row.
+
+    Safe for this doctype specifically: Student Attendance has no controller
+    logic and no doc_events, so nothing is bypassed. `modified` always changes,
+    so a matched row is always reported as affected.
+    """
+    values = {
+        "status": status,
+        "student": student,
+        "attendance_date": attendance_date,
+        "modified": now(),
+        "modified_by": frappe.session.user,
+    }
+    remarks_set = ""
+    if status == "Late" and late_reason:
+        remarks_set = ", remarks = %(remarks)s"
+        values["remarks"] = late_reason
+
+    frappe.db.sql(
+        f"""
+        UPDATE `tabStudent Attendance`
+        SET status = %(status)s{remarks_set},
+            modified = %(modified)s,
+            modified_by = %(modified_by)s
+        WHERE student = %(student)s AND attendance_date = %(attendance_date)s
+        """,
+        values,
+    )
+    return bool(frappe.db._cursor.rowcount)
+
+
+def _upsert_attendance(student, student_name, standard, attendance_date, status, late_reason=None):
+    """Create or update one Student Attendance row, idempotently.
+
+    Student Attendance is named `ATT-{student}-{attendance_date}`, so only one
+    row per student per day can exist. "Look it up, else insert" is not safe:
+    two requests for the same student interleave between the lookup and the
+    insert (a double-tap sends two), and the loser surfaced a raw
+    DuplicateEntryError to the user.
+    """
+    _validate_status(status)
+
+    if _update_attendance_row(student, attendance_date, status, late_reason):
+        return
+
+    doc = frappe.get_doc({
+        "doctype": "Student Attendance",
+        "student": student,
+        "student_name": student_name,
+        "standard": standard,
+        "attendance_date": attendance_date,
+        "status": status,
+    })
+    if status == "Late" and late_reason:
+        doc.remarks = late_reason
+
+    save_point = "att_upsert"
+    frappe.db.savepoint(save_point)
+    try:
+        doc.insert()
+        return
+    except frappe.DuplicateEntryError:
+        # Lost the race: undo the failed insert and update the winner's row.
+        frappe.db.rollback(save_point=save_point)
+
+    if not _update_attendance_row(student, attendance_date, status, late_reason):
+        frappe.throw(
+            f"Could not save attendance for {student} on {attendance_date}.",
+            title="Attendance Not Saved",
+        )
+
+
 @frappe.whitelist()
 def save_student_attendance(student, attendance_date, status, late_reason=None):
     if not frappe.has_permission("Student Attendance", "write"):
@@ -162,28 +270,14 @@ def save_student_attendance(student, attendance_date, status, late_reason=None):
     if holiday:
         frappe.throw("Cannot mark attendance on a holiday")
 
-    # Check existing
-    existing = frappe.db.get_value("Student Attendance", {
-        "student": student,
-        "attendance_date": attendance_date
-    }, "name")
-
-    if existing:
-        doc = frappe.get_doc("Student Attendance", existing)
-        doc.status = status
-    else:
-        doc = frappe.get_doc({
-            "doctype": "Student Attendance",
-            "student": student,
-            "standard": stu.standard,
-            "attendance_date": attendance_date,
-            "status": status
-        })
-
-    if status == "Late" and late_reason:
-        doc.remarks = late_reason
-
-    doc.save() if existing else doc.insert()
+    _upsert_attendance(
+        student=student,
+        student_name=stu.student_name,
+        standard=stu.standard,
+        attendance_date=attendance_date,
+        status=status,
+        late_reason=late_reason,
+    )
 
     # Return updated monthly stats
     date_obj = getdate(attendance_date)
@@ -228,14 +322,6 @@ def save_bulk_attendance(students, standard, batch, attendance_date, status, lat
 
     date_obj = getdate(attendance_date)
 
-    existing_rows = frappe.db.sql("""
-        SELECT name, student
-        FROM `tabStudent Attendance`
-        WHERE attendance_date = %s
-          AND student IN %s
-    """, (date_obj, tuple(students)), as_dict=True)
-    existing_map = {r.student: r.name for r in existing_rows}
-
     student_names = frappe.db.get_all(
         "Student",
         filters={"name": ["in", students]},
@@ -245,25 +331,16 @@ def save_bulk_attendance(students, standard, batch, attendance_date, status, lat
 
     count = 0
     for student in students:
-        is_existing = student in existing_map
-        if is_existing:
-            doc = frappe.get_doc("Student Attendance", existing_map[student])
-            doc.status = status
-        else:
-            doc = frappe.get_doc({
-                "doctype": "Student Attendance",
-                "student": student,
-                "student_name": name_map.get(student),
-                "standard": standard,
-                "attendance_date": attendance_date,
-                "status": status
-            })
-
-        if status == "Late" and late_reason:
-            doc.remarks = late_reason
-
-        doc.save() if is_existing else doc.insert()
-
+        # Shares the single-row upsert so a bulk save racing an individual one
+        # (or another device) updates rather than blowing up on a duplicate key.
+        _upsert_attendance(
+            student=student,
+            student_name=name_map.get(student),
+            standard=standard,
+            attendance_date=attendance_date,
+            status=status,
+            late_reason=late_reason,
+        )
         count += 1
 
     return {"status": "success", "count": count}
@@ -436,7 +513,34 @@ def get_attendance_dashboard_data(academic_year=None, standard=None, batch=None,
     late_5_plus = frappe.db.sql(late_5_query, {
         "first_day": first_day_month, "last_day": last_day_month, "standard": standard, "batch": batch
     })[0][0]
-    
+
+    # 4. Absent 10+ and Late 10+ (This month)
+    # The dashboard has always rendered these two cards, but the keys were never
+    # returned here — so they displayed "undefined".
+    abs_10_query = f"""
+        SELECT COUNT(*) FROM (
+            SELECT student FROM `tabStudent Attendance`
+            WHERE attendance_date BETWEEN %(first_day)s AND %(last_day)s AND status = 'Absent'
+            {att_std_filter} {att_batch_filter}
+            GROUP BY student HAVING count(name) >= 10
+        ) AS t
+    """
+    absent_10_plus = frappe.db.sql(abs_10_query, {
+        "first_day": first_day_month, "last_day": last_day_month, "standard": standard, "batch": batch
+    })[0][0]
+
+    late_10_query = f"""
+        SELECT COUNT(*) FROM (
+            SELECT student FROM `tabStudent Attendance`
+            WHERE attendance_date BETWEEN %(first_day)s AND %(last_day)s AND status = 'Late'
+            {att_std_filter} {att_batch_filter}
+            GROUP BY student HAVING count(name) >= 10
+        ) AS t
+    """
+    late_10_plus = frappe.db.sql(late_10_query, {
+        "first_day": first_day_month, "last_day": last_day_month, "standard": standard, "batch": batch
+    })[0][0]
+
     # Today Summary Distribution
     summary_raw = frappe.db.sql(f"""
         SELECT status, count(name) as cnt
@@ -520,6 +624,8 @@ def get_attendance_dashboard_data(academic_year=None, standard=None, batch=None,
         "today_absent": today_absent,
         "absent_5_plus": absent_5_plus,
         "late_5_plus": late_5_plus,
+        "absent_10_plus": absent_10_plus,
+        "late_10_plus": late_10_plus,
         "today_summary": today_summary,
         "top_absent": top_absent,
         "top_late": top_late,

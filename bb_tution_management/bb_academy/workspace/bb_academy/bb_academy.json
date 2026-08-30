@@ -115,7 +115,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Report",
-   "link_count": 4,
+   "link_count": 5,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -132,7 +132,7 @@
   },
   {
    "hidden": 0,
-   "is_query_report": 0,
+   "is_query_report": 1,
    "label": "Student Wise Report",
    "link_count": 0,
    "link_to": "Student Wise Report",
@@ -143,7 +143,7 @@
   },
   {
    "hidden": 0,
-   "is_query_report": 0,
+   "is_query_report": 1,
    "label": "Payment Wise Report",
    "link_count": 0,
    "link_to": "Payment Wise Report",
@@ -154,13 +154,24 @@
   },
   {
    "hidden": 0,
-   "is_query_report": 0,
+   "is_query_report": 1,
    "label": "Pending Balance Report",
    "link_count": 0,
    "link_to": "Pending Balance Report",
    "link_type": "Report",
    "onboard": 0,
    "report_ref_doctype": "Fee Invoice",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Pending Balance Break Down",
+   "link_count": 0,
+   "link_to": "Pending Balance Break Down",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Student",
    "type": "Link"
   },
   {
@@ -216,7 +227,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Attendance",
-   "link_count": 0,
+   "link_count": 4,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -265,7 +276,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Attendance Reports",
-   "link_count": 0,
+   "link_count": 9,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -361,7 +372,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-08-20 15:52:23.629123",
+ "modified": "2026-08-30 22:38:36.835541",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "BB Academy",

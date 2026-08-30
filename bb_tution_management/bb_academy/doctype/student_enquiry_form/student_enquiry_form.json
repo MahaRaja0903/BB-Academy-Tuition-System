@@ -21,16 +21,18 @@
   "column_break_2",
   "school_name",
   "parent_details_section",
-  "father_name",
   "father_number",
-  "mother_name",
+  "father_name",
   "column_break_3",
   "mother_number",
+  "mother_name",
   "follow_up_section",
   "source",
   "remarks",
   "column_break_4",
-  "next_follow_up_date"
+  "next_follow_up_date",
+  "area",
+  "street"
  ],
  "fields": [
   {
@@ -182,11 +184,23 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Father Number"
+  },
+  {
+   "fieldname": "area",
+   "fieldtype": "Link",
+   "label": "Area",
+   "options": "Area"
+  },
+  {
+   "fieldname": "street",
+   "fieldtype": "Link",
+   "label": "Street",
+   "options": "Street Name"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-29 20:44:06.331553",
+ "modified": "2026-08-30 21:25:06.163365",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Enquiry Form",

@@ -8,6 +8,7 @@ from frappe import _
 def setup_bb_academy():
 	"""Setup roles and initial dummy records for BB Academy Module."""
 	create_roles()
+	setup_attendance_manager_permissions()
 	seed_sms_settings()
 	seed_academic_years()
 
@@ -40,6 +41,51 @@ def seed_academic_years():
 				**data
 			})
 			doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+
+
+# Doctypes the Attendance screens read but never write. The Attendance
+# Manager role held perms only on Student Attendance / Late Permission /
+# Attendance Holiday, so the Standard and Batch dropdowns raised
+# PermissionError and the Student-linked reports refused to run for anyone
+# who wasn't also a System Manager.
+ATTENDANCE_MANAGER_READ_ONLY_DOCTYPES = (
+	"Student",
+	"Standard",
+	"Batch",
+	"Late Entry Reason",
+	"Early Exit Reason",
+	"Academic Year",
+)
+
+
+def setup_attendance_manager_permissions():
+	"""Grant the Attendance Manager role read access to the lookup doctypes
+	the attendance UI depends on. Idempotent — safe to re-run on migrate."""
+	from frappe.permissions import add_permission, update_permission_property
+
+	role = "Attendance Manager"
+	if not frappe.db.exists("Role", role):
+		frappe.get_doc({
+			"doctype": "Role",
+			"role_name": role,
+			"desk_access": 1,
+		}).insert(ignore_permissions=True)
+
+	for doctype in ATTENDANCE_MANAGER_READ_ONLY_DOCTYPES:
+		if not frappe.db.exists("DocType", doctype):
+			continue
+
+		if not frappe.db.exists(
+			"Custom DocPerm", {"parent": doctype, "role": role, "permlevel": 0}
+		):
+			add_permission(doctype, role, 0)
+
+		# Reports resolve Link columns against the target doctype, so "report"
+		# is required alongside "read" for the attendance reports to run.
+		for ptype in ("read", "report"):
+			update_permission_property(doctype, role, 0, ptype, 1, validate=False)
+
 	frappe.db.commit()
 
 

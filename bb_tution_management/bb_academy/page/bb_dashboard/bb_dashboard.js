@@ -233,6 +233,8 @@ class BBDashboard {
 		const note = (t) => `<span class="bb-card__note">${t}</span>`;
 		const viewAll = (dt) =>
 			`<button class="bb-link" data-bb-list="${esc(dt)}">${__("View all")}</button>`;
+		const viewReport = (rep) =>
+			`<button class="bb-link" data-bb-report="${esc(rep)}">${__("View all")}</button>`;
 
 		this.$body.html(`
 			${this._sprite()}
@@ -256,7 +258,7 @@ class BBDashboard {
 						</div>
 					</div>
 					<div class="bb-card bb-card--accent bb-a--violet bb-rise" style="--bb-i:2">
-						${this._head("receipt", __("Invoice Status"), "violet")}
+						${this._head("receipt", __("Fee Status"), "violet")}
 						<div class="bb-card__body" data-ref="invoice-status">
 							<div class="bb-skel bb-skel--rows"></div>
 						</div>
@@ -288,7 +290,7 @@ class BBDashboard {
 						<div class="bb-card__body bb-card__body--flush" data-ref="payments"></div>
 					</div>
 					<div class="bb-card bb-card--accent bb-a--red bb-rise" style="--bb-i:8">
-						${this._head("alert", __("Outstanding Invoices"), "red", viewAll("Fee Invoice"))}
+						${this._head("alert", __("Outstanding Fees"), "red", viewReport("Pending Balance Break Down"))}
 						<div class="bb-card__body bb-card__body--flush" data-ref="outstanding"></div>
 					</div>
 				</div>
@@ -462,7 +464,7 @@ class BBDashboard {
 
 		// Monthly Collection chart
 		this.$ref("chart-trend").closest(".bb-card").toggle(finance);
-		// Without it, Invoice Status would sit alone in the narrow 1fr column.
+		// Without it, Fee Status would sit alone in the narrow 1fr column.
 		this.$ref("grid-charts").toggleClass("bb-grid--solo", !finance);
 
 		// Reports
@@ -647,7 +649,7 @@ class BBDashboard {
 			items.push({
 				tone: "crit",
 				icon: "alert",
-				text: __("{0} outstanding across {1} invoices", [
+				text: __("{0} outstanding across {1} fee months", [
 					this.money(d.kpi.total_pending),
 					d.kpi.unpaid_invoices,
 				]),
@@ -746,7 +748,7 @@ class BBDashboard {
 				money: pending,
 				title: this.money(pending),
 				meta: pending
-					? __("Across {0} of {1} invoices", [k.unpaid_invoices, k.total_invoices])
+					? __("Across {0} of {1} fee months", [k.unpaid_invoices, k.total_invoices])
 					: __("Nothing pending"),
 				pill: pending
 					? { tone: "crit", text: __("Action needed") }
@@ -840,7 +842,7 @@ class BBDashboard {
 	}
 
 	/**
-	 * Invoice status as labelled horizontal bars, not a donut.
+	 * Fee status as labelled horizontal bars, not a donut.
 	 * Paid/Unpaid would be a red-vs-green pair — indistinguishable under
 	 * deuteranopia (validated ΔE 4.1), so every row carries a dot AND a text
 	 * label AND its count; colour is redundant, never the only cue.
@@ -848,11 +850,16 @@ class BBDashboard {
 	_render_invoice_status(rows, k) {
 		const $el = this.$ref("invoice-status");
 		if (!rows || !rows.length) {
-			$el.html(this._empty("receipt", __("No submitted invoices yet")));
+			$el.html(this._empty("receipt", __("No fees recorded yet")));
 			return;
 		}
 
-		const toneOf = { Paid: "good", "Partially Paid": "warn", Unpaid: "crit" };
+		const toneOf = {
+			Paid: "good",
+			"Partially Paid": "warn",
+			Reserved: "series",
+			Unpaid: "crit",
+		};
 		const max = Math.max(...rows.map((r) => flt(r.count)));
 
 		$el.html(`
@@ -883,7 +890,7 @@ class BBDashboard {
 					.join("")}
 			</div>
 			<div class="bb-card__footnote">
-				${__("Status is derived from grand total minus paid amount.")}
+				${__("One row per month owed, from the student's fee ledger — older records included.")}
 			</div>
 		`);
 	}
@@ -1021,8 +1028,9 @@ class BBDashboard {
 		);
 	}
 
-	/** Recently paid invoices. Rows come from Fee Invoice, not Fees Payment
-	 *  Entry — see the note at the top of bb_dashboard.py. */
+	/** Payments most recently taken. Rows come from the student's own fee
+	 *  ledger (Student Payment Detail), which holds the older history too —
+	 *  see the note at the top of bb_dashboard.py. */
 	_render_payments(rows) {
 		const $el = this.$ref("payments");
 		if (!rows.length) {
@@ -1034,10 +1042,10 @@ class BBDashboard {
 				.map((p) => {
 					const settled = flt(p.outstanding) <= 0;
 					return this._row({
-						doctype: "Fee Invoice",
-						name: p.name,
-						title: p.student_name || p.student || p.name,
-						sub: `${esc(this.date(p.invoice_date))} · <span class="bb-chip${
+						doctype: "Student",
+						name: p.student,
+						title: p.student_name || p.student,
+						sub: `${esc(this.date(p.paid_on))} · ${esc(p.month || "")} · <span class="bb-chip${
 							settled ? "" : " bb-chip--warn"
 						}">${
 							settled
@@ -1055,27 +1063,31 @@ class BBDashboard {
 	_render_outstanding(rows) {
 		const $el = this.$ref("outstanding");
 		if (!rows.length) {
-			$el.html(this._empty("check", __("Every invoice is settled")));
+			$el.html(this._empty("check", __("Every fee is settled")));
 			return;
 		}
 		$el.html(
 			rows
-				.map((inv) => {
-					const age = flt(inv.age_days);
-					const partial = flt(inv.paid_amount) > 0;
+				.map((r) => {
+					// No due date exists anywhere in the schema, so there is no
+					// age to show. The months still owed say more anyway.
+					const months = flt(r.months_due);
+					const partial = flt(r.paid_amount) > 0;
 					return this._row({
-						doctype: "Fee Invoice",
-						name: inv.name,
-						title: inv.student_name || inv.student || inv.name,
-						sub: `${esc(this.date(inv.invoice_date))} · ${
-							age > 0 ? __("{0} days old", [age]) : __("Raised today")
+						doctype: "Student",
+						name: r.student,
+						title: r.student_name || r.student,
+						sub: `${esc(r.standard || "—")}${
+							r.batch ? ` · ${esc(r.batch)}` : ""
+						} · ${__("{0} due", [months])}${
+							r.months ? ` · ${esc(r.months)}` : ""
 						}${
 							partial
 								? ` · <span class="bb-chip bb-chip--warn">${__("Part paid")}</span>`
 								: ""
 						}`,
-						tone: age > 30 ? "crit" : "",
-						end: this.money(inv.outstanding),
+						tone: months > 2 ? "crit" : "",
+						end: this.money(r.outstanding),
 						endTone: "crit",
 					});
 				})
@@ -1092,7 +1104,7 @@ class BBDashboard {
 	 *
 	 * Fees Payment Entry and Bulk Fee Invoice Tool are deliberately absent: the
 	 * team does not use those screens. Payments are recorded on the Fee Invoice
-	 * itself (fee_invoice.js rolls the fees_details rows into paid_amount).
+	 * itself, which writes them into the student's fee ledger.
 	 * Don't re-add them without checking that first.
 	 *
 	 * `counts` arrives with the dashboard payload, so this runs twice — once
