@@ -22,9 +22,9 @@
   "school_name",
   "parent_details_section",
   "father_name",
+  "father_number",
   "mother_name",
   "column_break_3",
-  "father_number",
   "mother_number",
   "follow_up_section",
   "source",
@@ -163,11 +163,13 @@
   {
    "fieldname": "father_name",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Father Name"
   },
   {
    "fieldname": "mother_name",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Mother Name"
   },
   {
@@ -184,7 +186,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-27 23:47:40.120208",
+ "modified": "2026-08-29 20:44:06.331553",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Enquiry Form",

@@ -568,6 +568,10 @@
     width: 320px;
 }
 
+.lp-manager .lp-col-att-status {
+    width: 120px;
+}
+
 .lp-manager .lp-table th input[type="checkbox"],
 .lp-manager .lp-row-select {
     width: 17px;
@@ -912,6 +916,7 @@
         grid-template-areas:
             "id"
             "name"
+            "att-status"
             "status"
             "actions";
         row-gap: 10px;
@@ -943,6 +948,8 @@
     }
 
     .lp-manager .lp-td-status { grid-area: status; }
+
+    .lp-manager .lp-td-att-status { grid-area: att-status; }
 
     
 

@@ -1,7 +1,7 @@
 frappe.pages['late_permission'].on_page_load = function(wrapper) {
     var page = frappe.ui.make_app_page({
         parent: wrapper,
-        title: 'Late Permission Manager',
+        title: 'Late and Early Out Attendance',
         single_column: true
     });
 
@@ -18,6 +18,7 @@ class LatePermissionManager {
     setup_ui() {
         this.wrapper.html(frappe.render_template("late_permission", {}));
 
+        this.$type = this.wrapper.find('#lp-type');
         this.$std = this.wrapper.find('#lp-standard');
         this.$batch = this.wrapper.find('#lp-batch');
         this.$gender = this.wrapper.find('#lp-gender');
@@ -31,7 +32,15 @@ class LatePermissionManager {
         this.bind_events();
     }
 
+    get_type() {
+        return this.$type.val();
+    }
+
     bind_events() {
+        this.$type.on('change', () => {
+            this.load_students();
+        });
+
         this.$std.on('change', () => {
             let val = this.$std.val();
             if(val) {
@@ -123,15 +132,16 @@ class LatePermissionManager {
         let batch = this.$batch.val();
         let gender = this.$gender.val();
         let date = this.$date.val();
+        let type = this.get_type();
 
         if(!std || !batch || !date) {
-            this.$tbody.html('<tr class="lp-placeholder-row"><td colspan="4"><div class="lp-empty-state"><div class="lp-empty-icon"><i class="fa fa-graduation-cap"></i></div><h4>Select Standard &amp; Batch</h4><p>Choose a Standard and Batch above to load students.</p></div></td></tr>');
+            this.$tbody.html('<tr class="lp-placeholder-row"><td colspan="5"><div class="lp-empty-state"><div class="lp-empty-icon"><i class="fa fa-graduation-cap"></i></div><h4>Select Standard &amp; Batch</h4><p>Choose a Standard and Batch above to load students.</p></div></td></tr>');
             return;
         }
 
         frappe.call({
             method: 'bb_tution_management.bb_academy.late_permission.get_students_for_late_permission',
-            args: { standard: std, batch: batch, date: date, gender: gender === 'All' ? '' : gender },
+            args: { standard: std, batch: batch, date: date, gender: gender === 'All' ? '' : gender, permission_type: type },
             callback: (r) => {
                 if(r.message && r.message.students) {
                     this.render_students(r.message.students);
@@ -141,8 +151,14 @@ class LatePermissionManager {
     }
 
     render_students(students) {
+        let type = this.get_type();
+        let is_early_out = type === 'Early Out';
+
         if(students.length === 0) {
-            this.$tbody.html('<tr class="lp-placeholder-row"><td colspan="4"><div class="lp-empty-state"><div class="lp-empty-icon"><i class="fa fa-info-circle"></i></div><h4>No students found</h4><p>No active students found for this Standard and Batch.</p></div></td></tr>');
+            let msg = is_early_out
+                ? 'No present or late students found with attendance for this Standard and Batch.'
+                : 'No present or late students found with attendance for this Standard and Batch.';
+            this.$tbody.html(`<tr class="lp-placeholder-row"><td colspan="5"><div class="lp-empty-state"><div class="lp-empty-icon"><i class="fa fa-info-circle"></i></div><h4>No students found</h4><p>${msg}</p></div></td></tr>`);
             return;
         }
 
@@ -155,13 +171,36 @@ class LatePermissionManager {
             row = row.replace(/\${student_name}/g, s.student_name);
             row = row.replace(/\${student_name_lower}/g, (s.student_name || "").toLowerCase());
             row = row.replace(/\${has_permission}/g, s.has_permission ? "yes" : "no");
-            
-            if(s.has_permission) {
-                row = row.replace(/\${status_badge}/g, `<span class="badge badge-success">Permission Granted (${s.late_reason})</span>`);
-                row = row.replace(/\${action_button}/g, `<button class="btn btn-xs btn-danger btn-revoke-permission">Revoke</button>`);
+
+            // Attendance status badge
+            let att_status = s.attendance_status || '';
+            let att_badge_class = 'badge-secondary';
+            if(att_status === 'Present') att_badge_class = 'badge-success';
+            else if(att_status === 'Late') att_badge_class = 'badge-warning';
+            row = row.replace(/\${attendance_badge}/g, att_status ? `<span class="badge ${att_badge_class}">${att_status}</span>` : `<span class="badge badge-secondary">—</span>`);
+
+            if(is_early_out) {
+                // Early Out mode
+                if(s.has_permission) {
+                    let info_parts = [];
+                    if(s.early_out_time) info_parts.push(s.early_out_time);
+                    if(s.early_out_reason) info_parts.push(s.early_out_reason);
+                    let info_text = info_parts.length > 0 ? ` (${info_parts.join(' - ')})` : '';
+                    row = row.replace(/\${status_badge}/g, `<span class="badge badge-info">Early Out Granted${info_text}</span>`);
+                    row = row.replace(/\${action_button}/g, `<button class="btn btn-xs btn-danger btn-revoke-permission">Revoke</button>`);
+                } else {
+                    row = row.replace(/\${status_badge}/g, `<span class="badge badge-secondary">None</span>`);
+                    row = row.replace(/\${action_button}/g, `<button class="btn btn-xs btn-primary btn-grant-permission">Grant Early Out</button>`);
+                }
             } else {
-                row = row.replace(/\${status_badge}/g, `<span class="badge badge-secondary">None</span>`);
-                row = row.replace(/\${action_button}/g, `<button class="btn btn-xs btn-primary btn-grant-permission">Grant Permission</button>`);
+                // Late Permission mode
+                if(s.has_permission) {
+                    row = row.replace(/\${status_badge}/g, `<span class="badge badge-success">Permission Granted (${s.late_reason})</span>`);
+                    row = row.replace(/\${action_button}/g, `<button class="btn btn-xs btn-danger btn-revoke-permission">Revoke</button>`);
+                } else {
+                    row = row.replace(/\${status_badge}/g, `<span class="badge badge-secondary">None</span>`);
+                    row = row.replace(/\${action_button}/g, `<button class="btn btn-xs btn-primary btn-grant-permission">Grant Permission</button>`);
+                }
             }
 
             html += row;
@@ -172,47 +211,108 @@ class LatePermissionManager {
     }
     
     prompt_permission(student) {
-        frappe.prompt([
-            {
-                fieldname: 'late_reason',
-                fieldtype: 'Link',
-                label: 'Late Reason',
-                options: 'Late Entry Reason',
-                reqd: 1
-            }
-        ], (values) => {
-            frappe.call({
-                method: 'bb_tution_management.bb_academy.late_permission.grant_late_permission',
-                args: {
-                    student: student,
-                    date: this.$date.val(),
-                    late_reason: values.late_reason
+        let type = this.get_type();
+        let is_early_out = type === 'Early Out';
+
+        if(is_early_out) {
+            // Early Out prompt
+            frappe.prompt([
+                {
+                    fieldname: 'early_out_time',
+                    fieldtype: 'Time',
+                    label: 'Early Out Time',
+                    reqd: 1,
+                    default: frappe.datetime.now_time()
                 },
-                callback: (r) => {
-                    if(r.message === 'success') {
-                        frappe.show_alert({message: 'Permission Granted', indicator: 'green'});
-                        this.load_students();
-                    }
+                {
+                    fieldname: 'early_out_reason',
+                    fieldtype: 'Small Text',
+                    label: 'Early Out Reason',
+                    reqd: 1
                 }
-            })
-        }, 'Grant Late Permission', 'Grant');
+            ], (values) => {
+                frappe.call({
+                    method: 'bb_tution_management.bb_academy.late_permission.grant_early_out',
+                    args: {
+                        student: student,
+                        date: this.$date.val(),
+                        early_out_time: values.early_out_time,
+                        early_out_reason: values.early_out_reason
+                    },
+                    callback: (r) => {
+                        if(r.message === 'success') {
+                            frappe.show_alert({message: 'Early Out Granted', indicator: 'green'});
+                            this.load_students();
+                        }
+                    }
+                })
+            }, 'Grant Early Out', 'Grant');
+        } else {
+            // Late Permission prompt
+            frappe.prompt([
+                {
+                    fieldname: 'late_reason',
+                    fieldtype: 'Link',
+                    label: 'Late Reason',
+                    options: 'Late Entry Reason',
+                    reqd: 1
+                }
+            ], (values) => {
+                frappe.call({
+                    method: 'bb_tution_management.bb_academy.late_permission.grant_late_permission',
+                    args: {
+                        student: student,
+                        date: this.$date.val(),
+                        late_reason: values.late_reason
+                    },
+                    callback: (r) => {
+                        if(r.message === 'success') {
+                            frappe.show_alert({message: 'Permission Granted', indicator: 'green'});
+                            this.load_students();
+                        }
+                    }
+                })
+            }, 'Grant Late Permission', 'Grant');
+        }
     }
     
     revoke_permission(student) {
-        frappe.confirm('Are you sure you want to revoke late permission for this student?', () => {
-            frappe.call({
-                method: 'bb_tution_management.bb_academy.late_permission.revoke_late_permission',
-                args: {
-                    student: student,
-                    date: this.$date.val()
-                },
-                callback: (r) => {
-                    if(r.message === 'success') {
-                        frappe.show_alert({message: 'Permission Revoked', indicator: 'green'});
-                        this.load_students();
+        let type = this.get_type();
+        let is_early_out = type === 'Early Out';
+        let msg = is_early_out
+            ? 'Are you sure you want to revoke early out for this student?'
+            : 'Are you sure you want to revoke late permission for this student?';
+
+        frappe.confirm(msg, () => {
+            if(is_early_out) {
+                frappe.call({
+                    method: 'bb_tution_management.bb_academy.late_permission.revoke_early_out',
+                    args: {
+                        student: student,
+                        date: this.$date.val()
+                    },
+                    callback: (r) => {
+                        if(r.message === 'success') {
+                            frappe.show_alert({message: 'Early Out Revoked', indicator: 'green'});
+                            this.load_students();
+                        }
                     }
-                }
-            })
+                });
+            } else {
+                frappe.call({
+                    method: 'bb_tution_management.bb_academy.late_permission.revoke_late_permission',
+                    args: {
+                        student: student,
+                        date: this.$date.val()
+                    },
+                    callback: (r) => {
+                        if(r.message === 'success') {
+                            frappe.show_alert({message: 'Permission Revoked', indicator: 'green'});
+                            this.load_students();
+                        }
+                    }
+                });
+            }
         });
     }
 }

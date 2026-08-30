@@ -1,6 +1,13 @@
 <div class="lp-manager">
     <div class="lp-panel">
         <div class="lp-panel-filters">
+            <div class="lp-field lp-field-type">
+                <label for="lp-type"><i class="fa fa-tag"></i> Type</label>
+                <select id="lp-type" class="form-control">
+                    <option value="Late Permission" selected>Late Permission</option>
+                    <option value="Early Out">Early Out</option>
+                </select>
+            </div>
             <div class="lp-field lp-field-standard">
                 <label for="lp-standard"><i class="fa fa-graduation-cap"></i> Standard</label>
                 <select id="lp-standard" class="form-control">
@@ -48,12 +55,13 @@
                     <tr>
                         <th class="lp-col-id">Student ID</th>
                         <th class="lp-col-name">Student Name</th>
+                        <th class="lp-col-att-status">Attendance</th>
                         <th class="lp-col-status">Status</th>
                         <th class="lp-col-actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="lp-tbody">
-                    <tr class="lp-placeholder-row"><td colspan="4">
+                    <tr class="lp-placeholder-row"><td colspan="5">
                         <div class="lp-empty-state">
                             <div class="lp-empty-icon"><i class="fa fa-graduation-cap"></i></div>
                             <h4>Select Standard &amp; Batch</h4>
@@ -77,6 +85,9 @@
                     <span class="lp-student-name">${student_name}</span>
                 </div>
             </div>
+        </td>
+        <td class="lp-td-att-status">
+            ${attendance_badge}
         </td>
         <td class="lp-td-status">
             ${status_badge}

@@ -86,11 +86,12 @@ class TestStudent(FrappeTestCase):
 		}).insert(ignore_permissions=True)
 
 		# Verify Referral Coupon Code creation
-		coupons = frappe.get_all("Referral Coupon Code", filters={"student_id": student_a.name}, fields=["name", "amount", "valid_till"])
+		coupons = frappe.get_all("Referral Coupon Code", filters={"student_id": student_a.name}, fields=["name", "amount", "valid_till", "docstatus"])
 		self.assertTrue(len(coupons) > 0)
 		latest_coupon = coupons[0]
 		self.assertEqual(latest_coupon.amount, 500)
 		self.assertEqual(str(latest_coupon.valid_till), "2027-03-31")
+		self.assertEqual(latest_coupon.docstatus, 1)  # coupon should be submitted
 
 		# Reload Student A and check coupon_code_details child table
 		student_a.reload()

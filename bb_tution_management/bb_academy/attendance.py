@@ -21,7 +21,7 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
         params.append(gender)
 
     students = frappe.db.sql("""
-        SELECT name, student_name, admission_date, gender, date_of_birth, image
+        SELECT name, student_name, admission_date, gender, date_of_birth, image, attendance_batch_set, current_batch
         FROM `tabStudent`
         WHERE status = 'Active'
           AND standard = %s
@@ -500,7 +500,7 @@ def get_attendance_dashboard_data(academic_year=None, standard=None, batch=None,
             FROM `tabStudent Attendance` a
             JOIN `tabStudent` s ON a.student = s.name
             WHERE a.attendance_date BETWEEN %(first_day)s AND %(last_day)s
-            {att_std_filter.replace('standard', 'a.standard')}
+            {"AND a.standard = %(standard)s" if standard else ""}
             GROUP BY IF(IFNULL(s.attendance_batch_set, 0) = 1, s.attendance_batch, s.current_batch), a.status
         """, {"first_day": first_day_month, "last_day": last_day_month, "standard": standard}, as_dict=True)
         

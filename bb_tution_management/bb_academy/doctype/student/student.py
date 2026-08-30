@@ -73,17 +73,13 @@ class Student(Document):
 			"doctype": "Referral Coupon Code",
 			"student_id": referring_student.name,
 			"student_name": referring_student.student_name,
+			"referred_student_id": self.name,
+			"referred_student_name": self.student_name,
 			"amount": 500,
 			"valid_till": valid_till,
 		})
 		coupon.insert(ignore_permissions=True)
-
-		referring_student.append("coupon_code_details", {
-			"referral_coupon_code": coupon.name,
-			"valid_till": valid_till,
-			"amount": 500,
-		})
-		referring_student.save(ignore_permissions=True)
+		coupon.submit()  # on_submit auto-appends to student's coupon_code_details
 
 	def populate_payment_details(self):
 		"""Auto-populate payment_details months based on academic year and admission date.

@@ -12,7 +12,7 @@ def create_page():
         "doctype": "Page",
         "page_name": "late_permission",
         "module": "BB Academy",
-        "title": "Late Permission Manager",
+        "title": "Late and Early Out Attendance",
         "roles": [{"role": "System Manager"}, {"role": "Administrator"}, {"role": "Attendance Manager"}]
     })
     page.insert()

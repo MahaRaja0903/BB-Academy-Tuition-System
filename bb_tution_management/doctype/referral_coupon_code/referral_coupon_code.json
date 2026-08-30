@@ -1,0 +1,115 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "SCC-.####",
+ "creation": "2026-08-12 00:39:44.841586",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "student_id",
+  "amount",
+  "column_break_fdbb",
+  "student_name",
+  "valid_till",
+  "section_break_referred",
+  "referred_student_id",
+  "column_break_referred",
+  "referred_student_name",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "student_id",
+   "fieldtype": "Link",
+   "label": "Student ID",
+   "options": "Student",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "student_id.student_name",
+   "fieldname": "student_name",
+   "fieldtype": "Data",
+   "label": "Student Name"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Int",
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "valid_till",
+   "fieldtype": "Date",
+   "label": "Valid Till"
+  },
+  {
+   "fieldname": "column_break_fdbb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_referred",
+   "fieldtype": "Section Break",
+   "label": "Referred Student"
+  },
+  {
+   "fieldname": "referred_student_id",
+   "fieldtype": "Link",
+   "label": "Referred Student ID",
+   "options": "Student",
+   "description": "The new student who joined via this referral"
+  },
+  {
+   "fieldname": "column_break_referred",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "referred_student_id.student_name",
+   "fieldname": "referred_student_name",
+   "fieldtype": "Data",
+   "label": "Referred Student Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Referral Coupon Code",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-30 12:28:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bb Tution Management",
+ "name": "Referral Coupon Code",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
