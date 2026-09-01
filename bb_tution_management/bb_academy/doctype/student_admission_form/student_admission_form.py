@@ -35,9 +35,13 @@ class StudentAdmissionForm(Document):
 		self.validate_group()
 		self.fetch_fees()
 		self.validate_admission_number()
+
+	def before_submit(self):
 		self.validate_fees_paid()
 
 	def validate_fees_paid(self):
+		if self.is_new():
+			return
 		if self.starting_payment:
 			min_required = flt(self.starting_payment) * 0.5
 			paid_amount = flt(self.fees_paid_amount)

@@ -29,7 +29,7 @@ frappe.query_reports["Pending Balance Break Down"] = {
 			"fieldname": "fee_type",
 			"label": __("Fee Type"),
 			"fieldtype": "Select",
-			"options": "\nStarting Payment\nMonthly"
+			"options": "\nStarting Payment\nMonthly\nYearly Fees"
 		}
 	],
 

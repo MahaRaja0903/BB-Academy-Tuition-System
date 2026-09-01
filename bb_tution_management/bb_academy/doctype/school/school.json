@@ -22,6 +22,7 @@
    "label": "School Details"
   },
   {
+   "allow_in_quick_entry": 1,
    "fieldname": "school_name",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -30,12 +31,12 @@
    "unique": 1
   },
   {
-   "default": "CBSE",
+   "allow_in_quick_entry": 1,
    "fieldname": "board",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Board",
-   "options": "CBSE\nICSE\nState Board\nIB\nIGCSE\nOther"
+   "options": "State Board\nCBSE\nICSE\nIB\nIGCSE\nOther"
   },
   {
    "fieldname": "column_break_1",
@@ -61,7 +62,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-30 22:48:36.946983",
+ "modified": "2026-09-01 18:48:13.338862",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "School",

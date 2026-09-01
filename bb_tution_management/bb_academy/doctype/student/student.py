@@ -287,6 +287,11 @@ class Student(Document):
 		if not self.standard:
 			return
 
+		if not self.is_new():
+			doc_before = self.get_doc_before_save()
+			if doc_before and doc_before.standard == self.standard:
+				return
+
 		if self.has_manual_fee("starting_payment"):
 			return
 

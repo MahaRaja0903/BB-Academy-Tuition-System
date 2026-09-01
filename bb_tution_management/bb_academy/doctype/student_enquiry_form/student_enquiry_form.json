@@ -7,19 +7,19 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
-  "enquiry_details_section",
-  "enquiry_date",
-  "standard",
-  "status",
-  "column_break_1",
-  "academic_year",
-  "referred_by",
-  "group",
   "applicant_details_section",
   "applicant_name",
   "gender",
+  "status",
   "column_break_2",
   "school_name",
+  "enquiry_details_section",
+  "enquiry_date",
+  "standard",
+  "column_break_1",
+  "academic_year",
+  "group",
+  "referred_by",
   "parent_details_section",
   "father_number",
   "father_name",
@@ -28,11 +28,12 @@
   "mother_name",
   "follow_up_section",
   "source",
-  "remarks",
+  "area",
   "column_break_4",
   "next_follow_up_date",
-  "area",
-  "street"
+  "street",
+  "section_break_barl",
+  "remarks"
  ],
  "fields": [
   {
@@ -196,11 +197,15 @@
    "fieldtype": "Link",
    "label": "Street",
    "options": "Street Name"
+  },
+  {
+   "fieldname": "section_break_barl",
+   "fieldtype": "Section Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-30 21:25:06.163365",
+ "modified": "2026-09-01 18:50:24.283791",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Enquiry Form",

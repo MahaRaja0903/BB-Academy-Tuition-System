@@ -18,6 +18,15 @@ frappe.ui.form.on("Student Enquiry Form", {
 				};
 			}
 		});
+		frm.set_query("street", function() {
+			if (frm.doc.area) {
+				return {
+					filters: {
+						area: frm.doc.area
+					}
+				};
+			}
+		});
 	},
 	refresh(frm) {
 		if (!frm.is_new() && frm.doc.status !== "Converted") {
@@ -115,6 +124,9 @@ frappe.ui.form.on("Student Enquiry Form", {
 			frm.set_df_property("group", "hidden", 1);
 		}
 	},
+	area(frm) {
+		frm.set_value("street", "");
+	},
 	set_academic_year(frm) {
 		if (!frm.doc.standard) return;
 		let ref_date = frm.doc.enquiry_date || frappe.datetime.get_today();
@@ -140,6 +152,7 @@ frappe.ui.form.on("Student Enquiry Form", {
 		}
 		// fetch if groups exist for this standard
 		frappe.db.get_list("Standard Detail", {
+			parent_doctype: "Group",
 			filters: {
 				parenttype: "Group",
 				parentfield: "standard_detail",

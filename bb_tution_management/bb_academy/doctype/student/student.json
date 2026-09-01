@@ -66,7 +66,12 @@
   "coupon_code_details",
   "address_section",
   "address",
-  "payment_details"
+  "payment_details",
+  "yearly_fees_student",
+  "section_break_nrao",
+  "yearly_fees_amount",
+  "column_break_bozl",
+  "yearly_fees_pending_amount"
  ],
  "fields": [
   {
@@ -170,8 +175,7 @@
   {
    "fieldname": "starting_payment",
    "fieldtype": "Currency",
-   "label": "Starting Payment",
-   "read_only": 1
+   "label": "Starting Payment"
   },
   {
    "fieldname": "column_break_3",
@@ -291,6 +295,7 @@
    "label": "Mother Mobile Number"
   },
   {
+   "depends_on": "eval:doc.yearly_fees_student == 0",
    "fieldname": "payment_details",
    "fieldtype": "Table",
    "label": "Payment Details",
@@ -420,12 +425,42 @@
    "fieldtype": "Small Text",
    "label": "Reason For The Attendance Batch Change",
    "mandatory_depends_on": "eval:doc.attendance_batch_set == 1"
+  },
+  {
+   "default": "0",
+   "fieldname": "yearly_fees_student",
+   "fieldtype": "Check",
+   "label": "Yearly Fees Student"
+  },
+  {
+   "depends_on": "eval:doc.yearly_fees_student == 1",
+   "fieldname": "section_break_nrao",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "yearly_fees_amount",
+   "fieldtype": "Currency",
+   "label": "Yearly Fees Amount"
+  },
+  {
+   "fieldname": "column_break_bozl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "yearly_fees_pending_amount",
+   "fieldtype": "Currency",
+   "label": "Yearly Fees Pending Amount"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-08-29 13:29:34.722427",
+ "links": [
+  {
+   "link_doctype": "Fee Invoice",
+   "link_fieldname": "student"
+  }
+ ],
+ "modified": "2026-09-01 19:41:39.741416",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

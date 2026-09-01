@@ -24,6 +24,20 @@ frappe.ui.form.on("Student", {
 		if (frm.is_new()) return;
 
 		frm.add_custom_button(__("Edit Fees Amount"), () => show_edit_fees_dialog(frm));
+
+		frm.add_custom_button(__("Add to WhatsApp Group"), () => {
+			if (!frm.doc.standard) {
+				frappe.msgprint(__("Please select a Standard first."));
+				return;
+			}
+			frappe.db.get_value("Standard", frm.doc.standard, "whatsapp_group_link", (r) => {
+				if (r && r.whatsapp_group_link) {
+					window.open(r.whatsapp_group_link, '_blank');
+				} else {
+					frappe.msgprint(__("WhatsApp Group Link is not configured for this Standard."));
+				}
+			});
+		});
 	},
 
 	setup(frm) {

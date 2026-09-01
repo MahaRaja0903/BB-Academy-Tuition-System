@@ -78,19 +78,26 @@ def as_list(value):
 
 def get_conditions(filters, values):
 	conditions = []
+	student_conditions = []
 
 	standards = as_list(filters.get("standard"))
 	if standards:
-		conditions.append("s.standard in %(standards)s")
+		cond = "s.standard in %(standards)s"
+		conditions.append(cond)
+		student_conditions.append(cond)
 		values["standards"] = standards
 
 	batches = as_list(filters.get("batch"))
 	if batches:
-		conditions.append("s.current_batch in %(batches)s")
+		cond = "s.current_batch in %(batches)s"
+		conditions.append(cond)
+		student_conditions.append(cond)
 		values["batches"] = batches
 
 	if filters.get("gender"):
-		conditions.append("s.gender = %(gender)s")
+		cond = "s.gender = %(gender)s"
+		conditions.append(cond)
+		student_conditions.append(cond)
 		values["gender"] = filters.get("gender")
 
 	# The starting payment sits in the same table as the months, told apart only
@@ -100,7 +107,10 @@ def get_conditions(filters, values):
 	elif filters.get("fee_type") == "Monthly":
 		conditions.append("spd.month != %(starting_payment_month)s")
 
-	return (" and " + " and ".join(conditions)) if conditions else ""
+	return (
+		(" and " + " and ".join(conditions)) if conditions else "",
+		(" and " + " and ".join(student_conditions)) if student_conditions else "",
+	)
 
 
 def get_data(filters):
@@ -108,30 +118,56 @@ def get_data(filters):
 		"settled": NOTHING_OWED_STATUSES,
 		"starting_payment_month": STARTING_PAYMENT,
 	}
-	where_clause = get_conditions(filters, values)
+	where_clause, student_where_clause = get_conditions(filters, values)
+	fee_type = filters.get("fee_type")
 
-	rows = frappe.db.sql(
-		"""
-		select
-			s.name as student,
-			s.student_name,
-			s.standard,
-			s.current_batch as batch,
-			s.status as student_status,
-			s.academic_year,
-			spd.month,
-			spd.amount_need_to_pay,
-			spd.amount_paid
-		from `tabStudent Payment Detail` spd
-		inner join `tabStudent` s on s.name = spd.parent
-		where spd.parenttype = 'Student'
-			and ifnull(spd.month, '') != ''
-			and ifnull(spd.status, '') not in %(settled)s
-			{where_clause}
-		""".format(where_clause=where_clause),
-		values,
-		as_dict=True,
-	)
+	rows = []
+	if not fee_type or fee_type in (STARTING_PAYMENT, "Monthly"):
+		rows.extend(frappe.db.sql(
+			"""
+			select
+				s.name as student,
+				s.student_name,
+				s.standard,
+				s.current_batch as batch,
+				s.status as student_status,
+				s.academic_year,
+				spd.month,
+				spd.amount_need_to_pay,
+				spd.amount_paid
+			from `tabStudent Payment Detail` spd
+			inner join `tabStudent` s on s.name = spd.parent
+			where spd.parenttype = 'Student'
+				and ifnull(spd.month, '') != ''
+				and ifnull(spd.status, '') not in %(settled)s
+				and ifnull(s.yearly_fees_student, 0) = 0
+				{where_clause}
+			""".format(where_clause=where_clause),
+			values,
+			as_dict=True,
+		))
+
+	if not fee_type or fee_type == "Yearly Fees":
+		rows.extend(frappe.db.sql(
+			"""
+			select
+				s.name as student,
+				s.student_name,
+				s.standard,
+				s.current_batch as batch,
+				s.status as student_status,
+				s.academic_year,
+				'Yearly Fees' as month,
+				s.yearly_fees_pending_amount as amount_need_to_pay,
+				0 as amount_paid
+			from `tabStudent` s
+			where s.yearly_fees_student = 1
+				and s.yearly_fees_pending_amount > 0
+				{student_where_clause}
+			""".format(student_where_clause=student_where_clause),
+			values,
+			as_dict=True,
+		))
 
 	data = []
 	for row in rows:
