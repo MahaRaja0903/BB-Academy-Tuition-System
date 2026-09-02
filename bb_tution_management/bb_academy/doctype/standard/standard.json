@@ -73,13 +73,13 @@
   },
   {
    "fieldname": "whatsapp_group_link",
-   "fieldtype": "URL",
+   "fieldtype": "Data",
    "label": "WhatsApp Group Link"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-01 22:05:14.184383",
+ "modified": "2026-09-01 22:37:15.245762",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Standard",

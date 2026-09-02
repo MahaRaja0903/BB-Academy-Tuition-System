@@ -34,33 +34,27 @@ PRORATA_CUTOFF_DAY = 10
 
 
 def get_academic_months(academic_year):
-	"""Month names of an academic year, in calendar order from its start month.
-
-	e.g. an April -> March year gives [April, May, ... February, March], and a
-	June -> April one gives [June, July, ... March, April].
-
-	A year that ends in the month it starts in -- April -> April -- runs a full
-	cycle, so it gives the twelve distinct months from April round to March. The
-	end month is only a stopping point once the year is actually under way; the
-	months are keyed by name, so a thirteenth month repeating April is not
-	something the payment rows can hold.
+	"""Month names of an academic year, in calendar order from its start date to end date.
 	"""
 	if not academic_year:
 		return []
 
 	ay = frappe.get_cached_doc("Academic Year", academic_year)
-	start_month = MONTH_NUMBER.get(ay.start_month)
-	end_month = MONTH_NUMBER.get(ay.end_month)
-	if not start_month or not end_month:
+	if not ay.start_date or not ay.end_date:
+		return []
+
+	start_date = getdate(ay.start_date)
+	end_date = getdate(ay.end_date)
+	total_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+	
+	if total_months <= 0:
 		return []
 
 	months = []
-	m = start_month
-	while True:
+	m = start_date.month
+	for _ in range(total_months):
 		months.append(MONTH_NAMES[m - 1])
-		if len(months) == 12 or (m == end_month and len(months) > 1):
-			break
-		m = m % 12 + 1  # next month, wrapping Dec(12) -> Jan(1)
+		m = m % 12 + 1
 
 	return months
 
@@ -70,8 +64,11 @@ def get_join_date(student_doc):
 	return getdate(student_doc.admission_date) if student_doc.admission_date else getdate(nowdate())
 
 
-def get_payment_row(student_doc, month):
-	for row in student_doc.get("payment_details", []):
+def get_payment_row(student_doc, month, from_end=False):
+	rows = student_doc.get("payment_details", [])
+	if from_end:
+		rows = reversed(rows)
+	for row in rows:
 		if row.month == month:
 			return row
 	return None
@@ -647,10 +644,10 @@ class FeeInvoice(Document):
 		first_month, last_month = get_advance_months(student)
 		monthly_fee = flt(student.monthly_fee or 0)
 
-		def settle(month, status):
+		def settle(month, status, from_end=False):
 			if not month:
 				return
-			row = get_payment_row(student, month)
+			row = get_payment_row(student, month, from_end=from_end)
 			if not row:
 				row = student.append("payment_details", {"month": month, "amount_paid": 0.0})
 
@@ -673,11 +670,13 @@ class FeeInvoice(Document):
 		settle(
 			first_month,
 			PAID_BY_STARTING_PAYMENT if paid_percentage >= 50 else None,
+			from_end=False
 		)
 		settle(
 			last_month,
 			PAID_BY_STARTING_PAYMENT if paid_percentage >= 100
 			else (RESERVED if paid_percentage >= 50 else None),
+			from_end=True
 		)
 
 	def send_receipt_sms(self):

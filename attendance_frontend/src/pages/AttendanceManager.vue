@@ -1827,11 +1827,11 @@ watch([statusFilter, showCompleted, search], () => {
 
   .attendance-manager .att-status-btn i { font-size: 15px; }
 
-  /* desk pins the avatar to the card's right edge on mobile */
+  /* desk pins the avatar to the card's right edge on mobile. Position it high enough to avoid covering the late button. */
   .attendance-manager .att-avatar {
     position: absolute !important;
     right: 5px !important;
-    bottom: 46px !important;
+    bottom: 85px !important;
     margin: 0 !important;
     top: auto !important;
     left: auto !important;

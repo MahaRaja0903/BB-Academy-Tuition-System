@@ -892,7 +892,8 @@ function build_student_details_html(data, fee_month) {
 	// Build payment lookup
 	let payDict = {};
 	(data.payment_details || []).forEach(row => {
-		payDict[row.month] = row;
+		if (!payDict[row.month]) payDict[row.month] = [];
+		payDict[row.month].push(row);
 	});
 
 	let adAcIndex = get_admission_index(data, MONTHS);
@@ -900,7 +901,7 @@ function build_student_details_html(data, fee_month) {
 	// Summary calculations
 	let paid = 0, remaining = 0, late = 0;
 	MONTHS.forEach((m, idx) => {
-		let p = payDict[m];
+		let p = payDict[m] && payDict[m].length > 0 ? payDict[m].shift() : null;
 		let status = 'Not Paid';
 		if (p && p.status) {
 			status = p.status;
@@ -1057,7 +1058,8 @@ function build_fees_paid_details_html(data) {
 	// Build payment lookup
 	let payDict = {};
 	(data.payment_details || []).forEach(row => {
-		payDict[row.month] = row;
+		if (!payDict[row.month]) payDict[row.month] = [];
+		payDict[row.month].push(row);
 	});
 
 	let adAcIndex = get_admission_index(data, MONTHS);
@@ -1071,7 +1073,7 @@ function build_fees_paid_details_html(data) {
 	// Build month cards
 	let monthCardsHtml = '';
 	MONTHS.forEach((m, idx) => {
-		let p = payDict[m];
+		let p = payDict[m] && payDict[m].length > 0 ? payDict[m].shift() : null;
 		let status = 'Not Paid';
 		let pdDate = null;
 		let cardClass = 'card-notpaid';

@@ -37,8 +37,12 @@ def execute(filters=None):
 def get_columns():
 	return [
 		{"fieldname": "student_name", "label": _("Student Name"), "fieldtype": "Data", "width": 220},
+		{"fieldname": "gender", "label": _("Gender"), "fieldtype": "Data", "width": 100},
 		{"fieldname": "standard", "label": _("Standard"), "fieldtype": "Link", "options": "Standard", "width": 120},
 		{"fieldname": "batch", "label": _("Batch"), "fieldtype": "Link", "options": "Batch", "width": 140},
+		{"fieldname": "payment_method", "label": _("Payment Method"), "fieldtype": "Data", "width": 140},
+		{"fieldname": "payment_type", "label": _("Payment Type"), "fieldtype": "Data", "width": 140},
+		{"fieldname": "payment_time_and_date", "label": _("Payment Time and Date"), "fieldtype": "Datetime", "width": 180},
 		{"fieldname": "amount_paid", "label": _("Amount Paid"), "fieldtype": "Currency", "width": 140},
 		{"fieldname": "balance_amount", "label": _("Balance Amount"), "fieldtype": "Currency", "width": 150},
 	]
@@ -134,7 +138,9 @@ def get_data(filters):
 		select
 			fi.name,
 			fi.invoice_date,
+			fi.creation,
 			s.student_name,
+			s.gender,
 			s.standard,
 			s.current_batch as batch,
 			fi.paid_amount,
@@ -184,8 +190,12 @@ def get_data(filters):
 		data.append(
 			frappe._dict(
 				student_name=invoice.student_name,
+				gender=invoice.gender,
 				standard=invoice.standard,
 				batch=invoice.batch,
+				payment_method=invoice.payment_method,
+				payment_type="Starting Payment" if is_starting else "Monthly",
+				payment_time_and_date=invoice.creation,
 				amount_paid=flt(invoice.paid_amount),
 				balance_amount=flt(invoice.balance_amount),
 				mode_amounts=amounts,

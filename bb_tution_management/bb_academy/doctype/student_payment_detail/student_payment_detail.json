@@ -12,7 +12,8 @@
   "amount_need_to_pay",
   "amount_paid",
   "pending",
-  "pending_amount_paid_date"
+  "pending_amount_paid_date",
+  "discount_amount"
  ],
  "fields": [
   {
@@ -28,8 +29,7 @@
    "fieldname": "date",
    "fieldtype": "Date",
    "in_list_view": 1,
-   "label": "Paid Date",
-   "read_only": 1
+   "label": "Paid Date"
   },
   {
    "columns": 2,
@@ -37,32 +37,28 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "\nNot Paid\nPaid\nPaid By Starting Payment\nPartial\nNo Fees\nReserved\nNot Joined",
-   "read_only": 1
+   "options": "\nNot Paid\nPaid\nPaid By Starting Payment\nPartial\nNo Fees\nReserved\nNot Joined"
   },
   {
    "columns": 2,
    "fieldname": "amount_need_to_pay",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Amount Need to Pay",
-   "read_only": 1
+   "label": "Amount Need to Pay"
   },
   {
    "columns": 2,
    "fieldname": "amount_paid",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Amount Paid",
-   "read_only": 1
+   "label": "Amount Paid"
   },
   {
    "columns": 2,
    "fieldname": "pending",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Pending",
-   "read_only": 1
+   "label": "Pending"
   },
   {
    "fieldname": "pending_amount_paid_date",
@@ -70,13 +66,18 @@
    "in_list_view": 1,
    "label": "Pending Amount Paid Date",
    "read_only": 1
+  },
+  {
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Discount Amount"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-01 00:48:12.081541",
+ "modified": "2026-09-02 12:21:56.427532",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Payment Detail",

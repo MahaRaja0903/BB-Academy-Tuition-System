@@ -8,7 +8,8 @@
  "field_order": [
   "month",
   "amount_need_to_pay",
-  "paid_amount"
+  "paid_amount",
+  "discount_amount"
  ],
  "fields": [
   {
@@ -30,13 +31,18 @@
    "in_list_view": 1,
    "label": "Amount Need to Pay",
    "read_only": 1
+  },
+  {
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Discount Amount"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-12 00:36:08.562826",
+ "modified": "2026-09-02 12:21:05.683346",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Fees Invoice Details",

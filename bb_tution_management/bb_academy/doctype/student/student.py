@@ -147,7 +147,9 @@ class Student(Document):
 			month_num = MONTH_NUMBER.get(row.month)
 			if month_num and row.status not in (None, "", "Not Joined", "Not Paid"):
 				# Preserve rows that have meaningful status (Paid, Partial, etc.)
-				existing[month_num] = row
+				if month_num not in existing:
+					existing[month_num] = []
+				existing[month_num].append(row)
 
 		# ----- rebuild the table -----
 		self.payment_details = []
@@ -174,9 +176,9 @@ class Student(Document):
 		for month_num in academic_months:
 			month_name = MONTH_NAMES[month_num - 1]
 
-			if month_num in existing:
+			if month_num in existing and len(existing[month_num]) > 0:
 				# Keep the existing row data intact
-				kept = existing[month_num]
+				kept = existing[month_num].pop(0)
 				self.append("payment_details", {
 					"month": kept.month,
 					"date": kept.date,
