@@ -1,6 +1,7 @@
 {
  "actions": [],
- "autoname": "{stree_name}-{area}",
+ "allow_import": 1,
+ "autoname": "format:{street_name}-{area}",
  "creation": "2026-08-28 00:10:12.122355",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -28,7 +29,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-30 21:01:27.448471",
+ "modified": "2026-09-03 19:53:00.829262",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Street Name",

@@ -43,6 +43,18 @@
   "fees_paid_amount",
   "fees_details_section",
   "fees__invoice_details",
+  "is_yearly_payment",
+  "payment_method",
+  "section_break_uoik",
+  "total_year_payment_amount",
+  "column_break_btuk",
+  "yearly_fees_paid_amount",
+  "section_break_xvas",
+  "cash",
+  "column_break_ripz",
+  "gpay",
+  "column_break_vpet",
+  "scanner",
   "address_section",
   "amended_from"
  ],
@@ -178,8 +190,7 @@
   {
    "fieldname": "starting_payment",
    "fieldtype": "Currency",
-   "label": "Starting Payment",
-   "read_only": 1
+   "label": "Starting Payment"
   },
   {
    "fieldname": "monthly_fee",
@@ -263,7 +274,8 @@
   {
    "fieldname": "fees_paid_amount",
    "fieldtype": "Currency",
-   "label": "Fees Paid Amount"
+   "label": "Fees Paid Amount",
+   "read_only": 1
   },
   {
    "fieldname": "fees_due_date",
@@ -280,13 +292,70 @@
    "fieldtype": "Table",
    "label": "Fees  Invoice Details",
    "options": "Fees Invoice Details"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_yearly_payment",
+   "fieldtype": "Check",
+   "label": "Is Yearly Payment"
+  },
+  {
+   "fieldname": "section_break_uoik",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "total_year_payment_amount",
+   "fieldtype": "Currency",
+   "label": "Total Year Payment Amount"
+  },
+  {
+   "fieldname": "column_break_btuk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "yearly_fees_paid_amount",
+   "fieldtype": "Currency",
+   "label": "Yearly Fees Paid Amount"
+  },
+  {
+   "fieldname": "payment_method",
+   "fieldtype": "Select",
+   "label": "Payment Method",
+   "options": "\nCash\nGPAY\nScanner\nSplit Up"
+  },
+  {
+   "fieldname": "section_break_xvas",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "cash",
+   "fieldtype": "Currency",
+   "label": "Cash"
+  },
+  {
+   "fieldname": "column_break_ripz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gpay",
+   "fieldtype": "Currency",
+   "label": "GPAY"
+  },
+  {
+   "fieldname": "column_break_vpet",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "scanner",
+   "fieldtype": "Currency",
+   "label": "Scanner"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-02 18:58:40.899803",
+ "modified": "2026-09-03 10:06:07.703054",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

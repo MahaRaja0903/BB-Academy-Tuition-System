@@ -17,7 +17,6 @@
   "invoice_date",
   "status",
   "is_starting_fee",
-  "pay_complete_fees",
   "yearly_fees_student",
   "billing_period_section",
   "fees_details",
@@ -241,13 +240,6 @@
    "reqd": 1
   },
   {
-   "default": "0",
-   "fieldname": "pay_complete_fees",
-   "fieldtype": "Check",
-   "hidden": 1,
-   "label": "Pay Complete Fees"
-  },
-  {
    "fieldname": "add_coupon",
    "fieldtype": "Button",
    "label": "Add Coupon"
@@ -311,7 +303,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-01 21:23:18.724533",
+ "modified": "2026-09-03 10:01:59.918449",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",

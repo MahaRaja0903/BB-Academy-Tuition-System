@@ -223,6 +223,10 @@ def create_print_format():
     /* Partial */
     .card-partial .mc-status { background: #e0e7ff; color: #3730a3; }
     .card-partial .mc-icon { background: #6366f1; }
+    
+    /* Startpay */
+    .card-startpay .mc-status { background: #fdf4ff; color: #86198f; }
+    .card-startpay .mc-icon { background: #d946ef; }
 
     /* Tooltip */
     .tooltip-text {
@@ -264,42 +268,24 @@ def create_print_format():
 {% set ad_month_num = ad_date.month %}
 {% set ad_ac_index = ad_month_num - 4 if ad_month_num >= 4 else ad_month_num + 8 %}
 
-{% set pay_dict = {} %}
-{% for row in doc.payment_details %}
-    {% set _ = pay_dict.update({row.month: row}) %}
-{% endfor %}
-
 {% set ns = namespace(paid=0, remaining=0, late=0) %}
-{% set months = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'] %}
-
-{% for m in months %}
-    {% set loop_idx = loop.index0 %}
-    {% set p = pay_dict.get(m) %}
-    
-    {% set status = 'Not Paid' %}
-    {% set pd_date = None %}
-    
-    {% if p %}
+{% set valid_details = [] %}
+{% for p in doc.payment_details %}
+    {% if p.month != 'Starting Payment' %}
+        {% set _ = valid_details.append(p) %}
         {% set status = p.status %}
         {% set pd_date = p.date %}
-    {% else %}
-        {% if loop_idx < ad_ac_index %}
-            {% set status = 'Not Joined' %}
-        {% else %}
-            {% set status = 'Not Paid' %}
-        {% endif %}
-    {% endif %}
-
-    {% if status == 'Paid' %}
-        {% set ns.paid = ns.paid + 1 %}
-        {% if pd_date %}
-            {% set d = frappe.utils.getdate(pd_date).day %}
-            {% if d > 15 %}
-                {% set ns.late = ns.late + 1 %}
+        {% if status == 'Paid' or status == 'Paid By Starting Payment' %}
+            {% set ns.paid = ns.paid + 1 %}
+            {% if pd_date %}
+                {% set d = frappe.utils.getdate(pd_date).day %}
+                {% if d > 15 %}
+                    {% set ns.late = ns.late + 1 %}
+                {% endif %}
             {% endif %}
+        {% elif status in ['Not Paid', 'Partial'] %}
+            {% set ns.remaining = ns.remaining + 1 %}
         {% endif %}
-    {% elif status in ['Not Paid', 'Partial'] %}
-        {% set ns.remaining = ns.remaining + 1 %}
     {% endif %}
 {% endfor %}
 
@@ -358,28 +344,14 @@ def create_print_format():
 
     <!-- Timeline Grid -->
     <div class="timeline-grid">
-        {% for m in months %}
-            {% set loop_idx = loop.index0 %}
-            {% set p = pay_dict.get(m) %}
-            
-            {% set status = 'Not Paid' %}
-            {% set pd_date = None %}
-            {% set amt_paid = 0 %}
+        {% for p in valid_details %}
+            {% set m = p.month %}
+            {% set status = p.status %}
+            {% set pd_date = p.date %}
+            {% set amt_paid = p.amount_paid or 0 %}
             {% set card_class = 'card-notpaid' %}
             {% set icon = '⏳' %}
             
-            {% if p %}
-                {% set status = p.status %}
-                {% set pd_date = p.date %}
-                {% set amt_paid = p.amount_paid or 0 %}
-            {% else %}
-                {% if loop_idx < ad_ac_index %}
-                    {% set status = 'Not Joined' %}
-                {% else %}
-                    {% set status = 'Not Paid' %}
-                {% endif %}
-            {% endif %}
-
             {% if status == 'Not Joined' %}
                 {% set card_class = 'card-notjoined' %}
                 {% set icon = '🚫' %}
@@ -400,6 +372,9 @@ def create_print_format():
             {% elif status == 'Partial' %}
                 {% set card_class = 'card-partial' %}
                 {% set icon = '◐' %}
+            {% elif status == 'Paid By Starting Payment' %}
+                {% set card_class = 'card-startpay' %}
+                {% set icon = '★' %}
             {% endif %}
 
             <div class="month-card {{ card_class }}">
@@ -422,6 +397,8 @@ def create_print_format():
                         <span>📅 {{ frappe.utils.formatdate(pd_date) }}</span>
                     {% elif status == 'Not Paid' %}
                         <span>⚠️ Payment Pending</span>
+                    {% elif status == 'Paid By Starting Payment' %}
+                        <span>★ No separate payment due</span>
                     {% elif status == 'Not Joined' %}
                         <span>-</span>
                     {% endif %}

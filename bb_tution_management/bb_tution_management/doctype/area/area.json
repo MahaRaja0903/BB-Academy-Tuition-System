@@ -6,7 +6,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "area_name"
+  "area_name",
+  "pincode"
  ],
  "fields": [
   {
@@ -14,12 +15,17 @@
    "fieldtype": "Data",
    "label": "Area Name",
    "unique": 1
+  },
+  {
+   "fieldname": "pincode",
+   "fieldtype": "Data",
+   "label": "Pincode"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-30 20:58:26.758931",
+ "modified": "2026-09-03 17:27:14.248630",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Area",

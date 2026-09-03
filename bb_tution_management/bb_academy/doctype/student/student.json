@@ -71,7 +71,9 @@
   "section_break_nrao",
   "yearly_fees_amount",
   "column_break_bozl",
-  "yearly_fees_pending_amount"
+  "yearly_fees_pending_amount",
+  "section_break_frjg",
+  "yearly_payment_details"
  ],
  "fields": [
   {
@@ -450,6 +452,16 @@
    "fieldname": "yearly_fees_pending_amount",
    "fieldtype": "Currency",
    "label": "Yearly Fees Pending Amount"
+  },
+  {
+   "fieldname": "section_break_frjg",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "yearly_payment_details",
+   "fieldtype": "Table",
+   "label": "Yearly Payment Details",
+   "options": "Yearly Payment Details"
   }
  ],
  "image_field": "image",
@@ -460,7 +472,7 @@
    "link_fieldname": "student"
   }
  ],
- "modified": "2026-09-01 19:41:39.741416",
+ "modified": "2026-09-03 10:14:37.332928",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

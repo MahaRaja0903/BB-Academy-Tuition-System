@@ -136,7 +136,9 @@ frappe.ui.form.on("Fee Invoice", {
 
 		// The bill only means anything once the payment is actually posted.
 		if (frm.doc.docstatus === 1) {
-			frm.add_custom_button(__("Generate Bill"), () => generate_bill(frm));
+			frm.add_custom_button(__("Generate Bill"), () => generate_bill(frm))
+				.removeClass("btn-default")
+				.css({"background-color": "green", "color": "white", "font-weight": "bold"});
 		}
 	},
 	before_submit(frm) {
@@ -198,6 +200,23 @@ frappe.ui.form.on("Fee Invoice", {
 				if (!r.message) return;
 				let prefill = r.message;
 
+				if (prefill.is_yearly) {
+					frm.set_value("yearly_fees_student", 1);
+					frm.set_value("is_starting_fee", 0);
+					frm.clear_table("fees_details");
+					frm.refresh_field("fees_details");
+					frm.set_value("monthly_fee", prefill.pending);
+					frm.set_value("paid_amount", prefill.pending);
+					calculate_totals(frm);
+					if (prefill.pending > 0) {
+						frappe.show_alert({ message: __("Yearly Fees Pending: {0}", [format_currency(prefill.pending)]), indicator: "blue" }, 10);
+					} else {
+						frappe.show_alert({ message: __("Yearly fees are already fully paid."), indicator: "green" }, 10);
+					}
+					return;
+				}
+
+				frm.set_value("yearly_fees_student", 0);
 				frm.clear_table("fees_details");
 				(prefill.rows || []).forEach(row => {
 					frm.add_child("fees_details", {
@@ -887,39 +906,6 @@ function get_shared_styles() {
 }
 
 function build_student_details_html(data, fee_month) {
-	const MONTHS = get_academic_month_list(data);
-
-	// Build payment lookup
-	let payDict = {};
-	(data.payment_details || []).forEach(row => {
-		if (!payDict[row.month]) payDict[row.month] = [];
-		payDict[row.month].push(row);
-	});
-
-	let adAcIndex = get_admission_index(data, MONTHS);
-
-	// Summary calculations
-	let paid = 0, remaining = 0, late = 0;
-	MONTHS.forEach((m, idx) => {
-		let p = payDict[m] && payDict[m].length > 0 ? payDict[m].shift() : null;
-		let status = 'Not Paid';
-		if (p && p.status) {
-			status = p.status;
-		} else if (idx < adAcIndex) {
-			status = 'Not Joined';
-		}
-		if (status === 'Paid' || status === PAID_BY_STARTING_PAYMENT) {
-			paid++;
-			// A month covered by the starting payment was never late in its own
-			// right -- the money came in with the starting payment.
-			if (status === 'Paid' && p && get_payment_timing(data, MONTHS, m, p.date).late) {
-				late++;
-			}
-		} else if (status === 'Not Paid' || status === 'Partial' || status === RESERVED) {
-			remaining++;
-		}
-	});
-
 	let formatDate = (dateStr) => {
 		if (!dateStr) return 'N/A';
 		let d = new Date(dateStr);
@@ -932,53 +918,145 @@ function build_student_details_html(data, fee_month) {
 
 	let imgSrc = data.image || '/assets/frappe/images/default-avatar.png';
 
-	let starting_row = payDict["Starting Payment"];
-	let starting_paid = starting_row ? starting_row.amount_paid : 0;
-	let starting_pending = starting_row ? starting_row.pending : (data.starting_payment || 0);
-
-	// Which months the starting payment has actually settled, and which it is
-	// only holding -- read straight off the statuses it wrote.
-	let coveredMonths = (data.payment_details || [])
-		.filter(row => row.status === PAID_BY_STARTING_PAYMENT && row.month !== 'Starting Payment')
-		.map(row => row.month);
-	let reservedMonths = (data.payment_details || [])
-		.filter(row => row.status === RESERVED)
-		.map(row => row.month);
-
-	let startingCoverHtml = '';
-	if (coveredMonths.length) {
-		startingCoverHtml += `
-			<div class="sft-meta-item">
-				<span class="sft-meta-label" style="color: #6b7280;">Paid by Starting Payment</span>
-				<span class="sft-mc-tag" style="margin-bottom: 0; align-self: flex-start;">${coveredMonths.join(', ')}</span>
-			</div>`;
-	}
-	if (reservedMonths.length) {
-		startingCoverHtml += `
-			<div class="sft-meta-item">
-				<span class="sft-meta-label" style="color: #6b7280;">Reserved</span>
-				<span class="sft-mc-tag grey" style="margin-bottom: 0; align-self: flex-start;">${reservedMonths.join(', ')}</span>
-			</div>`;
-	}
-
+	let summaryHtml = '';
 	let startingPaymentHtml = '';
-	if (data.starting_payment > 0) {
+
+	if (data.yearly_fees_student) {
+		let totalPaid = data.yearly_fees_amount - data.yearly_fees_pending_amount;
+		
+		summaryHtml = `
+		<div class="sft-summary-row" style="margin-bottom: 0;">
+			<div class="sft-summary-box">
+				<div class="sft-stat-card">
+					<div class="sft-stat-val green">${formatCurrency(totalPaid)}</div>
+					<div class="sft-stat-label">Total Paid</div>
+				</div>
+				<div class="sft-stat-card">
+					<div class="sft-stat-val red">${formatCurrency(data.yearly_fees_pending_amount)}</div>
+					<div class="sft-stat-label">Remaining</div>
+				</div>
+				<div class="sft-stat-card">
+					<div class="sft-stat-val" style="color: #4b5563;">${formatCurrency(data.yearly_fees_amount)}</div>
+					<div class="sft-stat-label">Yearly Fees</div>
+				</div>
+			</div>
+			<div class="sft-legend">
+				<div class="sft-legend-item"><div class="sft-dot sft-dot-early"></div>Yearly Payment Track</div>
+			</div>
+		</div>`;
+		
 		startingPaymentHtml = `
 		<div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #e5e7eb; display: flex; gap: 24px; flex-wrap: wrap;">
 			<div class="sft-meta-item">
-				<span class="sft-meta-label" style="color: #6b7280;">Starting Amount</span>
-				<span class="sft-meta-value" style="color: #374151; font-size: 15px;">${formatCurrency(data.starting_payment)}</span>
+				<span class="sft-meta-label" style="color: #6b7280;">Yearly Fees Plan</span>
+				<span class="sft-meta-value" style="color: #374151; font-size: 15px;">Active</span>
 			</div>
-			<div class="sft-meta-item">
-				<span class="sft-meta-label" style="color: #6b7280;">Starting Paid</span>
-				<span class="sft-meta-value" style="color: #10b981; font-size: 15px;">${formatCurrency(starting_paid)}</span>
+		</div>`;
+	} else {
+		const MONTHS = get_academic_month_list(data);
+
+		// Build payment lookup
+		let payDict = {};
+		(data.payment_details || []).forEach(row => {
+			if (!payDict[row.month]) payDict[row.month] = [];
+			payDict[row.month].push(row);
+		});
+
+		let adAcIndex = get_admission_index(data, MONTHS);
+
+		// Summary calculations
+		let paid = 0, remaining = 0, late = 0;
+		MONTHS.forEach((m, idx) => {
+			let p = payDict[m] && payDict[m].length > 0 ? payDict[m].shift() : null;
+			let status = 'Not Paid';
+			if (p && p.status) {
+				status = p.status;
+			} else if (idx < adAcIndex) {
+				status = 'Not Joined';
+			}
+			if (status === 'Paid' || status === PAID_BY_STARTING_PAYMENT) {
+				paid++;
+				if (status === 'Paid' && p && get_payment_timing(data, MONTHS, m, p.date).late) {
+					late++;
+				}
+			} else if (status === 'Not Paid' || status === 'Partial' || status === RESERVED) {
+				remaining++;
+			}
+		});
+
+		let starting_row = payDict["Starting Payment"];
+		let starting_paid = starting_row ? starting_row.amount_paid : 0;
+		let starting_pending = starting_row ? starting_row.pending : (data.starting_payment || 0);
+
+		let coveredMonths = (data.payment_details || [])
+			.filter(row => row.status === PAID_BY_STARTING_PAYMENT && row.month !== 'Starting Payment')
+			.map(row => row.month);
+		let reservedMonths = (data.payment_details || [])
+			.filter(row => row.status === RESERVED)
+			.map(row => row.month);
+
+		let startingCoverHtml = '';
+		if (coveredMonths.length) {
+			startingCoverHtml += `
+				<div class="sft-meta-item">
+					<span class="sft-meta-label" style="color: #6b7280;">Paid by Starting Payment</span>
+					<span class="sft-mc-tag" style="margin-bottom: 0; align-self: flex-start;">${coveredMonths.join(', ')}</span>
+				</div>`;
+		}
+		if (reservedMonths.length) {
+			startingCoverHtml += `
+				<div class="sft-meta-item">
+					<span class="sft-meta-label" style="color: #6b7280;">Reserved</span>
+					<span class="sft-mc-tag grey" style="margin-bottom: 0; align-self: flex-start;">${reservedMonths.join(', ')}</span>
+				</div>`;
+		}
+
+		if (data.starting_payment > 0) {
+			startingPaymentHtml = `
+			<div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #e5e7eb; display: flex; gap: 24px; flex-wrap: wrap;">
+				<div class="sft-meta-item">
+					<span class="sft-meta-label" style="color: #6b7280;">Starting Amount</span>
+					<span class="sft-meta-value" style="color: #374151; font-size: 15px;">${formatCurrency(data.starting_payment)}</span>
+				</div>
+				<div class="sft-meta-item">
+					<span class="sft-meta-label" style="color: #6b7280;">Starting Paid</span>
+					<span class="sft-meta-value" style="color: #10b981; font-size: 15px;">${formatCurrency(starting_paid)}</span>
+				</div>
+				${Number(starting_pending) > 0 ? `
+				<div class="sft-meta-item">
+					<span class="sft-meta-label" style="color: #6b7280;">Starting Pending</span>
+					<span class="sft-meta-value" style="color: #ef4444; font-size: 15px;">${formatCurrency(starting_pending)}</span>
+				</div>` : ``}
+				${startingCoverHtml}
+			</div>`;
+		}
+
+		let dueDay = parseInt(data.fees_due_date, 10);
+
+		summaryHtml = `
+		<div class="sft-summary-row" style="margin-bottom: 0;">
+			<div class="sft-summary-box">
+				<div class="sft-stat-card">
+					<div class="sft-stat-val green">${paid}</div>
+					<div class="sft-stat-label">Months Paid</div>
+				</div>
+				<div class="sft-stat-card">
+					<div class="sft-stat-val red">${remaining}</div>
+					<div class="sft-stat-label">Remaining</div>
+				</div>
+				<div class="sft-stat-card">
+					<div class="sft-stat-val orange">${late}</div>
+					<div class="sft-stat-label">Late Payments</div>
+				</div>
 			</div>
-			${Number(starting_pending) > 0 ? `
-			<div class="sft-meta-item">
-				<span class="sft-meta-label" style="color: #6b7280;">Starting Pending</span>
-				<span class="sft-meta-value" style="color: #ef4444; font-size: 15px;">${formatCurrency(starting_pending)}</span>
-			</div>` : ``}
-			${startingCoverHtml}
+			<div class="sft-legend">
+				<div class="sft-legend-item"><div class="sft-dot sft-dot-early"></div>Paid on time</div>
+				<div class="sft-legend-item"><div class="sft-dot sft-dot-late"></div>Paid late${dueDay ? ` (after the ${dueDay}${ordinal(dueDay)})` : ''}</div>
+				<div class="sft-legend-item"><div class="sft-dot sft-dot-unpaid"></div>Pending</div>
+				<div class="sft-legend-item"><div class="sft-dot sft-dot-startpay"></div>By Starting Payment</div>
+				<div class="sft-legend-item"><div class="sft-dot sft-dot-reserved"></div>Reserved</div>
+				<div class="sft-legend-item"><div class="sft-dot sft-dot-notjoined"></div>Not Joined</div>
+			</div>
 		</div>`;
 	}
 
@@ -1001,10 +1079,11 @@ ${get_shared_styles()}
 					<span class="sft-meta-label">Admission Date</span>
 					<span class="sft-meta-value">${formatDate(data.admission_date)}</span>
 				</div>
+				${data.yearly_fees_student ? '' : `
 				<div class="sft-meta-item">
 					<span class="sft-meta-label">Due Date</span>
 					<span class="sft-meta-value" style="color: #ef4444;">${dueDateFormatted}</span>
-				</div>
+				</div>`}
 				<div class="sft-meta-item">
 					<span class="sft-meta-label">Standard</span>
 					<span class="sft-meta-value">${data.standard || '-'}</span>
@@ -1023,35 +1102,58 @@ ${get_shared_styles()}
 	</div>
 
 	<!-- Summary + Legend -->
-	<div class="sft-summary-row" style="margin-bottom: 0;">
-		<div class="sft-summary-box">
-			<div class="sft-stat-card">
-				<div class="sft-stat-val green">${paid}</div>
-				<div class="sft-stat-label">Months Paid</div>
-			</div>
-			<div class="sft-stat-card">
-				<div class="sft-stat-val red">${remaining}</div>
-				<div class="sft-stat-label">Remaining</div>
-			</div>
-			<div class="sft-stat-card">
-				<div class="sft-stat-val orange">${late}</div>
-				<div class="sft-stat-label">Late Payments</div>
-			</div>
-		</div>
-		<div class="sft-legend">
-			<div class="sft-legend-item"><div class="sft-dot sft-dot-early"></div>Paid on time</div>
-			<div class="sft-legend-item"><div class="sft-dot sft-dot-late"></div>Paid late${dueDay ? ` (after the ${dueDay}${ordinal(dueDay)})` : ''}</div>
-			<div class="sft-legend-item"><div class="sft-dot sft-dot-unpaid"></div>Pending</div>
-			<div class="sft-legend-item"><div class="sft-dot sft-dot-startpay"></div>By Starting Payment</div>
-			<div class="sft-legend-item"><div class="sft-dot sft-dot-reserved"></div>Reserved</div>
-			<div class="sft-legend-item"><div class="sft-dot sft-dot-notjoined"></div>Not Joined</div>
-		</div>
-	</div>
+	${summaryHtml}
 </div>
 `;
 }
 
 function build_fees_paid_details_html(data) {
+	let formatDate = (dateStr) => {
+		if (!dateStr) return 'N/A';
+		let d = new Date(dateStr);
+		return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+	};
+
+	let formatCurrency = (val) => {
+		return '₹ ' + Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+	};
+
+	if (data.yearly_fees_student) {
+		let payments = data.yearly_payment_details || [];
+		let rowsHtml = '';
+		
+		if (payments.length === 0) {
+			rowsHtml = `<tr><td colspan="2" class="text-center text-muted" style="padding: 24px;">No payments recorded yet.</td></tr>`;
+		} else {
+			payments.forEach(p => {
+				rowsHtml += `
+					<tr>
+						<td>📅 ${formatDate(p.payment_date)}</td>
+						<td class="text-right" style="color: #065f46; font-weight: bold;">${formatCurrency(p.amount_paid)}</td>
+					</tr>
+				`;
+			});
+		}
+		
+		return `
+${get_shared_styles()}
+<div class="sft-container" style="padding-top: 0;">
+	<div style="background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; max-width: 600px; margin: 0;">
+		<table class="table table-bordered" style="margin: 0; border: none;">
+			<thead style="background: #f9fafb;">
+				<tr>
+					<th style="border-top: none; border-left: none;">Payment Date</th>
+					<th class="text-right" style="border-top: none; border-right: none;">Amount Paid</th>
+				</tr>
+			</thead>
+			<tbody>
+				${rowsHtml}
+			</tbody>
+		</table>
+	</div>
+</div>`;
+	}
+
 	const MONTHS = get_academic_month_list(data);
 	const SHORT = MONTH_SHORT;
 
@@ -1063,12 +1165,6 @@ function build_fees_paid_details_html(data) {
 	});
 
 	let adAcIndex = get_admission_index(data, MONTHS);
-
-	let formatDate = (dateStr) => {
-		if (!dateStr) return 'N/A';
-		let d = new Date(dateStr);
-		return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-	};
 
 	// Build month cards
 	let monthCardsHtml = '';
@@ -1124,7 +1220,7 @@ function build_fees_paid_details_html(data) {
 
 		let tooltipHtml = '';
 		if (pdDate && status === 'Paid' && timing.late) {
-			tooltipHtml = `<div class="sft-tooltip-text">Due ${data.fees_due_date}${ordinal(data.fees_due_date)} ${m} — paid ${formatDate(pdDate)}${timing.days ? ` (${lateText})` : ''}</div>`;
+			tooltipHtml = `<div class="sft-tooltip-text">Due ${data.fees_due_date}${ordinal(data.fees_due_date)} ${m} — paid ${formatDate(pdDate)}${timing.days ? " (" + lateText + ")" : ""}</div>`;
 		} else if (pdDate && (status === 'Paid' || status === 'Partial')) {
 			tooltipHtml = `<div class="sft-tooltip-text">Paid on ${formatDate(pdDate)}</div>`;
 		} else if (status === PAID_BY_STARTING_PAYMENT) {
@@ -1132,10 +1228,6 @@ function build_fees_paid_details_html(data) {
 		} else if (status === RESERVED) {
 			tooltipHtml = `<div class="sft-tooltip-text">Held against the rest of the Starting Payment — still due</div>`;
 		}
-
-		let formatCurrency = (val) => {
-			return '₹ ' + Number(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-		};
 
 		let admission = parse_iso_date(data.admission_date);
 		let is_joining_month = admission && MONTH_NAMES[admission.month - 1] === m;

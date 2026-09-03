@@ -62,9 +62,43 @@ frappe.ui.form.on("Student Admission Form", {
 				callback: function(r) {
 					if (r.message !== undefined) {
 						frm.set_value("monthly_fee", r.message);
+						
+						if (frm.doc.starting_payment && (!frm.doc.fees__invoice_details || frm.doc.fees__invoice_details.length === 0)) {
+							let row = frm.add_child("fees__invoice_details");
+							row.month = "Starting Payment";
+							row.amount_need_to_pay = frm.doc.starting_payment;
+							frm.refresh_field("fees__invoice_details");
+						}
 					}
 				}
 			});
 		}
+	},
+	starting_payment(frm) {
+		if (frm.doc.fees__invoice_details && frm.doc.fees__invoice_details.length > 0) {
+			let starting_row = frm.doc.fees__invoice_details.find(row => row.month === "Starting Payment");
+			if (starting_row) {
+				frappe.model.set_value(starting_row.doctype, starting_row.name, 'amount_need_to_pay', frm.doc.starting_payment);
+			}
+		}
 	}
 });
+
+frappe.ui.form.on("Fees Invoice Details", {
+	paid_amount: function(frm, cdt, cdn) {
+		calculate_total_paid(frm);
+	},
+	fees__invoice_details_remove: function(frm) {
+		calculate_total_paid(frm);
+	}
+});
+
+function calculate_total_paid(frm) {
+	let total = 0;
+	if (frm.doc.fees__invoice_details) {
+		frm.doc.fees__invoice_details.forEach(row => {
+			total += flt(row.paid_amount);
+		});
+	}
+	frm.set_value('fees_paid_amount', total);
+}

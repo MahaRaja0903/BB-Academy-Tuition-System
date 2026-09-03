@@ -234,6 +234,14 @@ def get_student_fee_data(student):
 
 	first_month, last_month = get_advance_months(student_doc)
 
+	yearly_payment_rows = []
+	if getattr(student_doc, "yearly_fees_student", 0):
+		for row in student_doc.get("yearly_payment_details", []):
+			yearly_payment_rows.append({
+				"amount_paid": float(row.amount_paid or 0),
+				"payment_date": str(row.payment_date) if row.payment_date else None,
+			})
+
 	return {
 		"student_name": student_doc.student_name,
 		"admission_date": str(student_doc.admission_date) if student_doc.admission_date else None,
@@ -250,6 +258,10 @@ def get_student_fee_data(student):
 		"advance_months": [m for m in (first_month, last_month) if m],
 		"total_paid_amount": float(student_doc.total_paid_amount or 0),
 		"total_pending_amount": float(student_doc.total_pending_amount or 0),
+		"yearly_fees_student": getattr(student_doc, "yearly_fees_student", 0),
+		"yearly_fees_amount": float(getattr(student_doc, "yearly_fees_amount", 0)),
+		"yearly_fees_pending_amount": float(getattr(student_doc, "yearly_fees_pending_amount", 0)),
+		"yearly_payment_details": yearly_payment_rows,
 	}
 
 
@@ -263,6 +275,12 @@ def get_invoice_prefill(student):
 	"""
 	student_doc = frappe.get_doc("Student", student)
 	student_doc.check_permission("read")
+
+	if student_doc.yearly_fees_student:
+		return {
+			"is_yearly": 1,
+			"pending": flt(student_doc.yearly_fees_pending_amount)
+		}
 
 	rows = []
 	notes = []
@@ -573,35 +591,51 @@ class FeeInvoice(Document):
 		student = frappe.get_doc("Student", self.student)
 		sign = 1 if is_submit else -1
 
-		for detail in self.get("fees_details", []):
-			month = detail.month
-			if not month:
-				continue
+		if getattr(self, "yearly_fees_student", 0) or getattr(student, "yearly_fees_student", 0):
+			amount_paid = flt(self.paid_amount)
+			student.yearly_fees_pending_amount = max(0.0, flt(student.yearly_fees_pending_amount) - (sign * amount_paid))
+			
+			if is_submit and amount_paid > 0:
+				student.append("yearly_payment_details", {
+					"amount_paid": amount_paid,
+					"payment_date": frappe.utils.today()
+				})
+			elif not is_submit and amount_paid > 0:
+				# Find a matching payment row and remove it
+				for row in reversed(student.get("yearly_payment_details", [])):
+					if flt(row.amount_paid) == amount_paid and row.payment_date == frappe.utils.today():
+						student.remove(row)
+						break
+		else:
+			for detail in self.get("fees_details", []):
+				month = detail.month
+				if not month:
+					continue
 
-			row = get_payment_row(student, month)
-			if not row:
-				row = student.append("payment_details", {"month": month, "amount_paid": 0.0})
+				row = get_payment_row(student, month)
+				if not row:
+					row = student.append("payment_details", {"month": month, "amount_paid": 0.0})
 
-			detail_paid = flt(detail.paid_amount)
-			if detail_paid == 0 and len(self.get("fees_details", [])) == 1:
-				detail_paid = flt(self.paid_amount)
+				detail_paid = flt(detail.paid_amount)
+				if detail_paid == 0 and len(self.get("fees_details", [])) == 1:
+					detail_paid = flt(self.paid_amount)
 
-			row.amount_paid = max(0.0, flt(row.amount_paid) + sign * detail_paid)
-			row.date = frappe.utils.today() if is_submit else None
+				row.amount_paid = max(0.0, flt(row.amount_paid) + sign * detail_paid)
+				row.date = frappe.utils.today() if is_submit else None
 
-			# The starting payment is always measured against its full amount; a
-			# monthly row keeps whatever it was actually billed, so a pro-rated
-			# joining month is not later re-measured against the full fee.
-			if month == STARTING_PAYMENT:
-				row.amount_need_to_pay = get_month_amount(student, month)
-			else:
-				row.amount_need_to_pay = flt(detail.amount_need_to_pay) or get_month_amount(student, month)
+				# The starting payment is always measured against its full amount; a
+				# monthly row keeps whatever it was actually billed, so a pro-rated
+				# joining month is not later re-measured against the full fee.
+				if month == STARTING_PAYMENT:
+					row.amount_need_to_pay = get_month_amount(student, month)
+				else:
+					row.amount_need_to_pay = flt(detail.amount_need_to_pay) or get_month_amount(student, month)
 
-			row.pending = max(0.0, flt(row.amount_need_to_pay) - flt(row.amount_paid))
-			row.status = get_row_status(row)
+				row.pending = max(0.0, flt(row.amount_need_to_pay) - flt(row.amount_paid))
+				row.status = get_row_status(row)
 
-			if month == STARTING_PAYMENT:
-				self.apply_starting_payment_advance(student, row)
+				if month == STARTING_PAYMENT:
+					self.apply_starting_payment_advance(student, row)
 
 		self.apply_coupon_usage(student, is_submit=is_submit)
 		update_student_totals(student)

@@ -204,8 +204,13 @@
   }
  ],
  "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2026-09-01 18:50:24.283791",
+ "links": [
+  {
+   "link_doctype": "Student Admission Form",
+   "link_fieldname": "student_enquiry"
+  }
+ ],
+ "modified": "2026-09-03 17:18:30.114188",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Enquiry Form",

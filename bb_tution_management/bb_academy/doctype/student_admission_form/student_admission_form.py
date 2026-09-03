@@ -37,14 +37,34 @@ class StudentAdmissionForm(Document):
 		self.validate_admission_number()
 
 	def before_submit(self):
+		self.validate_payment_method()
 		self.validate_fees_paid()
+
+	def validate_payment_method(self):
+		if not self.payment_method:
+			frappe.throw(_("Payment Method is mandatory before submitting."))
+
+		if self.is_yearly_payment:
+			total_paid = flt(self.yearly_fees_paid_amount)
+		else:
+			total_paid = sum(flt(row.paid_amount) for row in self.get("fees__invoice_details"))
+
+		if self.payment_method == "Split Up":
+			split_total = flt(self.cash) + flt(self.gpay) + flt(self.scanner)
+			if abs(split_total - total_paid) > 0.01:
+				frappe.throw(_("For 'Split Up' payment method, the sum of Cash, GPAY, and Scanner ({0}) must equal the Total Paid Amount ({1}).").format(split_total, total_paid))
 
 	def validate_fees_paid(self):
 		if self.is_new():
 			return
+		if self.is_yearly_payment:
+			if not self.total_year_payment_amount:
+				frappe.throw(_("Total Year Payment Amount is mandatory for Yearly Payment."))
+			return
+
 		if self.starting_payment:
 			min_required = flt(self.starting_payment) * 0.5
-			paid_amount = flt(self.fees_paid_amount)
+			paid_amount = sum(flt(row.paid_amount) for row in self.get("fees__invoice_details"))
 			if paid_amount < min_required:
 				frappe.throw(_("Fees Paid Amount must be at least 50% of the Starting Payment (Minimum: {0})").format(min_required))
 
@@ -116,7 +136,7 @@ class StudentAdmissionForm(Document):
 	def fetch_fees(self):
 		if self.standard:
 			starting_payment = frappe.db.get_value("Standard", self.standard, "starting_payment")
-			if starting_payment is not None:
+			if starting_payment is not None and not self.starting_payment:
 				self.starting_payment = starting_payment
 
 		if self.standard and self.assigned_batch:
@@ -136,7 +156,7 @@ class StudentAdmissionForm(Document):
 		self.create_fee_invoice()
 
 	def create_fee_invoice(self):
-		if not self.starting_payment:
+		if not self.starting_payment and not self.is_yearly_payment:
 			return
 
 		student_name = frappe.db.get_value("Student", {"admission_number": self.admission_number}, "name")
@@ -148,20 +168,28 @@ class StudentAdmissionForm(Document):
 				"doctype": "Fee Invoice",
 				"student": student_name,
 				"invoice_date": frappe.utils.today(),
-				"is_starting_fee": 1,
-				"monthly_fee": self.starting_payment,
-				"paid_amount": flt(self.fees_paid_amount),
-				"payment_method": "Cash",
-				"fees_details": [{
-					"month": "Starting Payment",
-					"amount_need_to_pay": self.starting_payment,
-					"paid_amount": flt(self.fees_paid_amount)
-				}]
+				"is_starting_fee": 0 if self.is_yearly_payment else 1,
+				"yearly_fees_student": 1 if self.is_yearly_payment else 0,
+				"monthly_fee": self.starting_payment if not self.is_yearly_payment else self.total_year_payment_amount,
+				"paid_amount": flt(self.yearly_fees_paid_amount) if self.is_yearly_payment else sum(flt(row.paid_amount) for row in self.get("fees__invoice_details")),
+				"payment_method": self.payment_method,
+				"cash": self.cash if self.payment_method == "Split Up" else 0,
+				"gpay": self.gpay if self.payment_method == "Split Up" else 0,
+				"scanner": self.scanner if self.payment_method == "Split Up" else 0,
+				"fees_details": []
 			})
+			if not self.is_yearly_payment:
+				for row in self.get("fees__invoice_details"):
+					invoice.append("fees_details", {
+						"month": row.month,
+						"amount_need_to_pay": row.amount_need_to_pay,
+						"paid_amount": row.paid_amount,
+						"discount_amount": row.discount_amount
+					})
 			invoice.insert(ignore_permissions=True)
 			invoice.submit()
 			frappe.msgprint(
-				_("Fee Invoice {0} created successfully for {1}.").format(
+				_("Fee Invoice {0} created and submitted successfully for {1}.").format(
 					frappe.bold(invoice.name), frappe.bold(self.student_name)
 				),
 				indicator="green"
@@ -215,6 +243,9 @@ class StudentAdmissionForm(Document):
 				"starting_payment": self.starting_payment,
 				"monthly_fee": self.monthly_fee,
 				"referred_by": self.referred_by_student_id,
+				"yearly_fees_student": 1 if self.is_yearly_payment else 0,
+				"yearly_fees_amount": self.total_year_payment_amount if self.is_yearly_payment else 0,
+				"yearly_fees_pending_amount": flt(self.total_year_payment_amount) if self.is_yearly_payment else 0,
 				"status": "Active"
 			})
 			student.insert(ignore_permissions=True)

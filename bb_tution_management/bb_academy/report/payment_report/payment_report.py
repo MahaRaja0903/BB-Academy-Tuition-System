@@ -42,7 +42,7 @@ def get_columns():
 		{"fieldname": "batch", "label": _("Batch"), "fieldtype": "Link", "options": "Batch", "width": 140},
 		{"fieldname": "payment_method", "label": _("Payment Method"), "fieldtype": "Data", "width": 140},
 		{"fieldname": "payment_type", "label": _("Payment Type"), "fieldtype": "Data", "width": 140},
-		{"fieldname": "payment_time_and_date", "label": _("Payment Time and Date"), "fieldtype": "Datetime", "width": 180},
+		{"fieldname": "payment_time", "label": _("Payment Time"), "fieldtype": "Data", "width": 180},
 		{"fieldname": "amount_paid", "label": _("Amount Paid"), "fieldtype": "Currency", "width": 140},
 		{"fieldname": "balance_amount", "label": _("Balance Amount"), "fieldtype": "Currency", "width": 150},
 	]
@@ -195,7 +195,7 @@ def get_data(filters):
 				batch=invoice.batch,
 				payment_method=invoice.payment_method,
 				payment_type="Starting Payment" if is_starting else "Monthly",
-				payment_time_and_date=invoice.creation,
+				payment_time=invoice.creation.strftime("%I:%M %p").lower() if invoice.creation else "",
 				amount_paid=flt(invoice.paid_amount),
 				balance_amount=flt(invoice.balance_amount),
 				mode_amounts=amounts,
