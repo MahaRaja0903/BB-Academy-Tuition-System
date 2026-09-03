@@ -55,7 +55,7 @@ function ordinal(day) {
 // 5th, so a fixed "after the 15th" rule would call a payment on the 8th prompt
 // when it was three days overdue. A payment made in a later month of the year
 // is late whatever the day; one made in an earlier month was paid in advance.
-function get_payment_timing(data, months, month, pd_date) {
+function get_payment_timing(data, months, month, pd_date, fee_idx) {
 	let due_day = parseInt(data && data.fees_due_date, 10);
 	if (!pd_date || !due_day) {
 		// No due date on file -- nothing to judge the payment against.
@@ -85,8 +85,8 @@ function get_payment_timing(data, months, month, pd_date) {
 		return days > 0 ? { late: true, days: days } : { late: false, days: null };
 	}
 
-	let fee_idx = months.indexOf(month);
-	let paid_idx = months.indexOf(paid_month);
+	if (fee_idx === undefined) fee_idx = months.indexOf(month);
+	let paid_idx = months.indexOf(paid_month, fee_idx);
 	if (fee_idx !== -1 && paid_idx !== -1 && paid_idx > fee_idx) {
 		return { late: true, days: null };
 	}
@@ -1186,7 +1186,7 @@ ${get_shared_styles()}
 		// plain Paid / Reserved on the card, with the tag below carrying the
 		// "where the money came from" part.
 		let statusLabel = status;
-		let timing = get_payment_timing(data, MONTHS, m, pdDate);
+		let timing = get_payment_timing(data, MONTHS, m, pdDate, idx);
 		let lateText = timing.days
 			? `${timing.days} ${timing.days === 1 ? 'day' : 'days'} late`
 			: 'Paid late';

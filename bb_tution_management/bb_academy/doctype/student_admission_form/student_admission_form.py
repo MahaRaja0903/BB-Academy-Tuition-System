@@ -35,10 +35,19 @@ class StudentAdmissionForm(Document):
 		self.validate_group()
 		self.fetch_fees()
 		self.validate_admission_number()
+		self.validate_discount_amount()
 
 	def before_submit(self):
 		self.validate_payment_method()
 		self.validate_fees_paid()
+
+	def validate_discount_amount(self):
+		if self.add_discount:
+			total_discount = sum(flt(row.discount_amount) for row in self.get("fees__invoice_details", []))
+			if total_discount > 0:
+				limit = flt(frappe.db.get_single_value("BB Academy Settings", "discount_amount_limit"))
+				if limit and total_discount > limit:
+					frappe.throw(_("Total Discount Amount ({0}) cannot exceed the limit of {1}.").format(total_discount, limit))
 
 	def validate_payment_method(self):
 		if not self.payment_method:
@@ -176,6 +185,8 @@ class StudentAdmissionForm(Document):
 				"cash": self.cash if self.payment_method == "Split Up" else 0,
 				"gpay": self.gpay if self.payment_method == "Split Up" else 0,
 				"scanner": self.scanner if self.payment_method == "Split Up" else 0,
+				"add_discount": self.add_discount,
+				"discount_amount": sum(flt(r.discount_amount) for r in self.get("fees__invoice_details", [])) if self.add_discount else 0.0,
 				"fees_details": []
 			})
 			if not self.is_yearly_payment:

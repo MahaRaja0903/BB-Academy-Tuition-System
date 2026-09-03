@@ -137,7 +137,13 @@ def create_print_formats():
                             <span class="status-stamp {{ status_class }}">{{ doc.status }}</span>
                         </td>
                     </tr>
-                    <tr><td class="label text-left">Fee Month:</td><td class="text-right">{{ doc.fee_month }}</td></tr>
+                    <tr><td class="label text-left">Fee Month:</td><td class="text-right">{% set months = [] %}
+{% for d in doc.fees_details %}
+    {% if d.month and d.month not in months %}
+        {% set _ = months.append(d.month) %}
+    {% endif %}
+{% endfor %}
+{{ months | join(', ') }}</td></tr>
                 </table>
             </div>
         </div>
@@ -183,7 +189,13 @@ def create_print_formats():
             {% else %}
                 <tr>
                     <td>1</td>
-                    <td>{{ doc.fee_month }} Monthly Fee</td>
+                    <td>{% set months = [] %}
+{% for d in doc.fees_details %}
+    {% if d.month and d.month not in months %}
+        {% set _ = months.append(d.month) %}
+    {% endif %}
+{% endfor %}
+{{ months | join(', ') }} Monthly Fee</td>
                     <td class="right">{{ doc.currency or '₹' }} {{ frappe.utils.fmt_money(doc.monthly_fee) }}</td>
                 </tr>
                 {% if doc.arrears_amount and doc.arrears_amount > 0 %}

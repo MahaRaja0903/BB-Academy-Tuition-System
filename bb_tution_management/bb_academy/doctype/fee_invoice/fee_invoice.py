@@ -64,14 +64,34 @@ def get_join_date(student_doc):
 	return getdate(student_doc.admission_date) if student_doc.admission_date else getdate(nowdate())
 
 
-def get_payment_row(student_doc, month, from_end=False):
-	rows = student_doc.get("payment_details", [])
+def get_payment_row(student_doc, month, from_end=False, is_submit=None):
+	rows = list(student_doc.get("payment_details", []))
 	if from_end:
-		rows = reversed(rows)
-	for row in rows:
-		if row.month == month:
-			return row
-	return None
+		rows.reverse()
+	
+	matches = [r for r in rows if r.month == month]
+	if not matches:
+		return None
+		
+	if len(matches) == 1:
+		return matches[0]
+		
+	# Handle duplicate months (e.g. April 2026 and April 2027)
+	if is_submit is True:
+		for r in matches:
+			if r.status not in ["Paid", "Paid By Starting Payment", "Not Joined"]:
+				return r
+		return matches[0]
+	elif is_submit is False:
+		for r in reversed(matches):
+			if r.status in ["Paid", "Paid By Starting Payment"] or r.amount_paid > 0:
+				return r
+		return matches[-1]
+	else:
+		for r in matches:
+			if r.status not in ["Paid", "Paid By Starting Payment", "Not Joined"]:
+				return r
+		return matches[-1]
 
 
 def is_prorated_month(student_doc, month):
@@ -398,10 +418,13 @@ class FeeInvoice(Document):
 		)
 
 	def validate_discount_amount(self):
-		if self.add_discount and flt(self.discount_amount) > 0:
-			discount_limit = flt(frappe.db.get_single_value("BB Academy Settings", "discount_amount_limit"))
-			if flt(self.discount_amount) > discount_limit:
-				frappe.throw(_("Discount Amount cannot exceed the limit of {0}").format(discount_limit))
+		if self.add_discount:
+			total_discount = sum(flt(row.discount_amount) for row in self.get("fees_details", []))
+			if total_discount > 0:
+				discount_limit = flt(frappe.db.get_single_value("BB Academy Settings", "discount_amount_limit"))
+				if discount_limit and total_discount > discount_limit:
+					frappe.throw(_("Discount Amount cannot exceed the limit of {0}").format(discount_limit))
+			self.discount_amount = total_discount
 
 	def validate_coupons(self):
 		"""Re-derive coupon_amount from the codes, against the student's own
@@ -612,7 +635,7 @@ class FeeInvoice(Document):
 				if not month:
 					continue
 
-				row = get_payment_row(student, month)
+				row = get_payment_row(student, month, is_submit=is_submit)
 				if not row:
 					row = student.append("payment_details", {"month": month, "amount_paid": 0.0})
 
@@ -622,6 +645,11 @@ class FeeInvoice(Document):
 
 				row.amount_paid = max(0.0, flt(row.amount_paid) + sign * detail_paid)
 				row.date = frappe.utils.today() if is_submit else None
+				
+				if self.add_discount and is_submit:
+					row.discount_amount = flt(detail.discount_amount)
+				elif not is_submit:
+					row.discount_amount = 0.0
 
 				# The starting payment is always measured against its full amount; a
 				# monthly row keeps whatever it was actually billed, so a pro-rated
@@ -681,7 +709,7 @@ class FeeInvoice(Document):
 		def settle(month, status, from_end=False):
 			if not month:
 				return
-			row = get_payment_row(student, month, from_end=from_end)
+			row = get_payment_row(student, month, from_end=from_end, is_submit=is_submit)
 			if not row:
 				row = student.append("payment_details", {"month": month, "amount_paid": 0.0})
 

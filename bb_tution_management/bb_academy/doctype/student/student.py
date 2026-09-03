@@ -173,7 +173,7 @@ class Student(Document):
 					"pending": self.starting_payment
 				})
 
-		for month_num in academic_months:
+		for idx, month_num in enumerate(academic_months):
 			month_name = MONTH_NAMES[month_num - 1]
 
 			if month_num in existing and len(existing[month_num]) > 0:
@@ -189,15 +189,9 @@ class Student(Document):
 				})
 			else:
 				# Determine if the student had joined by this month
-				if month_num in academic_months:
-					# Find position of this month and admission month in the
-					# academic calendar to compare correctly across year boundary
-					month_pos = academic_months.index(month_num)
-					try:
-						admission_pos = academic_months.index(admission_month_num)
-					except ValueError:
-						# Admission month not in academic calendar – treat as joined
-						admission_pos = 0
+				if True:
+					month_pos = idx
+					admission_pos = (ad_date.year - start_date.year) * 12 + (ad_date.month - start_date.month)
 
 					if month_pos < admission_pos:
 						status = "Not Joined"

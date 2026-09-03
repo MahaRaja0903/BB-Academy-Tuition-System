@@ -243,7 +243,13 @@
                         {% if is_starting %}
                             Admission & Deposit
                         {% else %}
-                            {{ doc.fee_month }}
+                            {% set months = [] %}
+{% for d in doc.fees_details %}
+    {% if d.month and d.month not in months %}
+        {% set _ = months.append(d.month) %}
+    {% endif %}
+{% endfor %}
+{{ months | join(', ') }}
                         {% endif %}
                     </div>
                 </div>

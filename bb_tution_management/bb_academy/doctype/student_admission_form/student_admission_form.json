@@ -44,6 +44,7 @@
   "fees_details_section",
   "fees__invoice_details",
   "is_yearly_payment",
+  "add_discount",
   "payment_method",
   "section_break_uoik",
   "total_year_payment_amount",
@@ -349,13 +350,19 @@
    "fieldname": "scanner",
    "fieldtype": "Currency",
    "label": "Scanner"
+  },
+  {
+   "default": "0",
+   "fieldname": "add_discount",
+   "fieldtype": "Check",
+   "label": "Add Discount"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-03 10:06:07.703054",
+ "modified": "2026-09-03 22:15:31.528805",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",
