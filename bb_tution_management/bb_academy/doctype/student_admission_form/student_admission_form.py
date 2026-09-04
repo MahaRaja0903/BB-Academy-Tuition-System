@@ -28,8 +28,10 @@ def standard_takes_group(standard):
 class StudentAdmissionForm(Document):
 	def validate(self):
 		self.fetch_academic_year()
-		if not self.admission_number and self.name and not self.name.startswith("new-"):
-			self.admission_number = self.name
+		if not self.admission_number:
+			from frappe.model.naming import make_autoname
+			year = str(frappe.utils.getdate(self.application_date or frappe.utils.today()).year)
+			self.admission_number = make_autoname(f"BB-{year}-.####")
 
 		self.set_standard_academic_order()
 		self.validate_group()
@@ -218,8 +220,10 @@ class StudentAdmissionForm(Document):
 
 	def create_student_record(self):
 		if not self.admission_number:
-			self.admission_number = self.name
-			self.db_set("admission_number", self.name)
+			from frappe.model.naming import make_autoname
+			year = str(frappe.utils.getdate(self.application_date or frappe.utils.today()).year)
+			self.admission_number = make_autoname(f"BB-{year}-.####")
+			self.db_set("admission_number", self.admission_number)
 
 		existing_student = frappe.db.exists("Student", {"admission_number": self.admission_number})
 		if existing_student:

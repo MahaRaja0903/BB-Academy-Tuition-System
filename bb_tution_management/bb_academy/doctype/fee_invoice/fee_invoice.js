@@ -20,7 +20,14 @@ const MONTH_SHORT = {
 // them out from the Academic Year; the April-to-March list is only a fallback
 // for a student who has no academic year set yet.
 function get_academic_month_list(data) {
-	let months = (data && data.academic_months) || [];
+	let months = [];
+	if (data && data.payment_details) {
+		data.payment_details.forEach(row => {
+			if (row.month && row.month !== "Starting Payment") {
+				months.push(row.month);
+			}
+		});
+	}
 	if (months.length) {
 		return months;
 	}
