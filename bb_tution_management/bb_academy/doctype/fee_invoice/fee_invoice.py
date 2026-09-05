@@ -663,7 +663,7 @@ class FeeInvoice(Document):
 				row.status = get_row_status(row)
 
 				if month == STARTING_PAYMENT:
-					self.apply_starting_payment_advance(student, row)
+					self.apply_starting_payment_advance(student, row, is_submit=is_submit)
 
 		self.apply_coupon_usage(student, is_submit=is_submit)
 		update_student_totals(student)
@@ -683,7 +683,7 @@ class FeeInvoice(Document):
 			row.used = 1 if is_submit else 0
 			row.used_date = frappe.utils.today() if is_submit else None
 
-	def apply_starting_payment_advance(self, student, starting_row):
+	def apply_starting_payment_advance(self, student, starting_row, is_submit=True):
 		"""Settle the months the starting payment pays for in advance.
 
 		A fully paid starting payment settles both the first full month and the

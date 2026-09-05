@@ -64,6 +64,10 @@
   "referred_by",
   "section_break_avff",
   "coupon_code_details",
+  "section_break_ltcn",
+  "area",
+  "column_break_wcrx",
+  "street_name",
   "address_section",
   "address",
   "payment_details",
@@ -462,6 +466,26 @@
    "fieldtype": "Table",
    "label": "Yearly Payment Details",
    "options": "Yearly Payment Details"
+  },
+  {
+   "fieldname": "section_break_ltcn",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "area",
+   "fieldtype": "Link",
+   "label": "Area",
+   "options": "Area"
+  },
+  {
+   "fieldname": "column_break_wcrx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "street_name",
+   "fieldtype": "Link",
+   "label": "Street Name",
+   "options": "Street Name"
   }
  ],
  "image_field": "image",
@@ -472,7 +496,7 @@
    "link_fieldname": "student"
   }
  ],
- "modified": "2026-09-03 10:14:37.332928",
+ "modified": "2026-09-05 19:19:53.787063",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",
