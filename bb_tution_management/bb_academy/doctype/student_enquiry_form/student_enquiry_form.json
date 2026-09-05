@@ -33,7 +33,14 @@
   "next_follow_up_date",
   "street",
   "section_break_barl",
-  "remarks"
+  "remarks",
+  "section_break_fmkm",
+  "counselling",
+  "fees_explained_by",
+  "timing_issue_checking",
+  "column_break_kaly",
+  "given_by",
+  "join_pana_vandhurukingala_or_enquiry_pana_vandhurukingala"
  ],
  "fields": [
   {
@@ -201,6 +208,44 @@
   {
    "fieldname": "section_break_barl",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "section_break_fmkm",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "counselling",
+   "fieldtype": "Select",
+   "label": "Counselling",
+   "options": "\nAttend\nNot Attend"
+  },
+  {
+   "fieldname": "fees_explained_by",
+   "fieldtype": "Select",
+   "label": "Fees Explained By",
+   "options": "\nManager\nM.D\nManager & M.D"
+  },
+  {
+   "fieldname": "column_break_kaly",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "given_by",
+   "fieldtype": "Select",
+   "label": "Given By",
+   "options": "\nTL\nAsst.Manager\nManager"
+  },
+  {
+   "fieldname": "join_pana_vandhurukingala_or_enquiry_pana_vandhurukingala",
+   "fieldtype": "Select",
+   "label": "Join pana vandhurukingala or Enquiry Pana vandhurukingala ",
+   "options": "\nJoin Pana Dha Vandhu irrukom\nFees and Timings Kettu Join Panuvom\n1st All Details solunga V2 la Nanga Discuss panitu Soluren\nEnquiry Pana or Details Kekadha Vandhom ( Distance - Ok )\n.Enquiry Pana or Details Kekadha Vandhom ( Distance -  Not Ok )"
+  },
+  {
+   "fieldname": "timing_issue_checking",
+   "fieldtype": "Select",
+   "label": "Timing Issue Checking",
+   "options": "\nSchool Timing\nRemedial Class Timing\nReached Timing"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -210,7 +255,7 @@
    "link_fieldname": "student_enquiry"
   }
  ],
- "modified": "2026-09-03 17:18:30.114188",
+ "modified": "2026-09-05 12:22:15.352644",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Enquiry Form",

@@ -961,6 +961,16 @@ def build_whatsapp_bill_message(invoice, student, bill_url):
 	if bill_url:
 		lines += ["", "{0}: {1}".format(_("Bill Invoice"), bill_url)]
 
+	lines += [
+		"",
+		"Note:-",
+		"*Fee once paid is non-refundable under any circumstances.",
+		"",
+		"*Fee is non-transferable to the next academic year.",
+		"",
+		"*Fee non-transferable to another person."
+	]
+
 	return "\n".join(lines)
 
 

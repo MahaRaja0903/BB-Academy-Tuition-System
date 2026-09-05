@@ -32,6 +32,7 @@
   "outstanding_amount",
   "discount_amount",
   "discount_reason",
+  "discount_reason_remarks",
   "gst_amount",
   "coupon_amount",
   "section_break_wgsv",
@@ -139,7 +140,6 @@
    "read_only": 1
   },
   {
-   "allow_on_submit": 1,
    "default": "0",
    "fieldname": "paid_amount",
    "fieldtype": "Currency",
@@ -295,15 +295,23 @@
   {
    "depends_on": "eval:doc.add_discount",
    "fieldname": "discount_reason",
+   "fieldtype": "Select",
+   "label": "Discount Reason ",
+   "mandatory_depends_on": "eval:doc.add_discount",
+   "options": "\nSiblings\nMonth Last Few Days\nLong Absent\nOthers ( Reason Box )"
+  },
+  {
+   "depends_on": "eval:doc.discount_reason == \"Others ( Reason Box )\"",
+   "fieldname": "discount_reason_remarks",
    "fieldtype": "Small Text",
-   "label": "Discount Reason",
-   "mandatory_depends_on": "eval:doc.add_discount"
+   "label": "Discount Reason Remarks",
+   "mandatory_depends_on": "eval:doc.discount_reason == \"Others ( Reason Box )\""
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-04 00:34:51.907533",
+ "modified": "2026-09-05 12:34:38.121799",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",

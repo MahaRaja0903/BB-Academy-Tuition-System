@@ -16,6 +16,7 @@
   {
    "fieldname": "student_id",
    "fieldtype": "Link",
+   "in_standard_filter": 1,
    "label": "Student ID",
    "options": "Student"
   },
@@ -23,6 +24,7 @@
    "fetch_from": "student_id.student_name",
    "fieldname": "student_name",
    "fieldtype": "Data",
+   "in_standard_filter": 1,
    "label": "Student Name"
   },
   {
@@ -43,7 +45,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-20 17:28:51.751893",
+ "modified": "2026-09-04 20:08:04.342103",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Referral Coupon Code",

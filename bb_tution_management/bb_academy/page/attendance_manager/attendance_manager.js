@@ -333,7 +333,8 @@ class AttendanceManager {
             args: {
                 doctype: 'Standard',
                 fields: ['name'],
-                limit_page_length: 0
+                limit_page_length: 0,
+                order_by: 'name asc'
             },
             callback: (r) => {
                 if(r.message) {
@@ -359,7 +360,8 @@ class AttendanceManager {
                 doctype: 'Batch',
                 fields: ['name'],
                 
-                limit_page_length: 0
+                limit_page_length: 0,
+                order_by: 'name asc'
             },
             callback: (r) => {
                 let html = '<option value="">Select Batch</option>';

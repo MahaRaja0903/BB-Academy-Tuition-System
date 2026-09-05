@@ -23,6 +23,10 @@
   "blood_group",
   "school_name",
   "type_your_school",
+  "section_break_kccv",
+  "area",
+  "column_break_sjdd",
+  "street_name",
   "parent_details_section",
   "father_name",
   "father_mobile_number",
@@ -34,18 +38,21 @@
   "group",
   "standard_academic_order",
   "assigned_batch",
+  "informed_parents_that_fee_is_non_refundable",
   "column_break_3",
   "starting_payment",
   "monthly_fee",
   "referred_by",
   "referred_by_student_id",
   "fees_due_date",
-  "fees_paid_amount",
   "fees_details_section",
   "fees__invoice_details",
   "is_yearly_payment",
   "add_discount",
+  "section_break_nlvl",
   "payment_method",
+  "column_break_tkaf",
+  "fees_paid_amount",
   "section_break_uoik",
   "total_year_payment_amount",
   "column_break_btuk",
@@ -356,13 +363,47 @@
    "fieldname": "add_discount",
    "fieldtype": "Check",
    "label": "Add Discount"
+  },
+  {
+   "default": "0",
+   "fieldname": "informed_parents_that_fee_is_non_refundable",
+   "fieldtype": "Check",
+   "label": "Informed parents that fee is non refundable"
+  },
+  {
+   "fieldname": "section_break_nlvl",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_tkaf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_kccv",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "area",
+   "fieldtype": "Link",
+   "label": "Area",
+   "options": "Area"
+  },
+  {
+   "fieldname": "column_break_sjdd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "street_name",
+   "fieldtype": "Link",
+   "label": "Street Name",
+   "options": "Street Name"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-03 22:15:31.528805",
+ "modified": "2026-09-05 13:26:57.168513",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

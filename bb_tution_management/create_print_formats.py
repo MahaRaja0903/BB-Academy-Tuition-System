@@ -212,7 +212,10 @@ def create_print_formats():
     <div class="row">
         <div class="col-xs-6">
             <p style="color: #666; font-size: 0.9em; margin-top: 20px;">
-                <strong>Note:</strong> Please pay the invoice by the due date. Late payments may attract penalties.
+                <strong>Note:-</strong><br>
+                *Fee once paid is non-refundable under any circumstances.<br><br>
+                *Fee is non-transferable to the next academic year.<br><br>
+                *Fee non-transferable to another person.
             </p>
         </div>
         <div class="col-xs-6">
