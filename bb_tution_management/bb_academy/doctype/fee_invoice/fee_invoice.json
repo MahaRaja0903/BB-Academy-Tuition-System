@@ -24,7 +24,6 @@
   "monthly_fee",
   "add_discount",
   "apply_gst_18",
-  "paid_amount",
   "add_coupon",
   "coupon__code",
   "column_break_3",
@@ -42,6 +41,7 @@
   "column_break_cwov",
   "scanner",
   "section_break_pzdt",
+  "paid_amount",
   "grand_total",
   "column_break_pqhq",
   "balance_amount",
@@ -109,7 +109,7 @@
   {
    "fieldname": "monthly_fee",
    "fieldtype": "Currency",
-   "label": "Monthly Fee",
+   "label": "Actual Amount",
    "read_only": 1,
    "reqd": 1
   },
@@ -219,6 +219,7 @@
   {
    "fieldname": "grand_total",
    "fieldtype": "Int",
+   "hidden": 1,
    "label": "Grand Total",
    "read_only": 1
   },
@@ -311,7 +312,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-05 12:34:38.121799",
+ "modified": "2026-09-06 12:08:09.188651",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",
