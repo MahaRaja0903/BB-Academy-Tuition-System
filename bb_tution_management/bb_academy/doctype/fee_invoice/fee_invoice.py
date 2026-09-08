@@ -572,20 +572,20 @@ class FeeInvoice(Document):
 
 		self.grand_total = net_total + self.gst_amount
 		final_total = self.grand_total + flt(self.outstanding_amount)
-		self.balance_amount = max(0.0, final_total - flt(self.paid_amount))
+		self.balance_amount = max(0.0, final_total - flt(self.paid_amount) - flt(self.coupon_amount))
 
 		# A coupon is a credit against the payment, not a reduction of the fees:
 		# the months are settled in full and the student hands over the rest.
-		if flt(self.coupon_amount) > flt(self.paid_amount):
+		if flt(self.coupon_amount) > final_total:
 			frappe.throw(
-				_("Coupon Amount ({0}) cannot be more than the Paid Amount ({1}).").format(
-					self.coupon_amount, self.paid_amount
+				_("Coupon Amount ({0}) cannot be more than the Grand Total ({1}).").format(
+					self.coupon_amount, final_total
 				)
 			)
 
 	@property
 	def cash_to_collect(self):
-		return max(0.0, flt(self.paid_amount) - flt(self.coupon_amount))
+		return max(0.0, flt(self.paid_amount))
 
 	# def update_status(self):
 	# 	if self.docstatus == 2:
@@ -630,6 +630,7 @@ class FeeInvoice(Document):
 						student.remove(row)
 						break
 		else:
+			coupon_remaining = flt(self.coupon_amount)
 			for detail in self.get("fees_details", []):
 				month = detail.month
 				if not month:
@@ -643,7 +644,14 @@ class FeeInvoice(Document):
 				if detail_paid == 0 and len(self.get("fees_details", [])) == 1:
 					detail_paid = flt(self.paid_amount)
 
-				row.amount_paid = max(0.0, flt(row.amount_paid) + sign * detail_paid)
+				# Distribute coupon to cover the shortfall on the row
+				shortfall = flt(detail.amount_need_to_pay) - detail_paid
+				coupon_applied_to_row = 0.0
+				if shortfall > 0 and coupon_remaining > 0:
+					coupon_applied_to_row = min(shortfall, coupon_remaining)
+					coupon_remaining -= coupon_applied_to_row
+
+				row.amount_paid = max(0.0, flt(row.amount_paid) + sign * (detail_paid + coupon_applied_to_row))
 				row.date = frappe.utils.today() if is_submit else None
 				
 				if self.add_discount and is_submit:

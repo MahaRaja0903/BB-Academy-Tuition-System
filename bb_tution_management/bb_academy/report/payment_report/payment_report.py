@@ -41,11 +41,11 @@ def get_columns():
 		{"fieldname": "standard", "label": _("Standard"), "fieldtype": "Link", "options": "Standard", "width": 120},
 		{"fieldname": "batch", "label": _("Batch"), "fieldtype": "Link", "options": "Batch", "width": 140},
 		{"fieldname": "payment_method", "label": _("Payment Method"), "fieldtype": "Data", "width": 140},
-		{"fieldname": "payment_type", "label": _("Payment Type"), "fieldtype": "Data", "width": 140},
+		{"fieldname": "payment_type", "label": _("Payment Type"), "fieldtype": "Data", "width": 250},
 		{"fieldname": "payment_time", "label": _("Payment Time"), "fieldtype": "Data", "width": 180},
-		{"fieldname": "discount_amount", "label": _("Discount Amount"), "fieldtype": "Currency", "width": 140},
 		{"fieldname": "amount_paid", "label": _("Amount Paid"), "fieldtype": "Currency", "width": 140},
 		{"fieldname": "balance_amount", "label": _("Balance Amount"), "fieldtype": "Currency", "width": 150},
+		{"fieldname": "discount_amount", "label": _("Discount Amount"), "fieldtype": "Currency", "width": 140},
 	]
 
 
@@ -152,12 +152,24 @@ def get_data(filters):
 			fi.gpay,
 			fi.scanner,
 			ifnull(fi.is_starting_fee, 0) as is_starting_fee,
+			(
+				select group_concat(fd.month order by fd.idx asc separator ', ')
+				from `tabFees Invoice Details` fd
+				where fd.parent = fi.name
+					and fd.parenttype = 'Fee Invoice'
+			) as payment_types,
 			exists (
 				select 1 from `tabFees Invoice Details` fd
 				where fd.parent = fi.name
 					and fd.parenttype = 'Fee Invoice'
 					and fd.month = %(starting_payment)s
-			) as has_starting_row
+			) as has_starting_row,
+			exists (
+				select 1 from `tabFees Invoice Details` fd
+				where fd.parent = fi.name
+					and fd.parenttype = 'Fee Invoice'
+					and fd.month != %(starting_payment)s
+			) as has_monthly_row
 		from `tabFee Invoice` fi
 		inner join `tabStudent` s on s.name = fi.student
 		where fi.docstatus = 1
@@ -173,13 +185,12 @@ def get_data(filters):
 
 	data = []
 	for invoice in invoices:
-		# The starting payment is told apart either by the flag on the invoice or
-		# by the month its Fees Details row is stored under -- older invoices
-		# only carry one of the two.
-		is_starting = bool(invoice.is_starting_fee or invoice.has_starting_row)
-		if fee_type == STARTING_PAYMENT and not is_starting:
+		has_starting = bool(invoice.is_starting_fee or invoice.has_starting_row)
+		has_monthly = bool(invoice.has_monthly_row or (not invoice.is_starting_fee and not invoice.payment_types))
+
+		if fee_type == STARTING_PAYMENT and not has_starting:
 			continue
-		if fee_type == "Monthly" and is_starting:
+		if fee_type == "Monthly" and not has_monthly:
 			continue
 
 		amounts = get_mode_amounts(invoice)
@@ -188,6 +199,11 @@ def get_data(filters):
 		# Up that was partly collected in it included.
 		if payment_method and flt(amounts.get(payment_method)) <= 0:
 			continue
+		
+		if invoice.payment_types:
+			payment_type_label = invoice.payment_types
+		else:
+			payment_type_label = "Starting Payment" if invoice.is_starting_fee else "Monthly"
 
 		data.append(
 			frappe._dict(
@@ -196,7 +212,7 @@ def get_data(filters):
 				standard=invoice.standard,
 				batch=invoice.batch,
 				payment_method=invoice.payment_method,
-				payment_type="Starting Payment" if is_starting else "Monthly",
+				payment_type=payment_type_label,
 				payment_time=invoice.creation.strftime("%I:%M %p").lower() if invoice.creation else "",
 				discount_amount=flt(invoice.discount_amount),
 				amount_paid=flt(invoice.paid_amount),
