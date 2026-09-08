@@ -418,11 +418,12 @@ function show_coupon_dialog(frm, coupons) {
 			let picked = dialog.get_value("coupons") || [];
 			let total = picked.reduce((sum, code) => sum + (by_code[code] || {}).amount, 0);
 
-			if (total > (frm.doc.paid_amount || 0)) {
+			let billed = frm.doc.grand_total || frm.doc.monthly_fee || 0;
+			if (total > billed) {
 				frappe.msgprint({
 					title: __("Coupon Too Large"),
-					message: __("The selected coupons come to {0}, which is more than the Paid Amount of {1}.",
-						[format_currency(total), format_currency(frm.doc.paid_amount || 0)]),
+					message: __("The selected coupons come to {0}, which is more than the Grand Total of {1}.",
+						[format_currency(total), format_currency(billed)]),
 					indicator: "red"
 				});
 				return;
@@ -436,8 +437,7 @@ function show_coupon_dialog(frm, coupons) {
 
 			if (picked.length) {
 				frappe.show_alert({
-					message: __("{0} applied. Cash to collect is now {1}.",
-						[picked.join(", "), format_currency((frm.doc.paid_amount || 0) - total)]),
+					message: __("{0} applied.", [picked.join(", ")]),
 					indicator: "green"
 				}, 10);
 			} else {
@@ -450,17 +450,17 @@ function show_coupon_dialog(frm, coupons) {
 	function update_coupon_dialog_total() {
 		let picked = dialog.get_value("coupons") || [];
 		let total = picked.reduce((sum, code) => sum + (by_code[code] || {}).amount, 0);
-		let paid = frm.doc.paid_amount || 0;
-		let over = total > paid;
+		let billed = frm.doc.grand_total || frm.doc.monthly_fee || 0;
+		let over = total > billed;
 
 		dialog.fields_dict.coupon_total.$wrapper.html(`
 			<div style="padding:12px;border-radius:8px;background:${over ? "#fee2e2" : "#eff6ff"};color:${over ? "#991b1b" : "#1e3a8a"};font-size:13px;">
 				<div>${__("Coupon total")}: <b>${format_currency(total)}</b>
-					&nbsp;/&nbsp; ${__("Paid Amount")}: <b>${format_currency(paid)}</b></div>
+					&nbsp;/&nbsp; ${__("Grand Total")}: <b>${format_currency(billed)}</b></div>
 				<div style="margin-top:6px;font-size:15px;">
 					${over
-						? __("Coupons exceed the Paid Amount.")
-						: `${__("Cash to collect")}: <b style="font-size:18px;">${format_currency(paid - total)}</b>`}
+						? __("Coupons exceed the Grand Total.")
+						: ""}
 				</div>
 			</div>`);
 	}
@@ -469,14 +469,33 @@ function show_coupon_dialog(frm, coupons) {
 	update_coupon_dialog_total();
 }
 
-// Pre-submit recap of what the cashier should have in hand: every row, what it
-// was billed, what is being recorded as paid, and where the two do not match.
 function build_collection_summary_html(frm) {
 	let rows = (frm.doc.fees_details || []).filter(row => row.month);
 	let billed = 0;
 	let paid = 0;
 	let partial_months = [];
 
+	let student_name = frm.doc.student_name || frm.doc.student || "N/A";
+	let standard = "N/A";
+	let batch = "N/A";
+	
+	if (frm.doc.student_detail_json) {
+		try {
+			let details = JSON.parse(frm.doc.student_detail_json);
+			standard = details.standard || "N/A";
+			batch = details.current_batch || "N/A";
+		} catch (e) {}
+	}
+	if (standard === "N/A" && frm.doc.standard) standard = frm.doc.standard;
+	if (batch === "N/A" && frm.doc.current_batch) batch = frm.doc.current_batch;
+
+	let student_details_html = `<div style="margin-bottom:12px;padding:10px 12px;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb;">
+		<strong>Student:</strong> ${student_name}<br>
+		<strong>Standard:</strong> ${standard}<br>
+		<strong>Batch:</strong> ${batch}
+	</div>`;
+
+	let coupon_remaining = frm.doc.coupon_amount || 0;
 	let row_html = rows.map(row => {
 		let need = row.amount_need_to_pay || 0;
 		let got = row.paid_amount || 0;
@@ -486,8 +505,18 @@ function build_collection_summary_html(frm) {
 		let short = need - got;
 		let note = "";
 		if (short > 0) {
-			partial_months.push(row.month);
-			note = `<span style="color:#b91c1c;">${__("Short by")} ${format_currency(short)}</span>`;
+			if (coupon_remaining >= short) {
+				note = `<span style="color:#5b21b6;">${__("Coupon")} ${format_currency(short)}</span>`;
+				coupon_remaining -= short;
+			} else if (coupon_remaining > 0) {
+				let actual_short = short - coupon_remaining;
+				note = `<span style="color:#5b21b6;">${__("Coupon")} ${format_currency(coupon_remaining)}</span>, <span style="color:#b91c1c;">${__("Short by")} ${format_currency(actual_short)}</span>`;
+				partial_months.push(row.month);
+				coupon_remaining = 0;
+			} else {
+				partial_months.push(row.month);
+				note = `<span style="color:#b91c1c;">${__("Short by")} ${format_currency(short)}</span>`;
+			}
 		} else {
 			note = `<span style="color:#065f46;">${__("Full")}</span>`;
 		}
@@ -504,37 +533,31 @@ function build_collection_summary_html(frm) {
 		row_html = `<tr><td colspan="4" class="text-muted">${__("No rows in Fees Details.")}</td></tr>`;
 	}
 
-	// The coupon is a credit against the payment, so the months are recorded as
-	// fully paid and only the difference comes in as cash.
+	let cash = paid;
 	let coupon_codes = get_selected_coupons(frm);
-	let coupon = frm.doc.coupon_amount || 0;
-	let cash = Math.max(0, paid - coupon);
+	let total_coupon = frm.doc.coupon_amount || 0;
 	let coupon_html = "";
 
 	if (coupon_codes.length) {
 		coupon_html = `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:#f5f3ff;color:#5b21b6;">
 			${__("Coupon")} <b>${coupon_codes.join(", ")}</b>
-			${__("covers")} <b>${format_currency(coupon)}</b> ${__("of the Paid Amount")}
+			${__("covers")} <b>${format_currency(total_coupon)}</b> ${__("of the remaining balance")}
 			&mdash; ${__("these coupons will be marked used and cannot be applied again.")}
 		</div>`;
 	}
 
 	let warnings = "";
 
-	if (paid <= 0) {
+	if (paid <= 0 && total_coupon <= 0) {
 		warnings += `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:#fef3c7;color:#92400e;">
 			${__("Paid Amount is zero. Nothing will be recorded as collected for this student.")}
 		</div>`;
 	} else if (partial_months.length) {
 		warnings += `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:#fef3c7;color:#92400e;">
-			${__("Part payment for {0}. The remaining {1} stays pending on the student.", [partial_months.join(", "), format_currency(billed - paid)])}
+			${__("Part payment for {0}. The remaining {1} stays pending on the student.", [partial_months.join(", "), format_currency(billed - paid - total_coupon)])}
 		</div>`;
 	}
 
-	// The starting payment settles two months in advance: the first full month
-	// once half of it is in, the last month only once all of it is. Below that
-	// the last month is merely reserved -- worth spelling out before the money
-	// is committed.
 	let starting_row = rows.find(row => row.month === "Starting Payment");
 	if (starting_row && frm.doc.student_detail_json) {
 		let advance_months = JSON.parse(frm.doc.student_detail_json).advance_months || [];
@@ -542,7 +565,13 @@ function build_collection_summary_html(frm) {
 
 		if (first_month) {
 			let billed = starting_row.amount_need_to_pay || 0;
-			let percent = billed ? ((starting_row.paid_amount || 0) / billed) * 100 : 0;
+			// Use the total credit applied to this row for percentage calculation
+			let total_row_credit = starting_row.paid_amount || 0;
+			let shortfall = billed - total_row_credit;
+			let row_coupon = Math.min(Math.max(0, shortfall), total_coupon);
+			total_row_credit += row_coupon;
+
+			let percent = billed ? (total_row_credit / billed) * 100 : 0;
 			let message, background, colour;
 
 			if (percent >= 100) {
@@ -569,14 +598,15 @@ function build_collection_summary_html(frm) {
 	return `
 	<div style="font-size:13px;">
 		<p style="margin-bottom:12px;">
-			${__("Check the Paid Amount against the money actually collected. Once submitted this posts against the student's fee record and can only be reversed by cancelling.")}
+			${__("Check the Paid Amount against the money actually collected. Once submitted this posts against the student's fee record.")}
 		</p>
+		${student_details_html}
 		<table class="table table-bordered" style="margin-bottom:0;">
 			<thead>
 				<tr>
 					<th>${__("Month")}</th>
 					<th class="text-right">${__("Need to Pay")}</th>
-					<th class="text-right">${__("Paid")}</th>
+					<th class="text-right">${__("Paid Amount")}</th>
 					<th class="text-right">${__("Status")}</th>
 				</tr>
 			</thead>
@@ -614,10 +644,11 @@ function update_monthly_fee_from_details(frm) {
 
 	// Editing the rows down can leave the coupon worth more than the payment it
 	// is meant to credit -- say so here rather than at submit.
-	if ((frm.doc.coupon_amount || 0) > total_paid) {
+	let billed = frm.doc.grand_total || frm.doc.monthly_fee || 0;
+	if ((frm.doc.coupon_amount || 0) > billed) {
 		frappe.show_alert({
-			message: __("Coupon of {0} is now more than the Paid Amount of {1}. Reopen Add Coupon to change it.",
-				[format_currency(frm.doc.coupon_amount), format_currency(total_paid)]),
+			message: __("Coupon of {0} is now more than the Grand Total of {1}. Reopen Add Coupon to change it.",
+				[format_currency(frm.doc.coupon_amount), format_currency(billed)]),
 			indicator: "red"
 		}, 10);
 	}
@@ -643,7 +674,7 @@ function calculate_totals(frm) {
 	
 	let outstanding = frm.doc.outstanding_amount || 0;
 	let final_total = grand_total + outstanding;
-	let balance = Math.max(0, final_total - (frm.doc.paid_amount || 0));
+	let balance = Math.max(0, final_total - (frm.doc.paid_amount || 0) - (frm.doc.coupon_amount || 0));
 	frm.set_value('balance_amount', balance);
 }
 

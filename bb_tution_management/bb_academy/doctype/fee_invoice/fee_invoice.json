@@ -231,7 +231,8 @@
    "default": "0",
    "fieldname": "is_starting_fee",
    "fieldtype": "Check",
-   "label": "Is Starting Fee "
+   "label": "Is Starting Fee ",
+   "read_only": 1
   },
   {
    "fieldname": "payment_method",
@@ -291,7 +292,8 @@
    "default": "0",
    "fieldname": "yearly_fees_student",
    "fieldtype": "Check",
-   "label": "Yearly Fees Student"
+   "label": "Yearly Fees Student",
+   "read_only": 1
   },
   {
    "depends_on": "eval:doc.add_discount",
@@ -312,7 +314,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-06 12:08:09.188651",
+ "modified": "2026-09-07 00:22:08.937948",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",

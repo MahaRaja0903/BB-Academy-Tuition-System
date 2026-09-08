@@ -7,11 +7,12 @@
  "engine": "InnoDB",
  "field_order": [
   "month",
-  "date",
-  "status",
   "amount_need_to_pay",
-  "amount_paid",
+  "date",
   "pending",
+  "column_break_etyn",
+  "status",
+  "amount_paid",
   "pending_amount_paid_date",
   "discount_amount"
  ],
@@ -30,8 +31,7 @@
    "fieldname": "date",
    "fieldtype": "Date",
    "in_list_view": 1,
-   "label": "Paid Date",
-   "read_only": 1
+   "label": "Paid Date"
   },
   {
    "columns": 2,
@@ -73,13 +73,17 @@
    "fieldname": "discount_amount",
    "fieldtype": "Currency",
    "label": "Discount Amount"
+  },
+  {
+   "fieldname": "column_break_etyn",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-05 12:24:21.121025",
+ "modified": "2026-09-06 22:56:19.887640",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Payment Detail",
