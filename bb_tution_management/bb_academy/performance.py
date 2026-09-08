@@ -250,8 +250,8 @@ def get_performance_students(standard, batch, category, performance_date, gender
 	records = frappe.db.sql(
 		"""
 		SELECT
-			name, student, result, subject, lesson, portion,
-			total_questions, total_marks, pass_marks, marks_obtained, remarks
+			`name`, `student`, `result`, `subject`, `lesson`, `portion`,
+			`total_questions`, `total_marks`, `pass_marks`, `marks_obtained`, `remarks`
 		FROM `tabStudent Performance Tracker`
 		WHERE date = %(date)s AND category = %(category)s AND student IN %(students)s
 		""",
