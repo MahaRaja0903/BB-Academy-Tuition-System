@@ -40,6 +40,7 @@ class Student(Document):
 		self.populate_payment_details()
 		self.update_scholarship_payment_details()
 		self.validate_map_coordinates()
+		self.set_preferred_whatsapp_number()
 		update_student_totals(self)
 
 	def validate_map_coordinates(self):
@@ -374,6 +375,14 @@ class Student(Document):
 				new_batch,
 			)
 		)
+
+	def set_preferred_whatsapp_number(self):
+		if self.preferred_mobile_number == "Father":
+			self.preferred_whatsapp_number = self.father_mobile_number
+		elif self.preferred_mobile_number == "Mother":
+			self.preferred_whatsapp_number = self.mother_mobile_number
+		else:
+			self.preferred_whatsapp_number = self.father_mobile_number or self.mother_mobile_number
 
 
 @frappe.whitelist()

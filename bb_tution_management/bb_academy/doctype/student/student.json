@@ -8,80 +8,157 @@
  "engine": "InnoDB",
  "field_order": [
   "image",
+  "image",
+  "student_details_section",
   "student_details_section",
   "admission_number",
+  "admission_number",
+  "student_name",
   "student_name",
   "admission_date",
+  "admission_date",
+  "scholarship_student",
   "scholarship_student",
   "reason_for_scholarship",
+  "reason_for_scholarship",
+  "column_break_1",
   "column_break_1",
   "status",
+  "status",
+  "date_of_birth",
   "date_of_birth",
   "gender",
+  "gender",
+  "blood_group",
   "blood_group",
   "section_break_ygxb",
+  "section_break_ygxb",
+  "discontinued__date",
   "discontinued__date",
   "suspended_date",
+  "suspended_date",
+  "column_break_kjub",
   "column_break_kjub",
   "discontinued_reason",
+  "discontinued_reason",
+  "suspended_reason",
   "suspended_reason",
   "academic_details_section",
+  "academic_details_section",
+  "standard",
   "standard",
   "academic_year",
+  "academic_year",
+  "column_break_2",
   "column_break_2",
   "current_batch",
+  "current_batch",
+  "group",
   "group",
   "section_break_zaum",
+  "section_break_zaum",
+  "attendance_batch_set",
   "attendance_batch_set",
   "attendance_batch",
+  "attendance_batch",
+  "reason_for_the_attendance_batch_change",
   "reason_for_the_attendance_batch_change",
   "section_break_yiib",
+  "section_break_yiib",
+  "attendance_batch_start_date",
   "attendance_batch_start_date",
   "column_break_wenc",
+  "column_break_wenc",
+  "attendance_batch_end_date",
   "attendance_batch_end_date",
   "fee_details_section",
+  "fee_details_section",
+  "starting_payment",
   "starting_payment",
   "reason_for_discounting_starting_amount",
+  "reason_for_discounting_starting_amount",
+  "fees_due_date",
   "fees_due_date",
   "column_break_3",
+  "column_break_3",
+  "monthly_fee",
   "monthly_fee",
   "reason_for_discounting_monthly_fees",
+  "reason_for_discounting_monthly_fees",
+  "fees_summary_section",
   "fees_summary_section",
   "total_paid_amount",
+  "total_paid_amount",
+  "column_break_fees_summary",
   "column_break_fees_summary",
   "total_pending_amount",
+  "total_pending_amount",
+  "parent_details_section",
   "parent_details_section",
   "father_name",
+  "father_name",
+  "father_mobile_number",
   "father_mobile_number",
   "father_occupation",
+  "father_occupation",
+  "preferred_mobile_number",
+  "preferred_whatsapp_number",
   "preferred_mobile_number",
   "column_break_4",
+  "column_break_4",
+  "mother_name",
   "mother_name",
   "mother_mobile_number",
+  "mother_mobile_number",
+  "mother_occupation",
   "mother_occupation",
   "school_details_section",
+  "school_details_section",
+  "school_name",
   "school_name",
   "referred_by",
+  "referred_by",
+  "section_break_avff",
   "section_break_avff",
   "coupon_code_details",
+  "coupon_code_details",
+  "section_break_ltcn",
   "section_break_ltcn",
   "area",
+  "area",
+  "column_break_wcrx",
   "column_break_wcrx",
   "street_name",
+  "street_name",
+  "address_section",
   "address_section",
   "address",
+  "address",
+  "location_section",
   "location_section",
   "latitude",
+  "latitude",
+  "column_break_geo",
   "column_break_geo",
   "longitude",
+  "longitude",
+  "section_break_ezea",
   "section_break_ezea",
   "payment_details",
+  "payment_details",
+  "yearly_fees_student",
   "yearly_fees_student",
   "section_break_nrao",
+  "section_break_nrao",
+  "yearly_fees_amount",
   "yearly_fees_amount",
   "column_break_bozl",
+  "column_break_bozl",
+  "yearly_fees_pending_amount",
   "yearly_fees_pending_amount",
   "section_break_frjg",
+  "section_break_frjg",
+  "yearly_payment_details",
   "yearly_payment_details"
  ],
  "fields": [
@@ -327,6 +404,13 @@
    "options": "\nFather\nMother\nBoth"
   },
   {
+   "fieldname": "preferred_whatsapp_number",
+   "fieldtype": "Data",
+   "label": "Preferred WhatsApp Number",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
    "fieldname": "reason_for_discounting_starting_amount",
    "fieldtype": "Small Text",
    "label": "Reason For Discounting Starting Amount",
@@ -520,11 +604,451 @@
   {
    "fieldname": "section_break_ezea",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Photo"
+  },
+  {
+   "fieldname": "student_details_section",
+   "fieldtype": "Section Break",
+   "label": "Student Details"
+  },
+  {
+   "fieldname": "admission_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Admission Number",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "student_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Student Name",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "admission_date",
+   "fieldtype": "Date",
+   "label": "Admission Date",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "scholarship_student",
+   "fieldtype": "Check",
+   "label": "scholarship Student"
+  },
+  {
+   "depends_on": "eval:doc.scholarship_student == 1",
+   "fieldname": "reason_for_scholarship",
+   "fieldtype": "Small Text",
+   "label": "Reason For scholarship",
+   "mandatory_depends_on": "eval:doc.scholarship_student == 1"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nCompleted\nDiscontinued\nSuspended",
+   "reqd": 1
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Gender",
+   "options": "\nBoys\nGirls",
+   "reqd": 1
+  },
+  {
+   "fieldname": "blood_group",
+   "fieldtype": "Select",
+   "label": "Blood Group",
+   "options": "\nA+\nA-\nB+\nB-\nAB+\nAB-\nO+\nO-\nA1\nA1+"
+  },
+  {
+   "fieldname": "section_break_ygxb",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.status == \"Discontinued\"",
+   "fieldname": "discontinued__date",
+   "fieldtype": "Date",
+   "label": "Discontinued  Date",
+   "mandatory_depends_on": "eval:doc.status == \"Discontinued\""
+  },
+  {
+   "depends_on": "eval:doc.status == \"Suspended\"",
+   "fieldname": "suspended_date",
+   "fieldtype": "Date",
+   "label": "Suspended Date",
+   "mandatory_depends_on": "eval:doc.status == \"Suspended\""
+  },
+  {
+   "fieldname": "column_break_kjub",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.status == \"Discontinued\"",
+   "fieldname": "discontinued_reason",
+   "fieldtype": "Small Text",
+   "label": "Discontinued Reason",
+   "mandatory_depends_on": "eval:doc.status == \"Discontinued\""
+  },
+  {
+   "depends_on": "eval:doc.status == \"Suspended\"",
+   "fieldname": "suspended_reason",
+   "fieldtype": "Small Text",
+   "label": "Suspended Reason",
+   "mandatory_depends_on": "eval:doc.status == \"Suspended\""
+  },
+  {
+   "fieldname": "academic_details_section",
+   "fieldtype": "Section Break",
+   "label": "Academic Details"
+  },
+  {
+   "fieldname": "standard",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Standard",
+   "options": "Standard",
+   "reqd": 1
+  },
+  {
+   "fieldname": "academic_year",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Academic Year",
+   "options": "Academic Year",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "current_batch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Current Batch",
+   "options": "Batch",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.standard && (doc.standard.startsWith(\"11\") || doc.standard.startsWith(\"12\"))",
+   "fieldname": "group",
+   "fieldtype": "Link",
+   "label": "Group",
+   "options": "Group"
+  },
+  {
+   "fieldname": "section_break_zaum",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "description": "If This Check Box is Checked the The Student Can Have the Temporary Batch For Attendance ",
+   "fieldname": "attendance_batch_set",
+   "fieldtype": "Check",
+   "label": "Attendance Batch Set"
+  },
+  {
+   "depends_on": "eval:doc.attendance_batch_set == 1",
+   "fieldname": "attendance_batch",
+   "fieldtype": "Link",
+   "label": "Attendance Batch",
+   "mandatory_depends_on": "eval:doc.attendance_batch_set == 1",
+   "options": "Batch"
+  },
+  {
+   "depends_on": "eval:doc.attendance_batch_set == 1",
+   "fieldname": "reason_for_the_attendance_batch_change",
+   "fieldtype": "Small Text",
+   "label": "Reason For The Attendance Batch Change",
+   "mandatory_depends_on": "eval:doc.attendance_batch_set == 1"
+  },
+  {
+   "fieldname": "section_break_yiib",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.attendance_batch_set == 1",
+   "fieldname": "attendance_batch_start_date",
+   "fieldtype": "Date",
+   "label": "Attendance Batch Start Date",
+   "mandatory_depends_on": "eval:doc.attendance_batch_set == 1"
+  },
+  {
+   "fieldname": "column_break_wenc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.attendance_batch_set == 1",
+   "fieldname": "attendance_batch_end_date",
+   "fieldtype": "Date",
+   "label": "Attendance Batch End Date",
+   "mandatory_depends_on": "eval:doc.attendance_batch_set == 1"
+  },
+  {
+   "fieldname": "fee_details_section",
+   "fieldtype": "Section Break",
+   "label": "Fee Details"
+  },
+  {
+   "fieldname": "starting_payment",
+   "fieldtype": "Currency",
+   "label": "Starting Payment"
+  },
+  {
+   "fieldname": "reason_for_discounting_starting_amount",
+   "fieldtype": "Small Text",
+   "label": "Reason For Discounting Starting Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fees_due_date",
+   "fieldtype": "Int",
+   "label": "Fees Due Date"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "monthly_fee",
+   "fieldtype": "Currency",
+   "label": "Monthly Fee",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason_for_discounting_monthly_fees",
+   "fieldtype": "Small Text",
+   "label": "Reason for Discounting Monthly Fees",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fees_summary_section",
+   "fieldtype": "Section Break",
+   "label": "Fees Summary"
+  },
+  {
+   "fieldname": "total_paid_amount",
+   "fieldtype": "Currency",
+   "label": "Total Paid Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_fees_summary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Fees still due for the academic year, including months not yet invoiced.",
+   "fieldname": "total_pending_amount",
+   "fieldtype": "Currency",
+   "label": "Total Pending Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "parent_details_section",
+   "fieldtype": "Section Break",
+   "label": "Parent Details"
+  },
+  {
+   "fieldname": "father_name",
+   "fieldtype": "Data",
+   "label": "Father Name"
+  },
+  {
+   "fieldname": "father_mobile_number",
+   "fieldtype": "Data",
+   "label": "Father Mobile Number"
+  },
+  {
+   "fieldname": "father_occupation",
+   "fieldtype": "Data",
+   "label": "Father Occupation"
+  },
+  {
+   "fieldname": "preferred_mobile_number",
+   "fieldtype": "Select",
+   "label": "Preferred Mobile Number ",
+   "options": "\nFather\nMother\nBoth"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "mother_name",
+   "fieldtype": "Data",
+   "label": "Mother Name"
+  },
+  {
+   "fieldname": "mother_mobile_number",
+   "fieldtype": "Data",
+   "label": "Mother Mobile Number"
+  },
+  {
+   "fieldname": "mother_occupation",
+   "fieldtype": "Data",
+   "label": "Mother Occupation"
+  },
+  {
+   "fieldname": "school_details_section",
+   "fieldtype": "Section Break",
+   "label": "School Details"
+  },
+  {
+   "fieldname": "school_name",
+   "fieldtype": "Link",
+   "label": "School Name",
+   "options": "School"
+  },
+  {
+   "fieldname": "referred_by",
+   "fieldtype": "Link",
+   "label": "Referred By",
+   "options": "Student"
+  },
+  {
+   "fieldname": "section_break_avff",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "coupon_code_details",
+   "fieldtype": "Table",
+   "label": "Coupon Code Details",
+   "options": "Referral Coupon Code Detail",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_ltcn",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "area",
+   "fieldtype": "Link",
+   "label": "Area",
+   "options": "Area"
+  },
+  {
+   "fieldname": "column_break_wcrx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "street_name",
+   "fieldtype": "Link",
+   "label": "Street Name",
+   "options": "Street Name"
+  },
+  {
+   "fieldname": "address_section",
+   "fieldtype": "Section Break",
+   "label": "Address"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "location_section",
+   "fieldtype": "Section Break",
+   "label": "Map Location"
+  },
+  {
+   "description": "Decimal degrees between -90 and 90, e.g. 13.041800. Leave blank if the location is not known yet.",
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude",
+   "precision": "6"
+  },
+  {
+   "fieldname": "column_break_geo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Decimal degrees between -180 and 180, e.g. 80.234100. Leave blank if the location is not known yet.",
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude",
+   "precision": "6"
+  },
+  {
+   "fieldname": "section_break_ezea",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.yearly_fees_student == 0",
+   "fieldname": "payment_details",
+   "fieldtype": "Table",
+   "label": "Payment Details",
+   "options": "Student Payment Detail",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "yearly_fees_student",
+   "fieldtype": "Check",
+   "label": "Yearly Fees Student"
+  },
+  {
+   "depends_on": "eval:doc.yearly_fees_student == 1",
+   "fieldname": "section_break_nrao",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "yearly_fees_amount",
+   "fieldtype": "Currency",
+   "label": "Yearly Fees Amount"
+  },
+  {
+   "fieldname": "column_break_bozl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "yearly_fees_pending_amount",
+   "fieldtype": "Currency",
+   "label": "Yearly Fees Pending Amount"
+  },
+  {
+   "fieldname": "section_break_frjg",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.yearly_fees_student == 1",
+   "fieldname": "yearly_payment_details",
+   "fieldtype": "Table",
+   "label": "Yearly Payment Details",
+   "options": "Yearly Payment Details"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [
+  {
+   "link_doctype": "Fee Invoice",
+   "link_fieldname": "student"
+  },
   {
    "link_doctype": "Fee Invoice",
    "link_fieldname": "student"
@@ -557,8 +1081,43 @@
    "print": 1,
    "read": 1,
    "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "System Manager",
    "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Receptionist",
+   "select": 1,
    "write": 1
   },
   {
@@ -577,6 +1136,20 @@
    "read": 1,
    "report": 1,
    "role": "Teacher",
+   "select": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Teacher",
+   "select": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accountant",
    "select": 1
   },
   {
