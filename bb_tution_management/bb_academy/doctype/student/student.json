@@ -70,6 +70,10 @@
   "street_name",
   "address_section",
   "address",
+  "location_section",
+  "latitude",
+  "column_break_geo",
+  "longitude",
   "payment_details",
   "yearly_fees_student",
   "section_break_nrao",
@@ -486,6 +490,29 @@
    "fieldtype": "Link",
    "label": "Street Name",
    "options": "Street Name"
+  },
+  {
+   "fieldname": "location_section",
+   "fieldtype": "Section Break",
+   "label": "Map Location"
+  },
+  {
+   "description": "Decimal degrees between -90 and 90, e.g. 13.041800. Leave blank if the location is not known yet.",
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude",
+   "precision": "6"
+  },
+  {
+   "fieldname": "column_break_geo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Decimal degrees between -180 and 180, e.g. 80.234100. Leave blank if the location is not known yet.",
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude",
+   "precision": "6"
   }
  ],
  "image_field": "image",
@@ -496,7 +523,7 @@
    "link_fieldname": "student"
   }
  ],
- "modified": "2026-09-05 19:19:53.787063",
+ "modified": "2026-09-06 01:39:49.231788",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

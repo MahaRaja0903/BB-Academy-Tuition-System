@@ -54,12 +54,23 @@
       <!-- Student Attendance History reads filters["student"] directly: without
            it the report raises KeyError, so it is required, not optional. -->
       <div v-if="uses('student')" class="rep-field rep-field-wide">
-        <label><i class="fa fa-user"></i> Student <span class="rep-req">*</span></label>
+        <label>
+          <i class="fa fa-user"></i> Student
+          <span v-if="STUDENT_REQUIRED_REPORTS.includes(reportName)" class="rep-req">*</span>
+        </label>
         <select class="form-control" v-model="student">
           <option value="">Select a student</option>
           <option v-for="s in studentList" :key="s.name" :value="s.name">
             {{ s.student_name }} ({{ s.name }})
           </option>
+        </select>
+      </div>
+
+      <div v-if="uses('category')" class="rep-field">
+        <label><i class="fa fa-book"></i> Category</label>
+        <select class="form-control" v-model="performanceCategory">
+          <option value="">All Categories</option>
+          <option v-for="c in PERFORMANCE_CATEGORIES" :key="c" :value="c">{{ c }}</option>
         </select>
       </div>
 
@@ -189,7 +200,15 @@ const REPORTS = [
     name: 'Monthly Attendance Register',
     filters: ['from_date', 'to_date', 'standard', 'batch', 'gender', 'late_days', 'absent_days'],
   },
+  {
+    name: 'Monthly Performance Report',
+    filters: ['from_date', 'to_date', 'standard', 'batch', 'gender', 'category', 'student'],
+  },
 ]
+
+// Categories the Monthly Performance Report can be narrowed to. Blank puts
+// Study, Test, Maths Test and Behaviour side by side.
+const PERFORMANCE_CATEGORIES = ['Study', 'Test', 'Maths Test', 'Behaviour']
 
 const route = useRoute()
 
@@ -202,6 +221,7 @@ const gender = ref('')
 const student = ref('')
 const status = ref('')
 const holidayType = ref('')
+const performanceCategory = ref('')
 const minAbsent = ref(5)
 const minLate = ref(5)
 const absentDays = ref(0)
@@ -228,7 +248,12 @@ function uses(key) {
   return activeReport.value.filters.includes(key)
 }
 
-const canRun = computed(() => (uses('student') ? !!student.value : true))
+// Only Student Attendance History reads filters["student"] unguarded; the
+// performance report is happy without one.
+const STUDENT_REQUIRED_REPORTS = ['Student Attendance History']
+const canRun = computed(() =>
+  STUDENT_REQUIRED_REPORTS.includes(reportName.value) ? !!student.value : true
+)
 
 const columnLabels = computed(() =>
   columns.value.map((c) => {
@@ -255,6 +280,7 @@ function buildFilters() {
     student: student.value || undefined,
     status: status.value || undefined,
     holiday_type: holidayType.value || undefined,
+    category: performanceCategory.value || undefined,
     min_absent: minAbsent.value,
     min_late: minLate.value,
     absent_days: absentDays.value,

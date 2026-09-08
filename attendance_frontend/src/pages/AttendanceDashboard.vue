@@ -165,7 +165,11 @@
               <ol v-if="isNarrow" class="dash-ranklist">
                 <li v-for="(r, i) in data.top_absent" :key="r.student">
                   <span class="dash-rank">{{ i + 1 }}</span>
-                  <span class="dash-rank-name">{{ r.student_name }}</span>
+                  <router-link
+                    class="dash-rank-name student-link"
+                    :to="{ name: 'StudentProfile', query: { student: r.student } }"
+                    title="Open this student's profile"
+                  >{{ r.student_name }}</router-link>
                   <span class="dash-rank-value dash-rank-absent">{{ r.absent_count }}</span>
                 </li>
               </ol>
@@ -188,7 +192,11 @@
               <ol v-if="isNarrow" class="dash-ranklist">
                 <li v-for="(r, i) in data.top_late" :key="r.student">
                   <span class="dash-rank">{{ i + 1 }}</span>
-                  <span class="dash-rank-name">{{ r.student_name }}</span>
+                  <router-link
+                    class="dash-rank-name student-link"
+                    :to="{ name: 'StudentProfile', query: { student: r.student } }"
+                    title="Open this student's profile"
+                  >{{ r.student_name }}</router-link>
                   <span class="dash-rank-value dash-rank-late">{{ r.late_count }}</span>
                 </li>
               </ol>

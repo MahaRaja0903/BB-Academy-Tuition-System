@@ -254,6 +254,10 @@ website_route_rules = [
 website_redirects = [
     {"source": "/modules", "target": "/me"},
     {"source": "/module-selection", "target": "/me"},
+    # The Student Location Map is a desk page, so it really lives at
+    # /app/student-location-map. This keeps the short /student-location-map
+    # URL working for anyone who bookmarks or is sent the plain route.
+    {"source": "/student-location-map", "target": "/app/student-location-map"},
 ]
 
 # Set default home page after login

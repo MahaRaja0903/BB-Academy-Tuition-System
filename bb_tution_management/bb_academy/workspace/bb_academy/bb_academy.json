@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"bbDashLink\",\"type\":\"card\",\"data\":{\"card_name\":\"Dashboard\",\"col\":4}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"0FsumFCZ5D\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}},{\"id\":\"attManagerCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance\",\"col\":4}},{\"id\":\"attReportCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance Reports\",\"col\":4}}]",
+ "content": "[{\"id\":\"perfShortcutHeader\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Quick Access</span>\",\"col\":12}},{\"id\":\"sc0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Student Profile\",\"col\":3}},{\"id\":\"sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Performance Manager\",\"col\":3}},{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"bbDashLink\",\"type\":\"card\",\"data\":{\"card_name\":\"Dashboard\",\"col\":4}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"0FsumFCZ5D\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}},{\"id\":\"attManagerCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance\",\"col\":4}},{\"id\":\"attReportCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance Reports\",\"col\":4}},{\"id\":\"perfManagerCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Performance\",\"col\":4}}]",
  "creation": "2026-08-20 15:19:33.586124",
  "custom_blocks": [],
  "docstatus": 0,
@@ -115,7 +115,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Short Cut",
-   "link_count": 4,
+   "link_count": 5,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -157,6 +157,16 @@
    "link_count": 0,
    "link_to": "Student Batch Transition",
    "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Student Location Map",
+   "link_count": 0,
+   "link_to": "student-location-map",
+   "link_type": "Page",
    "onboard": 0,
    "type": "Link"
   },
@@ -356,9 +366,68 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Performance",
+   "link_count": 5,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Performance Manager",
+   "link_count": 0,
+   "link_to": "performance-tracker",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Student Performance Tracker",
+   "link_count": 0,
+   "link_to": "Student Performance Tracker",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Performance Setup",
+   "link_count": 0,
+   "link_to": "Student Performance Session",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Behaviour Reason",
+   "link_count": 0,
+   "link_to": "Behaviour Reason",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Monthly Performance Report",
+   "link_count": 0,
+   "link_to": "Monthly Performance Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-09-01 21:21:17.195355",
+ "modified": "2026-09-06 01:47:12.404380",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "BB Academy",
@@ -369,6 +438,21 @@
  "quick_lists": [],
  "roles": [],
  "sequence_id": 6.0,
- "shortcuts": [],
+ "shortcuts": [
+  {
+   "color": "blue",
+   "doc_view": "",
+   "label": "Student Profile",
+   "type": "URL",
+   "url": "/attendance_manager/student-profile"
+  },
+  {
+   "color": "green",
+   "doc_view": "",
+   "label": "Performance Manager",
+   "type": "URL",
+   "url": "/attendance_manager/performance"
+  }
+ ],
  "title": "BB Academy"
 }

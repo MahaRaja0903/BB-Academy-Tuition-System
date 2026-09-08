@@ -10,7 +10,7 @@ def setup_bb_academy():
 	create_roles()
 	setup_attendance_manager_permissions()
 	seed_sms_settings()
-	seed_academic_years()
+
 
 
 def seed_sms_settings():
@@ -21,27 +21,6 @@ def seed_sms_settings():
 	doc.enable_payment_sms = 1
 	doc.save(ignore_permissions=True)
 
-
-
-def seed_academic_years():
-	academic_years = [
-		{
-			"academic_year_name": "2026-2027",
-			"start_date": "2026-04-01",
-			"start_month": "April",
-			"end_date": "2027-03-31",
-			"end_month": "March",
-			"is_active": 1
-		}
-	]
-	for data in academic_years:
-		if not frappe.db.exists("Academic Year", data["academic_year_name"]):
-			doc = frappe.get_doc({
-				"doctype": "Academic Year",
-				**data
-			})
-			doc.insert(ignore_permissions=True)
-	frappe.db.commit()
 
 
 # Doctypes the Attendance screens read but never write. The Attendance

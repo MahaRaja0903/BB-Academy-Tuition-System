@@ -1,0 +1,144 @@
+<div class="slm-page">
+
+	<!-- Header -->
+	<div class="slm-header">
+		<div class="slm-header-text">
+			<p class="slm-subtitle">
+				{{ __("Students plotted from the Latitude and Longitude entered on their Student record.") }}
+			</p>
+		</div>
+		<div class="slm-header-actions">
+			<button class="slm-btn slm-btn-ghost" id="slm-missing">
+				<i class="fa fa-list-ul"></i>
+				<span>{{ __("Students Without Location") }}</span>
+				<span class="slm-pill" id="slm-missing-count">0</span>
+			</button>
+			<button class="slm-btn slm-btn-primary" id="slm-show-all">
+				<i class="fa fa-globe"></i>
+				<span>{{ __("Show All Students") }}</span>
+			</button>
+		</div>
+	</div>
+
+	<!-- Summary cards -->
+	<div class="slm-cards">
+		<div class="slm-card slm-card-total">
+			<div class="slm-card-icon"><i class="fa fa-users"></i></div>
+			<div class="slm-card-body">
+				<span class="slm-card-value" id="slm-stat-total">0</span>
+				<span class="slm-card-label">{{ __("Total Students") }}</span>
+			</div>
+		</div>
+		<div class="slm-card slm-card-mapped">
+			<div class="slm-card-icon"><i class="fa fa-map-marker"></i></div>
+			<div class="slm-card-body">
+				<span class="slm-card-value" id="slm-stat-mapped">0</span>
+				<span class="slm-card-label">{{ __("On Map") }}</span>
+			</div>
+		</div>
+		<div class="slm-card slm-card-missing">
+			<div class="slm-card-icon"><i class="fa fa-question-circle"></i></div>
+			<div class="slm-card-body">
+				<span class="slm-card-value" id="slm-stat-missing">0</span>
+				<span class="slm-card-label">{{ __("Without Location") }}</span>
+			</div>
+		</div>
+	</div>
+
+	<!-- Filters -->
+	<div class="slm-filters">
+		<div class="slm-field slm-field-search">
+			<label for="slm-search">{{ __("Search Student") }}</label>
+			<div class="slm-search-wrap">
+				<i class="fa fa-search"></i>
+				<input type="text" id="slm-search" class="slm-input" autocomplete="off">
+			</div>
+		</div>
+		<div class="slm-field">
+			<label for="slm-gender">{{ __("Gender") }}</label>
+			<select id="slm-gender" class="slm-input slm-select">
+				<option value="">{{ __("All Students") }}</option>
+			</select>
+		</div>
+		<div class="slm-field">
+			<label for="slm-standard">{{ __("Standard") }}</label>
+			<select id="slm-standard" class="slm-input slm-select">
+				<option value="">{{ __("All Standards") }}</option>
+			</select>
+		</div>
+		<div class="slm-field">
+			<label for="slm-batch">{{ __("Batch") }}</label>
+			<select id="slm-batch" class="slm-input slm-select">
+				<option value="">{{ __("All Batches") }}</option>
+			</select>
+		</div>
+		<div class="slm-field">
+			<label for="slm-area">{{ __("Area") }}</label>
+			<select id="slm-area" class="slm-input slm-select">
+				<option value="">{{ __("All Areas") }}</option>
+			</select>
+		</div>
+		<div class="slm-field slm-field-reset">
+			<button class="slm-btn slm-btn-reset" id="slm-reset">
+				<i class="fa fa-refresh"></i>
+				<span>{{ __("Reset Filters") }}</span>
+			</button>
+		</div>
+	</div>
+
+	<!-- Map -->
+	<div class="slm-map-shell">
+		<div class="slm-map" id="slm-map"></div>
+
+		<div class="slm-map-tools">
+			<button class="slm-tool" id="slm-fit">
+				<i class="fa fa-crosshairs"></i>
+			</button>
+			<button class="slm-tool" id="slm-fullscreen">
+				<i class="fa fa-expand"></i>
+			</button>
+		</div>
+
+		<!-- Loading -->
+		<div class="slm-state slm-state-loading" id="slm-loading">
+			<div class="slm-spinner"></div>
+			<p class="slm-state-title">{{ __("Loading student locations…") }}</p>
+			<p class="slm-state-text" id="slm-loading-progress"></p>
+		</div>
+
+		<!-- No coordinates anywhere -->
+		<div class="slm-state slm-state-empty" id="slm-empty" hidden>
+			<div class="slm-state-icon"><i class="fa fa-map-o"></i></div>
+			<p class="slm-state-title">{{ __("No student locations available yet.") }}</p>
+			<p class="slm-state-text">
+				{{ __("Add Latitude and Longitude to Student records to display them on the map.") }}
+			</p>
+			<button class="slm-btn slm-btn-primary" id="slm-empty-action">
+				<i class="fa fa-list-ul"></i>
+				<span>{{ __("Students Without Location") }}</span>
+			</button>
+		</div>
+
+		<!-- Filters matched nothing -->
+		<div class="slm-state slm-state-empty" id="slm-no-results" hidden>
+			<div class="slm-state-icon"><i class="fa fa-filter"></i></div>
+			<p class="slm-state-title">{{ __("No students found for the selected filters.") }}</p>
+			<p class="slm-state-text">{{ __("Try a different search, or reset the filters.") }}</p>
+			<button class="slm-btn slm-btn-reset" id="slm-no-results-action">
+				<i class="fa fa-refresh"></i>
+				<span>{{ __("Reset Filters") }}</span>
+			</button>
+		</div>
+
+		<!-- Failure -->
+		<div class="slm-state slm-state-error" id="slm-error" hidden>
+			<div class="slm-state-icon"><i class="fa fa-exclamation-triangle"></i></div>
+			<p class="slm-state-title" id="slm-error-title">{{ __("Could not load student locations.") }}</p>
+			<p class="slm-state-text" id="slm-error-text"></p>
+			<button class="slm-btn slm-btn-primary" id="slm-retry">
+				<i class="fa fa-repeat"></i>
+				<span>{{ __("Retry") }}</span>
+			</button>
+		</div>
+	</div>
+</div>

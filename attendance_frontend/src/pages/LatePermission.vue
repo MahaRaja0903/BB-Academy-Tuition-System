@@ -106,7 +106,11 @@
               <td class="lp-td-name">
                 <div class="lp-student-profile">
                   <div class="lp-student-name-wrap">
-                    <span class="lp-student-name">{{ s.student_name }}</span>
+                    <router-link
+                      class="lp-student-name student-link"
+                      :to="{ name: 'StudentProfile', query: { student: s.name } }"
+                      title="Open this student's profile"
+                    >{{ s.student_name }}</router-link>
                     <i
                       v-if="s.gender"
                       class="fa lp-gender-icon"

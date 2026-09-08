@@ -3,6 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AttendanceAppLayout from '@/components/AttendanceAppLayout.vue'
 import AttendanceManager from '@/pages/AttendanceManager.vue'
 import AttendanceDashboard from '@/pages/AttendanceDashboard.vue'
+import PerformanceManager from '@/pages/PerformanceManager.vue'
+import StudentProfile from '@/pages/StudentProfile.vue'
 import LatePermission from '@/pages/LatePermission.vue'
 import AttendanceReports from '@/pages/AttendanceReports.vue'
 import Login from '@/pages/Login.vue'
@@ -32,6 +34,18 @@ const routes = [
         name: 'AttendanceDashboard',
         component: AttendanceDashboard,
         meta: { title: 'Attendance Dashboard' },
+      },
+      {
+        path: 'performance',
+        name: 'PerformanceManager',
+        component: PerformanceManager,
+        meta: { title: 'Performance Manager' },
+      },
+      {
+        path: 'student-profile',
+        name: 'StudentProfile',
+        component: StudentProfile,
+        meta: { title: 'Student Profile' },
       },
       {
         path: 'late-permission',

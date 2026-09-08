@@ -30,3 +30,28 @@ body {
 *::-webkit-scrollbar-track {
   background: #f1f5f9;
 }
+
+/* A student's name links to their profile everywhere it appears in a list.
+   It keeps reading as a name — a blue link in every row of a dense register
+   would be noise — and only announces itself on hover or keyboard focus.
+   Qualified with `a` so it outranks each page's own `.xx-student-name` rule
+   on hover without those pages having to know about it. */
+a.student-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--gray-400);
+  cursor: pointer;
+}
+
+a.student-link:hover,
+a.student-link:focus-visible {
+  color: var(--blue-600);
+  border-bottom-color: var(--blue-600);
+  border-bottom-style: solid;
+}
+
+a.student-link:focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

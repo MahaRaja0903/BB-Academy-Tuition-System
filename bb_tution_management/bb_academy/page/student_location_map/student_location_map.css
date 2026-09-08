@@ -1,0 +1,986 @@
+/* ==========================================================================
+   Student Location Map — scoped design system
+
+   Sits on top of the Frappe desk variables (so it follows the light/dark
+   theme the user picked) but layers its own palette, radii and shadows over
+   them, because the map is meant to read as a dashboard rather than as a
+   stock desk page. Everything is scoped under .slm-page so no other page can
+   pick these rules up.
+   ========================================================================== */
+
+.slm-page {
+	--slm-accent: #2f6fed;
+	--slm-accent-dark: #1d4ed8;
+	--slm-accent-soft: rgba(47, 111, 237, 0.12);
+	--slm-green: #17a673;
+	--slm-green-soft: rgba(23, 166, 115, 0.12);
+	--slm-amber: #e8912d;
+	--slm-amber-soft: rgba(232, 145, 45, 0.14);
+	--slm-red: #e2504d;
+	--slm-surface: var(--card-bg, #fff);
+	--slm-border: var(--border-color, #e5e7eb);
+	--slm-muted: var(--text-muted, #7a8092);
+	--slm-radius: 14px;
+	--slm-radius-sm: 9px;
+	--slm-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 8px 24px rgba(17, 24, 39, 0.06);
+	--slm-gap: 16px;
+	color: var(--text-color);
+}
+
+.slm-page * {
+	box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   Header
+   -------------------------------------------------------------------------- */
+
+.slm-page .slm-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px var(--slm-gap);
+	margin-bottom: var(--slm-gap);
+}
+
+.slm-page .slm-subtitle {
+	margin: 0;
+	font-size: 13px;
+	color: var(--slm-muted);
+	max-width: 60ch;
+}
+
+.slm-page .slm-header-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+
+.slm-page .slm-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	border: 1px solid transparent;
+	border-radius: var(--slm-radius-sm);
+	padding: 8px 14px;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.2;
+	cursor: pointer;
+	background: var(--slm-surface);
+	color: var(--text-color);
+	transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.slm-page .slm-btn:hover {
+	transform: translateY(-1px);
+}
+
+.slm-page .slm-btn:active {
+	transform: translateY(0);
+}
+
+.slm-page .slm-btn:focus-visible {
+	outline: 2px solid var(--slm-accent);
+	outline-offset: 2px;
+}
+
+.slm-page .slm-btn-primary {
+	background: linear-gradient(135deg, var(--slm-accent), var(--slm-accent-dark));
+	color: #fff;
+	box-shadow: 0 4px 12px rgba(47, 111, 237, 0.28);
+}
+
+.slm-page .slm-btn-primary:hover {
+	box-shadow: 0 6px 16px rgba(47, 111, 237, 0.34);
+}
+
+.slm-page .slm-btn-ghost,
+.slm-page .slm-btn-reset {
+	border-color: var(--slm-border);
+	box-shadow: var(--shadow-sm, 0 1px 2px rgba(17, 24, 39, 0.05));
+}
+
+.slm-page .slm-btn-ghost:hover,
+.slm-page .slm-btn-reset:hover {
+	border-color: var(--slm-accent);
+	color: var(--slm-accent);
+}
+
+.slm-page .slm-pill {
+	background: var(--slm-amber-soft);
+	color: var(--slm-amber);
+	border-radius: 999px;
+	padding: 1px 8px;
+	font-size: 11.5px;
+	font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   Summary cards
+   -------------------------------------------------------------------------- */
+
+.slm-page .slm-cards {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--slm-gap);
+	margin-bottom: var(--slm-gap);
+}
+
+.slm-page .slm-card {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	background: var(--slm-surface);
+	border: 1px solid var(--slm-border);
+	border-radius: var(--slm-radius);
+	box-shadow: var(--slm-shadow);
+	padding: 16px 18px;
+	position: relative;
+	overflow: hidden;
+}
+
+/* Colour rail down the left edge — the only "chrome" each card gets. */
+.slm-page .slm-card::before {
+	content: "";
+	position: absolute;
+	inset: 0 auto 0 0;
+	width: 4px;
+	background: var(--slm-accent);
+}
+
+.slm-page .slm-card-mapped::before { background: var(--slm-green); }
+.slm-page .slm-card-missing::before { background: var(--slm-amber); }
+
+.slm-page .slm-card-icon {
+	display: grid;
+	place-items: center;
+	width: 42px;
+	height: 42px;
+	flex: 0 0 42px;
+	border-radius: 12px;
+	font-size: 17px;
+	background: var(--slm-accent-soft);
+	color: var(--slm-accent);
+}
+
+.slm-page .slm-card-mapped .slm-card-icon {
+	background: var(--slm-green-soft);
+	color: var(--slm-green);
+}
+
+.slm-page .slm-card-missing .slm-card-icon {
+	background: var(--slm-amber-soft);
+	color: var(--slm-amber);
+}
+
+.slm-page .slm-card-body {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.slm-page .slm-card-value {
+	font-size: 26px;
+	font-weight: 700;
+	line-height: 1.1;
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+}
+
+.slm-page .slm-card-label {
+	margin-top: 2px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--slm-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+/* --------------------------------------------------------------------------
+   Filter bar
+   -------------------------------------------------------------------------- */
+
+.slm-page .slm-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 12px 14px;
+	background: var(--slm-surface);
+	border: 1px solid var(--slm-border);
+	border-radius: var(--slm-radius);
+	box-shadow: var(--slm-shadow);
+	padding: 14px 16px;
+	margin-bottom: var(--slm-gap);
+}
+
+.slm-page .slm-field {
+	flex: 1 1 160px;
+	min-width: 140px;
+}
+
+.slm-page .slm-field-search {
+	flex: 2 1 260px;
+}
+
+.slm-page .slm-field-reset {
+	flex: 0 0 auto;
+	min-width: 0;
+}
+
+.slm-page .slm-field label {
+	display: block;
+	margin-bottom: 5px;
+	font-size: 11.5px;
+	font-weight: 600;
+	color: var(--slm-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.slm-page .slm-input {
+	width: 100%;
+	height: 36px;
+	border: 1px solid var(--slm-border);
+	border-radius: var(--slm-radius-sm);
+	background: var(--control-bg, var(--slm-surface));
+	color: var(--text-color);
+	padding: 0 12px;
+	font-size: 13px;
+	transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.slm-page .slm-input:focus {
+	outline: none;
+	border-color: var(--slm-accent);
+	box-shadow: 0 0 0 3px var(--slm-accent-soft);
+}
+
+.slm-page .slm-select {
+	appearance: none;
+	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a8092' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 12px center;
+	padding-right: 30px;
+	cursor: pointer;
+}
+
+.slm-page .slm-search-wrap {
+	position: relative;
+}
+
+.slm-page .slm-search-wrap i {
+	position: absolute;
+	left: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 12px;
+	color: var(--slm-muted);
+	pointer-events: none;
+}
+
+.slm-page .slm-search-wrap .slm-input {
+	padding-left: 32px;
+}
+
+.slm-page .slm-field-reset .slm-btn {
+	height: 36px;
+}
+
+/* --------------------------------------------------------------------------
+   Map shell
+   -------------------------------------------------------------------------- */
+
+.slm-page .slm-map-shell {
+	position: relative;
+	border: 1px solid var(--slm-border);
+	border-radius: var(--slm-radius);
+	box-shadow: var(--slm-shadow);
+	overflow: hidden;
+	background: var(--slm-surface);
+}
+
+.slm-page .slm-map {
+	height: min(66vh, 720px);
+	min-height: 380px;
+	width: 100%;
+	background: #e8eef5;
+}
+
+/* Full screen is the map shell itself, so the tools and states come along. */
+.slm-page .slm-map-shell:fullscreen {
+	border-radius: 0;
+	border: 0;
+}
+
+.slm-page .slm-map-shell:-webkit-full-screen {
+	border-radius: 0;
+	border: 0;
+}
+
+.slm-page .slm-map-shell:fullscreen .slm-map,
+.slm-page .slm-map-shell:-webkit-full-screen .slm-map {
+	height: 100vh;
+	max-height: 100vh;
+}
+
+/* Custom controls, stacked under Leaflet's own zoom buttons. */
+.slm-page .slm-map-tools {
+	position: absolute;
+	top: 78px;
+	left: 10px;
+	z-index: 500;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.slm-page .slm-tool {
+	width: 34px;
+	height: 34px;
+	display: grid;
+	place-items: center;
+	border: 1px solid rgba(0, 0, 0, 0.18);
+	border-radius: 8px;
+	background: #fff;
+	color: #33383f;
+	font-size: 13px;
+	cursor: pointer;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.slm-page .slm-tool:hover {
+	background: #f4f6fa;
+	color: var(--slm-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Loading / empty / error states — overlay the map, never replace it
+   -------------------------------------------------------------------------- */
+
+.slm-page .slm-state {
+	position: absolute;
+	inset: 0;
+	z-index: 600;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 24px;
+	text-align: center;
+	background: color-mix(in srgb, var(--slm-surface) 92%, transparent);
+	backdrop-filter: blur(2px);
+}
+
+.slm-page .slm-state[hidden] {
+	display: none;
+}
+
+.slm-page .slm-state-icon {
+	font-size: 30px;
+	color: var(--slm-muted);
+	opacity: 0.6;
+	margin-bottom: 4px;
+}
+
+.slm-page .slm-state-error .slm-state-icon {
+	color: var(--slm-red);
+	opacity: 0.85;
+}
+
+.slm-page .slm-state-title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 650;
+}
+
+.slm-page .slm-state-text {
+	margin: 0;
+	max-width: 420px;
+	font-size: 12.5px;
+	color: var(--slm-muted);
+}
+
+.slm-page .slm-state .slm-btn {
+	margin-top: 12px;
+}
+
+.slm-page .slm-spinner {
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	border: 3px solid var(--slm-accent-soft);
+	border-top-color: var(--slm-accent);
+	animation: slm-spin 0.7s linear infinite;
+	margin-bottom: 8px;
+}
+
+@keyframes slm-spin {
+	to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.slm-page .slm-spinner { animation-duration: 2s; }
+	.slm-page .slm-btn:hover { transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Markers — a circular photo on a pin, drawn as a Leaflet divIcon
+   -------------------------------------------------------------------------- */
+
+.slm-marker {
+	background: none;
+	border: 0;
+}
+
+.slm-marker-pin {
+	position: relative;
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	background: #fff;
+	border: 3px solid var(--slm-pin, #2f6fed);
+	box-shadow: 0 3px 10px rgba(17, 24, 39, 0.32);
+	overflow: hidden;
+	display: grid;
+	place-items: center;
+	transition: transform 0.12s ease;
+}
+
+.slm-marker:hover .slm-marker-pin {
+	transform: scale(1.07);
+}
+
+/* The tail. Sits under the circle and inherits the ring colour. */
+.slm-marker-tail {
+	position: absolute;
+	left: 50%;
+	top: 40px;
+	width: 12px;
+	height: 12px;
+	background: var(--slm-pin, #2f6fed);
+	transform: translateX(-50%) rotate(45deg);
+	border-radius: 0 0 3px 0;
+	box-shadow: 2px 2px 6px rgba(17, 24, 39, 0.22);
+}
+
+.slm-marker-initials {
+	font-size: 14px;
+	font-weight: 700;
+	color: #fff;
+	background: var(--slm-pin, #2f6fed);
+	width: 100%;
+	height: 100%;
+	display: grid;
+	place-items: center;
+	letter-spacing: 0.02em;
+}
+
+/* Photo covers the initials; if the file 404s, onerror hides it and the
+   initials underneath show through. */
+.slm-marker-photo {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* Clusters */
+.slm-cluster {
+	background: none;
+}
+
+.slm-cluster-inner {
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	display: grid;
+	place-items: center;
+	font-size: 13px;
+	font-weight: 700;
+	color: #fff;
+	background: linear-gradient(135deg, #2f6fed, #1d4ed8);
+	box-shadow: 0 0 0 6px rgba(47, 111, 237, 0.22), 0 4px 12px rgba(17, 24, 39, 0.24);
+}
+
+.slm-cluster-md .slm-cluster-inner {
+	background: linear-gradient(135deg, #e8912d, #d97706);
+	box-shadow: 0 0 0 7px rgba(232, 145, 45, 0.22), 0 4px 12px rgba(17, 24, 39, 0.24);
+}
+
+.slm-cluster-lg .slm-cluster-inner {
+	background: linear-gradient(135deg, #e2504d, #b91c1c);
+	box-shadow: 0 0 0 8px rgba(226, 80, 77, 0.22), 0 4px 12px rgba(17, 24, 39, 0.24);
+	font-size: 14px;
+}
+
+/* --------------------------------------------------------------------------
+   Hover card — the preview a pin shows on mouseover
+   -------------------------------------------------------------------------- */
+
+.leaflet-tooltip.slm-tip {
+	background: #fff;
+	border: 0;
+	border-radius: 12px;
+	box-shadow: 0 8px 22px rgba(17, 24, 39, 0.22);
+	padding: 0;
+	/* Leaflet tooltips are absolutely positioned, so without an intrinsic width
+	   the card collapses into a narrow column and every line wraps. */
+	white-space: normal;
+	width: max-content;
+	min-width: 180px;
+	max-width: 260px;
+}
+
+/* Leaflet draws the little arrow with a border colour; match the card. */
+.leaflet-tooltip.slm-tip.leaflet-tooltip-top:before {
+	border-top-color: #fff;
+}
+
+.leaflet-tooltip.slm-tip.leaflet-tooltip-bottom:before {
+	border-bottom-color: #fff;
+}
+
+.leaflet-tooltip.slm-tip.leaflet-tooltip-left:before {
+	border-left-color: #fff;
+}
+
+.leaflet-tooltip.slm-tip.leaflet-tooltip-right:before {
+	border-right-color: #fff;
+}
+
+.slm-tip-card {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 12px;
+	color: #1f2733;
+}
+
+.slm-tip-avatar {
+	position: relative;
+	width: 36px;
+	height: 36px;
+	flex: 0 0 36px;
+	border-radius: 50%;
+	overflow: hidden;
+	display: grid;
+	place-items: center;
+	background: var(--slm-pin, #2f6fed);
+	color: #fff;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.slm-tip-avatar img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.slm-tip-body {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.slm-tip-name {
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.25;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.slm-tip-id {
+	font-size: 10.5px;
+	color: #7a8092;
+	font-variant-numeric: tabular-nums;
+	margin-bottom: 3px;
+}
+
+.slm-tip-line {
+	font-size: 11.5px;
+	color: #4a5262;
+	line-height: 1.4;
+}
+
+/* --------------------------------------------------------------------------
+   Popup card
+   -------------------------------------------------------------------------- */
+
+.leaflet-popup.slm-popup .leaflet-popup-content-wrapper {
+	border-radius: 14px;
+	padding: 0;
+	overflow: hidden;
+	box-shadow: 0 12px 32px rgba(17, 24, 39, 0.22);
+}
+
+.leaflet-popup.slm-popup .leaflet-popup-content {
+	margin: 0;
+	width: 268px !important;
+}
+
+.leaflet-popup.slm-popup .leaflet-popup-tip {
+	box-shadow: 0 6px 16px rgba(17, 24, 39, 0.18);
+}
+
+.slm-card-popup {
+	font-family: var(--font-stack, inherit);
+	color: #1f2733;
+	background: #fff;
+}
+
+.slm-popup-head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 16px 16px 14px;
+	background: linear-gradient(135deg, #2f6fed, #1d4ed8);
+	color: #fff;
+}
+
+.slm-popup-avatar {
+	position: relative;
+	width: 52px;
+	height: 52px;
+	flex: 0 0 52px;
+	border-radius: 50%;
+	overflow: hidden;
+	background: rgba(255, 255, 255, 0.22);
+	border: 2px solid rgba(255, 255, 255, 0.65);
+	display: grid;
+	place-items: center;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.slm-popup-avatar img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.slm-popup-name {
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.25;
+	word-break: break-word;
+}
+
+.slm-popup-id {
+	margin-top: 2px;
+	font-size: 11.5px;
+	opacity: 0.9;
+	font-variant-numeric: tabular-nums;
+}
+
+.slm-popup-body {
+	padding: 12px 16px 4px;
+}
+
+.slm-popup-row {
+	display: flex;
+	gap: 10px;
+	font-size: 12.5px;
+	padding: 5px 0;
+	border-bottom: 1px dashed #edf0f5;
+}
+
+.slm-popup-row:last-child {
+	border-bottom: 0;
+}
+
+.slm-popup-key {
+	flex: 0 0 78px;
+	color: #7a8092;
+	font-weight: 600;
+}
+
+.slm-popup-val {
+	flex: 1 1 auto;
+	font-weight: 500;
+	word-break: break-word;
+}
+
+.slm-popup-muted {
+	color: #9aa1b1;
+	font-weight: 500;
+}
+
+.slm-popup-actions {
+	display: flex;
+	gap: 8px;
+	padding: 12px 16px 16px;
+}
+
+.slm-card-popup a.slm-popup-btn {
+	flex: 1 1 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	height: 34px;
+	border-radius: 8px;
+	border: 1px solid transparent;
+	font-size: 12.5px;
+	font-weight: 600;
+	cursor: pointer;
+	text-decoration: none;
+}
+
+.slm-card-popup a.slm-popup-btn-view,
+.slm-card-popup a.slm-popup-btn-view:hover,
+.slm-card-popup a.slm-popup-btn-view:focus {
+	background: linear-gradient(135deg, #2f6fed, #1d4ed8);
+	color: #fff;
+	text-decoration: none;
+}
+
+.slm-card-popup a.slm-popup-btn-view:hover {
+	filter: brightness(1.06);
+}
+
+.slm-card-popup a.slm-popup-btn-directions,
+.slm-card-popup a.slm-popup-btn-directions:focus {
+	background: #fff;
+	border-color: #d9dee8;
+	color: #1f2733;
+	text-decoration: none;
+}
+
+.slm-card-popup a.slm-popup-btn-directions:hover {
+	border-color: #17a673;
+	color: #17a673;
+	text-decoration: none;
+}
+
+/* --------------------------------------------------------------------------
+   "Students without location" dialog
+   -------------------------------------------------------------------------- */
+
+.slm-missing-wrap {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.slm-missing-search {
+	width: 100%;
+	height: 34px;
+	border: 1px solid var(--slm-border, #e5e7eb);
+	border-radius: 8px;
+	background: var(--control-bg, #fff);
+	color: var(--text-color);
+	padding: 0 12px;
+	font-size: 13px;
+}
+
+.slm-missing-scroll {
+	max-height: 52vh;
+	overflow: auto;
+	border: 1px solid var(--border-color, #e5e7eb);
+	border-radius: 10px;
+}
+
+.slm-missing-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12.5px;
+}
+
+.slm-missing-table th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background: var(--subtle-fg, #f6f7f9);
+	text-align: left;
+	font-weight: 600;
+	font-size: 11.5px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--text-muted, #7a8092);
+	padding: 9px 12px;
+	white-space: nowrap;
+	border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.slm-missing-table td {
+	padding: 9px 12px;
+	border-bottom: 1px solid var(--border-color, #eef0f4);
+	vertical-align: middle;
+}
+
+.slm-missing-table tr:last-child td {
+	border-bottom: 0;
+}
+
+.slm-missing-table tbody tr:hover {
+	background: var(--slm-accent-soft, rgba(47, 111, 237, 0.08));
+}
+
+.slm-missing-open {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	border: 1px solid var(--border-color, #d9dee8);
+	background: var(--card-bg, #fff);
+	color: var(--text-color);
+	border-radius: 7px;
+	padding: 4px 10px;
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.slm-missing-open:hover {
+	border-color: #2f6fed;
+	color: #2f6fed;
+}
+
+.slm-missing-empty {
+	padding: 28px 16px;
+	text-align: center;
+	color: var(--text-muted, #7a8092);
+	font-size: 13px;
+}
+
+.slm-missing-muted {
+	color: var(--text-muted, #7a8092);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive: tablet then mobile
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 991px) {
+	.slm-page .slm-map {
+		height: min(60vh, 560px);
+	}
+
+	.slm-page .slm-card {
+		padding: 13px 14px;
+		gap: 11px;
+	}
+
+	.slm-page .slm-card-value {
+		font-size: 22px;
+	}
+}
+
+@media (max-width: 767px) {
+	.slm-page .slm-header {
+		align-items: flex-start;
+	}
+
+	/* The desk title bar already names the page; on a phone the screen is
+	   better spent on the map than on repeating what it is. */
+	.slm-page .slm-subtitle {
+		display: none;
+	}
+
+	.slm-page .slm-header {
+		margin-bottom: 10px;
+	}
+
+	.slm-page .slm-header-actions {
+		width: 100%;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
+	}
+
+	.slm-page .slm-header-actions .slm-btn {
+		justify-content: center;
+		text-align: center;
+		padding: 8px 10px;
+		font-size: 12px;
+		line-height: 1.25;
+	}
+
+	.slm-page .slm-cards {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px;
+	}
+
+	.slm-page .slm-card {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 6px;
+		padding: 12px 10px;
+	}
+
+	.slm-page .slm-card-icon {
+		width: 32px;
+		height: 32px;
+		flex-basis: 32px;
+		font-size: 14px;
+		border-radius: 9px;
+	}
+
+	.slm-page .slm-card-value {
+		font-size: 20px;
+	}
+
+	.slm-page .slm-card-label {
+		font-size: 10px;
+		letter-spacing: 0.02em;
+	}
+
+	.slm-page .slm-filters {
+		padding: 12px;
+	}
+
+	.slm-page .slm-filters {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 10px;
+		align-items: end;
+	}
+
+	.slm-page .slm-field,
+	.slm-page .slm-field-search,
+	.slm-page .slm-field-reset {
+		min-width: 0;
+	}
+
+	.slm-page .slm-field-search,
+	.slm-page .slm-field-reset {
+		grid-column: 1 / -1;
+	}
+
+	.slm-page .slm-field-reset .slm-btn {
+		width: 100%;
+		justify-content: center;
+	}
+
+	/* Mobile: the map takes what is left of the viewport. */
+	.slm-page .slm-map {
+		height: calc(100vh - 300px);
+		min-height: 340px;
+	}
+
+	.leaflet-popup.slm-popup .leaflet-popup-content {
+		width: 240px !important;
+	}
+
+	.slm-popup-actions {
+		flex-direction: column;
+	}
+
+	.slm-card-popup a.slm-popup-btn {
+		height: 38px;
+	}
+}

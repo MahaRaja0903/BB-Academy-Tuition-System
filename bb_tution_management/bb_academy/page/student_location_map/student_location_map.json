@@ -1,0 +1,29 @@
+{
+ "content": null,
+ "creation": "2026-09-06 01:45:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-09-06 01:45:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "student-location-map",
+ "owner": "Administrator",
+ "page_name": "student-location-map",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Administrator"
+  },
+  {
+   "role": "Attendance Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Student Location Map"
+}

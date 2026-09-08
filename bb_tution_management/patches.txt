@@ -4,4 +4,5 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
-bb_tution_management.patches.backfill_student_fee_totals
+
+bb_tution_management.patches.seed_performance_masters

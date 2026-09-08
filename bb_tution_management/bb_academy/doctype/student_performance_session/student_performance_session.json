@@ -1,70 +1,26 @@
 {
  "actions": [],
- "allow_import": 1,
  "allow_rename": 0,
- "creation": "2026-08-22 19:03:08.978372",
+ "creation": "2026-09-06 10:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "student",
-  "student_name",
+  "date",
   "standard",
   "batch",
   "column_break_head",
-  "date",
   "category",
-  "result",
-  "session",
-  "section_break_syllabus",
+  "section_break_setup",
   "subject",
   "lesson",
   "portion",
-  "column_break_syllabus",
+  "column_break_setup",
   "total_questions",
   "total_marks",
-  "pass_marks",
-  "marks_obtained",
-  "section_break_behaviour",
-  "behaviour_reasons",
-  "remarks"
+  "pass_marks"
  ],
  "fields": [
-  {
-   "fieldname": "student",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Student",
-   "options": "Student",
-   "reqd": 1
-  },
-  {
-   "fetch_from": "student.student_name",
-   "fieldname": "student_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Student Name",
-   "read_only": 1
-  },
-  {
-   "fieldname": "standard",
-   "fieldtype": "Link",
-   "in_standard_filter": 1,
-   "label": "Standard",
-   "options": "Standard"
-  },
-  {
-   "fieldname": "batch",
-   "fieldtype": "Link",
-   "in_standard_filter": 1,
-   "label": "Batch",
-   "options": "Batch"
-  },
-  {
-   "fieldname": "column_break_head",
-   "fieldtype": "Column Break"
-  },
   {
    "fieldname": "date",
    "fieldtype": "Date",
@@ -72,6 +28,28 @@
    "in_standard_filter": 1,
    "label": "Date",
    "reqd": 1
+  },
+  {
+   "fieldname": "standard",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Standard",
+   "options": "Standard",
+   "reqd": 1
+  },
+  {
+   "fieldname": "batch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Batch",
+   "options": "Batch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "category",
@@ -83,30 +61,11 @@
    "reqd": 1
   },
   {
-   "description": "Study: Excellent / Completed / Incomplete. Test & Maths Test: Full Mark / Pass Mark / Fail. Behaviour: Good / Bad / Worst.",
-   "fieldname": "result",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Result",
-   "options": "\nExcellent\nCompleted\nIncomplete\nFull Mark\nPass Mark\nFail\nGood\nBad\nWorst",
-   "reqd": 1
-  },
-  {
-   "fieldname": "session",
-   "fieldtype": "Link",
-   "label": "Performance Session",
-   "options": "Student Performance Session",
-   "read_only": 1
-  },
-  {
-   "depends_on": "eval:doc.category!='Behaviour'",
-   "fieldname": "section_break_syllabus",
+   "fieldname": "section_break_setup",
    "fieldtype": "Section Break",
-   "label": "What Was Covered"
+   "label": "Setup (applies to every student of this batch on this date)"
   },
   {
-   "description": "Defaults from the batch setup; change it here to override for this student only.",
    "fieldname": "subject",
    "fieldtype": "Data",
    "label": "Subject"
@@ -122,7 +81,7 @@
    "label": "Portion"
   },
   {
-   "fieldname": "column_break_syllabus",
+   "fieldname": "column_break_setup",
    "fieldtype": "Column Break"
   },
   {
@@ -141,37 +100,11 @@
   },
   {
    "depends_on": "eval:['Test','Maths Test'].includes(doc.category)",
+   "description": "Marks at or above this value count as Pass Mark; below it, Fail.",
    "fieldname": "pass_marks",
    "fieldtype": "Float",
    "label": "Pass Marks",
    "non_negative": 1
-  },
-  {
-   "depends_on": "eval:['Test','Maths Test'].includes(doc.category)",
-   "fieldname": "marks_obtained",
-   "fieldtype": "Float",
-   "in_list_view": 1,
-   "label": "Marks Obtained",
-   "non_negative": 1
-  },
-  {
-   "depends_on": "eval:doc.category=='Behaviour'",
-   "fieldname": "section_break_behaviour",
-   "fieldtype": "Section Break",
-   "label": "Behaviour"
-  },
-  {
-   "depends_on": "eval:doc.category=='Behaviour' && ['Bad','Worst'].includes(doc.result)",
-   "description": "Pick from the Behaviour Reason master list.",
-   "fieldname": "behaviour_reasons",
-   "fieldtype": "Table MultiSelect",
-   "label": "What The Student Did",
-   "options": "Student Behaviour Reason Item"
-  },
-  {
-   "fieldname": "remarks",
-   "fieldtype": "Small Text",
-   "label": "Remarks"
   }
  ],
  "grid_page_length": 50,
@@ -180,7 +113,7 @@
  "modified": "2026-09-06 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
- "name": "Student Performance Tracker",
+ "name": "Student Performance Session",
  "naming_rule": "By script",
  "owner": "Administrator",
  "permissions": [

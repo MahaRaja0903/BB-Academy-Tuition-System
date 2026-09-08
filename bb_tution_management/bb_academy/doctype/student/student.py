@@ -39,7 +39,29 @@ class Student(Document):
 		self.fetch_monthly_fee()
 		self.populate_payment_details()
 		self.update_scholarship_payment_details()
+		self.validate_map_coordinates()
 		update_student_totals(self)
+
+	def validate_map_coordinates(self):
+		"""Range-check the manually entered map coordinates.
+
+		Both fields are optional -- a student whose location has not been
+		surveyed yet simply carries no coordinates, and Frappe stores an unset
+		Float as 0.0, so 0 is read as "not set" here and everywhere the map
+		reads these fields. Nothing is ever computed or corrected: the values
+		are exactly what the administrator typed.
+		"""
+		for fieldname, limit in (("latitude", 90), ("longitude", 180)):
+			value = flt(self.get(fieldname))
+			if not value:
+				continue
+			if not -limit <= value <= limit:
+				frappe.throw(
+					_("{0} must be between {1} and {2}.").format(
+						_(self.meta.get_label(fieldname)), -limit, limit
+					),
+					title=_("Invalid Coordinates"),
+				)
 
 	def before_save(self):
 		self.track_batch_change()

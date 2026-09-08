@@ -208,9 +208,14 @@
               <td class="att-td-name">
                 <div class="att-student-profile">
                   <div class="att-student-name-wrap">
-                    <span class="att-student-name" :style="s.is_new_joiner ? newJoinerNameStyle : ''">
+                    <router-link
+                      class="att-student-name student-link"
+                      :style="s.is_new_joiner ? newJoinerNameStyle : ''"
+                      :to="{ name: 'StudentProfile', query: { student: s.student_id } }"
+                      title="Open this student's profile"
+                    >
                       {{ s.student_name }}
-                    </span>
+                    </router-link>
                     <i
                       v-if="s.gender"
                       class="fa att-gender-icon"

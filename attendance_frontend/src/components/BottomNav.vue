@@ -22,8 +22,10 @@ const route = useRoute()
 
 const tabs = [
   { name: 'AttendanceManager', label: 'Attendance', icon: 'fa-check-circle' },
+  { name: 'PerformanceManager', label: 'Performance', icon: 'fa-star' },
+  { name: 'StudentProfile', label: 'Profile', icon: 'fa-id-card-o' },
   { name: 'AttendanceDashboard', label: 'Dashboard', icon: 'fa-bar-chart' },
-  { name: 'LatePermission', label: 'Late / Early', icon: 'fa-clock-o' },
+  { name: 'LatePermission', label: 'Late', icon: 'fa-clock-o' },
   { name: 'AttendanceReports', label: 'Reports', icon: 'fa-list-alt' },
 ]
 
@@ -49,7 +51,9 @@ function isActive(name) {
   max-width: 1400px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Sized from the tab count, so adding a tab needs no CSS change. */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
 }
 
 .att-nav-item {
@@ -68,6 +72,12 @@ function isActive(name) {
 }
 
 .att-nav-item i { font-size: 17px; }
+
+/* Six tabs: the label has to shrink before it wraps on a narrow phone. */
+@media (max-width: 480px) {
+  .att-nav-item { font-size: 9.5px; padding: 8px 1px; letter-spacing: -0.01em; }
+  .att-nav-item i { font-size: 16px; }
+}
 
 .att-nav-item:hover { background: var(--fg-hover-color, var(--gray-100)); }
 
