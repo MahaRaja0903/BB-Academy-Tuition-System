@@ -58,6 +58,13 @@ frappe.query_reports["Payment Report"] = {
 
 		if (data && data.is_summary) {
 			value = `<span style="font-weight: 600">${value}</span>`;
+		} else if (data) {
+			if (column.fieldname === "payment_method" && data.payment_method === "Split Up") {
+				value = `<span style="color: var(--orange-500, orange); font-weight: 600;">${value}</span>`;
+			}
+			if (column.fieldname === "payment_type" && data.payment_type === "Starting Payment") {
+				value = `<span style="color: var(--blue-500, blue); font-weight: 600;">${value}</span>`;
+			}
 		}
 
 		return value;

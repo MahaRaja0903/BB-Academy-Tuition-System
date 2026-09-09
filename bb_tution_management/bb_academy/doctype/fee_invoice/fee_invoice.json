@@ -144,6 +144,7 @@
    "fieldname": "paid_amount",
    "fieldtype": "Currency",
    "label": "Paid Amount",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -314,7 +315,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-07 00:22:08.937948",
+ "modified": "2026-09-09 09:42:28.070248",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",

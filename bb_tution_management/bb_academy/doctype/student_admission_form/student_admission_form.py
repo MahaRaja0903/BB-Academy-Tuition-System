@@ -40,8 +40,16 @@ class StudentAdmissionForm(Document):
 		self.validate_discount_amount()
 
 	def before_submit(self):
+		if not self.fees_due_date:
+			frappe.throw(_("Fees Due Date is required before submission."))
 		self.validate_payment_method()
 		self.validate_fees_paid()
+
+		if not self.is_yearly_payment:
+			for row in self.get("fees__invoice_details"):
+				if flt(row.paid_amount) <= 0:
+					frappe.throw(_("Row #{0}: Paid Amount cannot be 0 in Fees Invoice Details.").format(row.idx))
+
 
 	def validate_discount_amount(self):
 		if self.add_discount:
@@ -253,11 +261,12 @@ class StudentAdmissionForm(Document):
 				"father_mobile_number": self.father_mobile_number,
 				"mother_name": self.mother_name,
 				"mother_mobile_number": self.mother_mobile_number,
+				"preferred_mobile_number": self.preferred_mobile_number,
 				"school_name": self.school_name,
 				"address": self.address,
 				"starting_payment": self.starting_payment,
 				"monthly_fee": self.monthly_fee,
-				"referred_by": self.referred_by_student_id,
+				"referred_by": self.get("referred_by") or self.get("referred_by_student_id"),
 				"yearly_fees_student": 1 if self.is_yearly_payment else 0,
 				"yearly_fees_amount": self.total_year_payment_amount if self.is_yearly_payment else 0,
 				"yearly_fees_pending_amount": flt(self.total_year_payment_amount) if self.is_yearly_payment else 0,

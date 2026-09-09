@@ -325,14 +325,14 @@
    "fieldname": "preferred_mobile_number",
    "fieldtype": "Select",
    "label": "Preferred Mobile Number ",
-   "options": "\nFather\nMother\nBoth"
+   "options": "\nFather\nMother"
   },
   {
    "fieldname": "preferred_whatsapp_number",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Preferred WhatsApp Number",
-   "read_only": 1,
-   "hidden": 1
+   "read_only": 1
   },
   {
    "fieldname": "reason_for_discounting_starting_amount",
@@ -536,13 +536,9 @@
   {
    "link_doctype": "Fee Invoice",
    "link_fieldname": "student"
-  },
-  {
-   "link_doctype": "Fee Invoice",
-   "link_fieldname": "student"
   }
  ],
- "modified": "2026-09-08 13:25:01.224616",
+ "modified": "2026-09-09 15:18:42.250363",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",
@@ -569,43 +565,8 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "Administrator",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
    "role": "System Manager",
    "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Receptionist",
-   "select": 1,
    "write": 1
   },
   {
@@ -624,20 +585,6 @@
    "read": 1,
    "report": 1,
    "role": "Teacher",
-   "select": 1
-  },
-  {
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Teacher",
-   "select": 1
-  },
-  {
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Accountant",
    "select": 1
   },
   {

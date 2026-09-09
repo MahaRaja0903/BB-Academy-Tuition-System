@@ -30,27 +30,28 @@
   "parent_details_section",
   "father_name",
   "father_mobile_number",
+  "preferred_mobile_number",
   "column_break_4",
   "mother_name",
   "mother_mobile_number",
   "academic_allocation_section",
   "standard",
   "group",
-  "standard_academic_order",
   "assigned_batch",
-  "informed_parents_that_fee_is_non_refundable",
+  "standard_academic_order",
+  "payment_method",
   "column_break_3",
   "starting_payment",
   "monthly_fee",
   "referred_by",
-  "referred_by_student_id",
   "fees_due_date",
+  "informed_parents_that_fee_is_non_refundable",
   "fees_details_section",
   "fees__invoice_details",
   "is_yearly_payment",
   "add_discount",
   "section_break_nlvl",
-  "payment_method",
+  "column_break_xryi",
   "column_break_tkaf",
   "fees_paid_amount",
   "section_break_uoik",
@@ -263,14 +264,8 @@
   },
   {
    "fieldname": "referred_by",
-   "fieldtype": "Data",
-   "label": "Referred by"
-  },
-  {
-   "depends_on": "eval:doc.referred_by",
-   "fieldname": "referred_by_student_id",
    "fieldtype": "Link",
-   "label": "Referred By Student ID",
+   "label": "Referred by",
    "options": "Student"
   },
   {
@@ -305,9 +300,11 @@
    "default": "0",
    "fieldname": "is_yearly_payment",
    "fieldtype": "Check",
+   "hidden": 1,
    "label": "Is Yearly Payment"
   },
   {
+   "depends_on": "eval:doc.is_yearly_payment == 1",
    "fieldname": "section_break_uoik",
    "fieldtype": "Section Break"
   },
@@ -332,6 +329,7 @@
    "options": "\nCash\nGPAY\nScanner\nSplit Up"
   },
   {
+   "depends_on": "eval:doc.payment_method == \"Split Up\"",
    "fieldname": "section_break_xvas",
    "fieldtype": "Section Break"
   },
@@ -397,13 +395,23 @@
    "fieldtype": "Link",
    "label": "Street Name",
    "options": "Street Name"
+  },
+  {
+   "fieldname": "column_break_xryi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "preferred_mobile_number",
+   "fieldtype": "Select",
+   "label": "Preferred Mobile Number",
+   "options": "\nFather\nMother"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-05 13:26:57.168513",
+ "modified": "2026-09-09 15:18:06.112641",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

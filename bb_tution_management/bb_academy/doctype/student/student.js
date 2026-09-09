@@ -57,6 +57,16 @@ frappe.ui.form.on("Student", {
 				};
 			}
 		});
+
+		frm.set_query("street_name", function() {
+			if (frm.doc.area) {
+				return {
+					filters: {
+						area: frm.doc.area
+					}
+				};
+			}
+		});
 	},
 	standard(frm) {
 		if (frm.doc.standard) {
@@ -83,6 +93,10 @@ frappe.ui.form.on("Student", {
 		} else {
 			frm.set_value("academic_year", "");
 		}
+	},
+
+	area(frm) {
+		frm.set_value("street_name", "");
 	},
 
 	current_batch(frm) {

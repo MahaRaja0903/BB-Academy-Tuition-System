@@ -36,6 +36,7 @@ def execute(filters=None):
 
 def get_columns():
 	return [
+		{"fieldname": "fee_invoice", "label": _("Fee Invoice"), "fieldtype": "Link", "options": "Fee Invoice", "width": 140},
 		{"fieldname": "student_name", "label": _("Student Name"), "fieldtype": "Data", "width": 220, "sticky": 1, "freeze": 1},
 		{"fieldname": "gender", "label": _("Gender"), "fieldtype": "Data", "width": 100},
 		{"fieldname": "standard", "label": _("Standard"), "fieldtype": "Link", "options": "Standard", "width": 120},
@@ -46,6 +47,7 @@ def get_columns():
 		{"fieldname": "amount_paid", "label": _("Amount Paid"), "fieldtype": "Currency", "width": 140},
 		{"fieldname": "balance_amount", "label": _("Balance Amount"), "fieldtype": "Currency", "width": 150},
 		{"fieldname": "discount_amount", "label": _("Discount Amount"), "fieldtype": "Currency", "width": 140},
+		{"fieldname": "coupon_amount", "label": _("Coupon Amount"), "fieldtype": "Currency", "width": 140},
 	]
 
 
@@ -145,6 +147,7 @@ def get_data(filters):
 			s.standard,
 			s.current_batch as batch,
 			fi.discount_amount,
+			fi.coupon_amount,
 			fi.paid_amount,
 			fi.balance_amount,
 			fi.payment_method,
@@ -174,7 +177,7 @@ def get_data(filters):
 		inner join `tabStudent` s on s.name = fi.student
 		where fi.docstatus = 1
 			{where_clause}
-		order by fi.invoice_date asc, s.standard asc, s.student_name asc, fi.name asc
+		order by fi.creation desc
 		""".format(where_clause=where_clause),
 		values,
 		as_dict=True,
@@ -207,6 +210,7 @@ def get_data(filters):
 
 		data.append(
 			frappe._dict(
+				fee_invoice=invoice.name,
 				student_name=invoice.student_name,
 				gender=invoice.gender,
 				standard=invoice.standard,
@@ -215,6 +219,7 @@ def get_data(filters):
 				payment_type=payment_type_label,
 				payment_time=invoice.creation.strftime("%I:%M %p").lower() if invoice.creation else "",
 				discount_amount=flt(invoice.discount_amount),
+				coupon_amount=flt(invoice.coupon_amount),
 				amount_paid=flt(invoice.paid_amount),
 				balance_amount=flt(invoice.balance_amount),
 				mode_amounts=amounts,

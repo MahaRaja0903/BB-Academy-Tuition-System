@@ -18,6 +18,19 @@ frappe.ui.form.on("Student Admission Form", {
 				};
 			}
 		});
+
+		frm.set_query("street_name", function() {
+			if (frm.doc.area) {
+				return {
+					filters: {
+						area: frm.doc.area
+					}
+				};
+			}
+		});
+	},
+	area(frm) {
+		frm.set_value("street_name", "");
 	},
 	standard(frm) {
 		frm.set_value('assigned_batch', '');

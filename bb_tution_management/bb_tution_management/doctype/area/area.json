@@ -25,7 +25,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-03 17:27:14.248630",
+ "modified": "2026-09-09 09:36:49.437868",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Area",
@@ -47,6 +47,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "area_name,pincode",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

@@ -378,11 +378,19 @@ class Student(Document):
 
 	def set_preferred_whatsapp_number(self):
 		if self.preferred_mobile_number == "Father":
-			self.preferred_whatsapp_number = self.father_mobile_number
+			phone = self.father_mobile_number
 		elif self.preferred_mobile_number == "Mother":
-			self.preferred_whatsapp_number = self.mother_mobile_number
+			phone = self.mother_mobile_number
 		else:
-			self.preferred_whatsapp_number = self.father_mobile_number or self.mother_mobile_number
+			phone = self.father_mobile_number or self.mother_mobile_number
+
+		if phone:
+			phone = str(phone).strip()
+			if len(phone) == 10 and phone.isdigit():
+				phone = "91" + phone
+			self.preferred_whatsapp_number = phone
+		else:
+			self.preferred_whatsapp_number = None
 
 
 @frappe.whitelist()
