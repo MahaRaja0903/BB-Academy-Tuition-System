@@ -66,9 +66,11 @@
    "label": "Setup (applies to every student of this batch on this date)"
   },
   {
+   "description": "Pick from the Subject master. The list shows only subjects offered for the selected standard.",
    "fieldname": "subject",
-   "fieldtype": "Data",
-   "label": "Subject"
+   "fieldtype": "Link",
+   "label": "Subject",
+   "options": "Subject"
   },
   {
    "fieldname": "lesson",

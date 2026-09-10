@@ -67,7 +67,13 @@
         <div class="perf-setup-grid">
           <div class="perf-field">
             <label for="perf-subject">Subject</label>
-            <input id="perf-subject" type="text" class="form-control" v-model="setup.subject" />
+            <select id="perf-subject" class="form-control" v-model="setup.subject">
+              <option value="">Select Subject</option>
+              <option v-for="s in subjectOptions(setup.subject)" :key="s" :value="s">{{ s }}</option>
+            </select>
+            <small v-if="!subjects.length" class="perf-field-hint">
+              No subject is mapped to {{ standard }} yet — add one in the Subject master.
+            </small>
           </div>
           <div class="perf-field">
             <label for="perf-lesson">Lesson</label>
@@ -460,7 +466,12 @@
 
         <template v-if="config.usesSyllabus">
           <label class="perf-modal-label">Subject</label>
-          <input type="text" class="form-control" v-model="detailModal.subject" />
+          <select class="form-control" v-model="detailModal.subject">
+            <option value="">Select Subject</option>
+            <option v-for="s in subjectOptions(detailModal.subject)" :key="s" :value="s">
+              {{ s }}
+            </option>
+          </select>
 
           <label class="perf-modal-label">Lesson</label>
           <input type="text" class="form-control" v-model="detailModal.lesson" />
@@ -572,6 +583,8 @@ const REASON_REQUIRED = ['Bad', 'Worst']
 
 const standards = ref([])
 const batches = ref([])
+// Subject master, narrowed to the picked standard.
+const subjects = ref([])
 const standard = ref('')
 const batch = ref('')
 const gender = ref('')
@@ -655,6 +668,9 @@ const saveSessionResource = createResource({
 })
 const reasonsResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.get_behaviour_reasons',
+})
+const subjectsResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.get_subjects',
 })
 const addReasonResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.add_behaviour_reason',
@@ -851,6 +867,21 @@ async function loadBatches() {
   batches.value =
     (await batchesResource.submit({ doctype: 'Batch', fields: ['name'], limit_page_length: 0 })) ||
     []
+}
+
+async function loadSubjects() {
+  if (!standard.value) {
+    subjects.value = []
+    return
+  }
+  subjects.value = (await subjectsResource.submit({ standard: standard.value })) || []
+}
+
+function subjectOptions(current) {
+  // A subject saved before it was mapped to this standard (or before the Subject
+  // master existed) must stay visible, or opening the form would blank it.
+  if (current && !subjects.value.includes(current)) return [...subjects.value, current]
+  return subjects.value
 }
 
 async function loadBehaviourReasons() {
@@ -1207,6 +1238,7 @@ onMounted(async () => {
 })
 
 watch([standard, batch, gender, category, date], loadStudents)
+watch(standard, loadSubjects)
 
 // Selections must not survive a filter change that hides the rows.
 watch([resultFilter, showCompleted, search], () => {
@@ -1270,6 +1302,13 @@ watch([resultFilter, showCompleted, search], () => {
   letter-spacing: 0.02em;
   color: var(--text-muted);
   margin-bottom: 4px;
+}
+
+.perf-manager .perf-field-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .perf-manager .perf-field label i {

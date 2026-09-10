@@ -966,19 +966,13 @@ def build_whatsapp_bill_message(invoice, student, bill_url):
 	else:
 		lines.append(_("No balance pending. Thank you!"))
 
-	if bill_url:
-		lines += ["", "{0}: {1}".format(_("Bill Invoice"), bill_url)]
+	# if bill_url:
+	# 	lines += ["", "{0}: {1}".format(_("Bill Invoice"), bill_url)]
 
-	# The fee terms stand whether or not the bill PDF rendered, so they are
-	# not tied to bill_url. Bullets use a dot, not "*" -- WhatsApp reads a
-	# lone asterisk as a bold delimiter and swallows it.
-	lines += [
-		"",
-		"*{0}*".format(_("Note")),
-		"\u2022 {0}".format(_("Fee once paid is non-refundable under any circumstances.")),
-		"\u2022 {0}".format(_("Fee is non-transferable to the next academic year.")),
-		"\u2022 {0}".format(_("Fee is non-transferable to another person.")),
-	]
+		lines += [ "", "Note:-", 
+			"*Fee once paid is non-refundable under any circumstances.", 
+			"*Fee is non-transferable to the next academic year.", 
+			"*Fee non-transferable to another person." ]
 
 	return "\n".join(lines)
 

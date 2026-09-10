@@ -15,6 +15,9 @@ import frappe
 from frappe.utils import cint, flt, get_first_day, get_last_day, getdate, today
 
 from bb_tution_management.bb_academy.attendance import get_holiday_details
+from bb_tution_management.bb_tution_management.doctype.subject.subject import (
+	subjects_for_standard,
+)
 from bb_tution_management.bb_academy.performance_config import (
 	CATEGORIES,
 	CATEGORY_RESULTS,
@@ -56,6 +59,22 @@ def _validate_result(category, result):
 			f"{result or 'No result'} is not a valid {category} result. "
 			f"Choose one of {', '.join(allowed)}.",
 			title="Invalid Result",
+		)
+
+
+def _validate_subject(subject, standard):
+	"""Keep the PWA honest about the Subject master the dropdown is built from."""
+	if not subject:
+		return
+
+	if not frappe.db.exists("Subject", subject):
+		frappe.throw(f"{subject} is not in the Subject master.", title="Unknown Subject")
+
+	if standard and subject not in subjects_for_standard(standard):
+		frappe.throw(
+			f"{subject} is not offered for {standard}. "
+			f"Add {standard} to the subject's Standard Applicable list first.",
+			title="Subject Not Offered",
 		)
 
 
@@ -148,6 +167,15 @@ def get_behaviour_reasons():
 		order_by="reason_name asc",
 		limit_page_length=0,
 	)
+
+
+@frappe.whitelist()
+def get_subjects(standard=None):
+	"""Subjects the standard is taught, for the Subject dropdown on the PWA."""
+	if not frappe.has_permission("Subject", "read"):
+		return []
+
+	return subjects_for_standard(standard)
 
 
 @frappe.whitelist()
@@ -384,6 +412,7 @@ def save_performance_session(
 
 	_validate_category(category)
 	_guard_writable(performance_date, standard, batch)
+	_validate_subject(subject, standard)
 
 	date_obj = getdate(performance_date)
 	values = {
@@ -665,6 +694,7 @@ def save_student_performance(
 			)
 
 	_validate_result(category, result)
+	_validate_subject(subject, standard)
 
 	values = {
 		"result": result,

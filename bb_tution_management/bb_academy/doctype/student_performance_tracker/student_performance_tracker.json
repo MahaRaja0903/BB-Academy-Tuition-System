@@ -106,10 +106,11 @@
    "label": "What Was Covered"
   },
   {
-   "description": "Defaults from the batch setup; change it here to override for this student only.",
+   "description": "Defaults from the batch setup; change it here to override for this student only. Only subjects offered for the student's standard are listed.",
    "fieldname": "subject",
-   "fieldtype": "Data",
-   "label": "Subject"
+   "fieldtype": "Link",
+   "label": "Subject",
+   "options": "Subject"
   },
   {
    "fieldname": "lesson",
