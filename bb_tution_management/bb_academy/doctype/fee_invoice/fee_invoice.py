@@ -615,7 +615,6 @@ class FeeInvoice(Document):
 		# We don't reset paid_amount here since Payment Entry is removed.
 		# We just directly add the row to payment_details table
 		self.update_student_payment_detail(is_submit=True)
-		self.send_receipt_sms()
 
 	def on_cancel(self):
 		self.update_student_payment_detail(is_submit=False)
@@ -773,20 +772,6 @@ class FeeInvoice(Document):
 			else (RESERVED if paid_percentage >= 50 else None),
 			from_end=True
 		)
-
-	def send_receipt_sms(self):
-		if float(self.paid_amount or 0) > 0:
-			# Mocking a payment_doc since send_payment_confirmation expects one
-			class MockPaymentEntry:
-				def __init__(self, invoice):
-					self.student = invoice.student
-					self.amount = invoice.paid_amount
-					self.payment_mode = "Cash"
-					self.fee_invoice = invoice.name
-					self.reference_number = "N/A"
-
-			from bb_tution_management.bb_academy.sms import send_payment_confirmation
-			send_payment_confirmation(MockPaymentEntry(self))
 
 
 def get_row_status(row):

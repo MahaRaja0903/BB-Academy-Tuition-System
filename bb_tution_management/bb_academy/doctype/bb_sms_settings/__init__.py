@@ -1,1 +1,0 @@
-# BB SMS Settings DocType

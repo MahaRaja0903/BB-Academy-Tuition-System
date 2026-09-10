@@ -36,7 +36,6 @@ class StudentBatchTransition(Document):
 
 	def before_submit(self):
 		monthly_fee = self.update_student_current_batch()
-		self.send_batch_change_sms_notification()
 		self.show_transition_message(monthly_fee)
 
 	def show_transition_message(self, monthly_fee=None):
@@ -62,35 +61,6 @@ class StudentBatchTransition(Document):
 				</div>
 			"""
 			frappe.msgprint(msg, title=_("Batch Transition Successful"), indicator="green")
-
-	def send_batch_change_sms_notification(self):
-		if not (self.student and self.previous_batch and self.new_batch):
-			return
-
-		from bb_tution_management.bb_academy.sms import get_student_mobiles, send_batch_change_sms
-
-		student = frappe.db.get_value(
-			"Student", self.student, ["student_name", "standard"], as_dict=True
-		)
-		if not student:
-			return
-
-		# A gateway problem should not stop the student being moved.
-		try:
-			send_batch_change_sms(
-				student_name=student.student_name,
-				mobiles=get_student_mobiles(self.student),
-				previous_batch=self.previous_batch,
-				new_batch=self.new_batch,
-				standard=student.standard,
-			)
-		except Exception:
-			self.log_error("Batch change SMS failed")
-			frappe.msgprint(
-				_("The batch was updated but the SMS notification could not be sent."),
-				indicator="orange",
-				alert=True,
-			)
 
 	def update_student_current_batch(self):
 		"""Move the student into the new batch.

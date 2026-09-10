@@ -9,18 +9,6 @@ def setup_bb_academy():
 	"""Setup roles and initial dummy records for BB Academy Module."""
 	create_roles()
 	setup_attendance_manager_permissions()
-	seed_sms_settings()
-
-
-
-def seed_sms_settings():
-	doc = frappe.get_single("BB SMS Settings")
-	doc.enabled = 1
-	doc.enable_birthday_sms = 1
-	doc.enable_fee_reminder_sms = 1
-	doc.enable_payment_sms = 1
-	doc.save(ignore_permissions=True)
-
 
 
 # Doctypes the Attendance screens read but never write. The Attendance
