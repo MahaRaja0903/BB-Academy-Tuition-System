@@ -12,6 +12,10 @@
   "board",
   "column_break_1",
   "is_active",
+  "section_break_aklz",
+  "latitude",
+  "column_break_odzy",
+  "longitude",
   "address_section",
   "address"
  ],
@@ -58,11 +62,31 @@
    "fieldname": "address",
    "fieldtype": "Small Text",
    "label": "Address"
+  },
+  {
+   "fieldname": "section_break_aklz",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "Decimal degrees between -90 and 90, e.g. 13.041800. Leave blank if the location is not known yet.",
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude"
+  },
+  {
+   "fieldname": "column_break_odzy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Decimal degrees between -180 and 180, e.g. 80.234100. Leave blank if the location is not known yet.",
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-01 18:48:13.338862",
+ "modified": "2026-09-10 09:26:44.679701",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "School",

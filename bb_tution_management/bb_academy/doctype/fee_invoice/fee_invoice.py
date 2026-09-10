@@ -528,6 +528,8 @@ class FeeInvoice(Document):
 		if not self.student:
 			return
 
+		student_doc = frappe.get_doc("Student", self.student)
+
 		for detail in self.get("fees_details", []):
 			month = detail.month
 			if not month or month == STARTING_PAYMENT:
@@ -541,12 +543,20 @@ class FeeInvoice(Document):
 				)
 			""", (month, self.name or "", self.student))
 
-			if existing:
-				frappe.throw(
-					_("A Fee Invoice ({0}) already exists for Student {1} for {2}.").format(
-						existing[0][0], self.student, month
-					)
+			if not existing:
+				continue
+
+			# An earlier invoice that left a balance is not a duplicate: the student
+			# is coming back to settle what is still pending for that month.
+			row = get_payment_row(student_doc, month)
+			if row and flt(row.pending) > 0:
+				continue
+
+			frappe.throw(
+				_("A Fee Invoice ({0}) already exists for Student {1} for {2}.").format(
+					existing[0][0], self.student, month
 				)
+			)
 
 	def calculate_outstanding(self):
 		if self.get("fees_details"):
@@ -651,6 +661,11 @@ class FeeInvoice(Document):
 					coupon_applied_to_row = min(shortfall, coupon_remaining)
 					coupon_remaining -= coupon_applied_to_row
 
+				# What the month looked like before this invoice touched it, so a
+				# follow-up payment can be told apart from a first payment.
+				had_prior_payment = flt(row.amount_paid) > 0
+				was_part_paid = had_prior_payment and flt(row.pending) > 0
+
 				row.amount_paid = max(0.0, flt(row.amount_paid) + sign * (detail_paid + coupon_applied_to_row))
 				row.date = frappe.utils.today() if is_submit else None
 				
@@ -661,14 +676,24 @@ class FeeInvoice(Document):
 
 				# The starting payment is always measured against its full amount; a
 				# monthly row keeps whatever it was actually billed, so a pro-rated
-				# joining month is not later re-measured against the full fee.
+				# joining month is not later re-measured against the full fee. A
+				# follow-up invoice only bills the balance, so it must not drag the
+				# month's own figure down to that balance.
 				if month == STARTING_PAYMENT:
 					row.amount_need_to_pay = get_month_amount(student, month)
-				else:
+				elif is_submit and not had_prior_payment:
 					row.amount_need_to_pay = flt(detail.amount_need_to_pay) or get_month_amount(student, month)
+				else:
+					row.amount_need_to_pay = flt(row.amount_need_to_pay) or get_month_amount(student, month)
 
 				row.pending = max(0.0, flt(row.amount_need_to_pay) - flt(row.amount_paid))
 				row.status = get_row_status(row)
+
+				# Stamp when the balance left by an earlier invoice was cleared.
+				if not is_submit:
+					row.pending_amount_paid_date = None
+				elif was_part_paid and flt(row.pending) <= 0:
+					row.pending_amount_paid_date = frappe.utils.today()
 
 				if month == STARTING_PAYMENT:
 					self.apply_starting_payment_advance(student, row, is_submit=is_submit)

@@ -1022,9 +1022,12 @@ function build_student_details_html(data, fee_month) {
 			}
 		});
 
-		let starting_row = payDict["Starting Payment"];
-		let starting_paid = starting_row ? starting_row.amount_paid : 0;
-		let starting_pending = starting_row ? starting_row.pending : (data.starting_payment || 0);
+		// payDict holds an array of rows per month, so pick the starting row out of it.
+		let starting_rows = payDict["Starting Payment"] || [];
+		let starting_paid = starting_rows.reduce((sum, row) => sum + (Number(row.amount_paid) || 0), 0);
+		let starting_pending = starting_rows.length
+			? starting_rows.reduce((sum, row) => sum + (Number(row.pending) || 0), 0)
+			: (data.starting_payment || 0);
 
 		let coveredMonths = (data.payment_details || [])
 			.filter(row => row.status === PAID_BY_STARTING_PAYMENT && row.month !== 'Starting Payment')

@@ -2179,6 +2179,10 @@ watch([resultFilter, showCompleted, search], () => {
       'id      id'
       'marks   marks'
       'actions actions';
+    /* Study and Behaviour render no marks cell, which would collapse that row
+       and leave the photo below with nowhere to hang. Reserve the height so
+       every category's card keeps the same top block. */
+    grid-template-rows: auto auto minmax(21px, auto) auto;
     row-gap: 10px;
     column-gap: 10px;
     border-left: 4px solid var(--gray-300);
@@ -2236,13 +2240,16 @@ watch([resultFilter, showCompleted, search], () => {
 
   .perf-manager .perf-status-btn i { font-size: 15px; }
 
-  /* Keep the avatar clear of the result buttons, as the attendance card does. */
+  /* Pin the photo to the card's top block, exactly where the attendance card
+     puts it. Anchoring to the bottom instead let the action cell's variable
+     height (result labels, the syllabus/Details meta row, behaviour reason
+     notes) push the photo onto the result buttons. */
   .perf-manager .perf-avatar {
     position: absolute !important;
     right: 5px !important;
-    bottom: 95px !important;
+    top: 34px !important;
     margin: 0 !important;
-    top: auto !important;
+    bottom: auto !important;
     left: auto !important;
     z-index: 2;
   }
