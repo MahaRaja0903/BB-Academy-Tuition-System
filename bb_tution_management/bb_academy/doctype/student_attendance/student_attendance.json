@@ -9,14 +9,19 @@
  "engine": "InnoDB",
  "field_order": [
   "student",
-  "student_name",
   "standard",
-  "batch",
   "attendance_date",
-  "status",
   "early_out_time",
+  "remarks",
+  "column_break_xaxe",
+  "student_name",
+  "batch",
+  "status",
   "early_out_reason",
-  "remarks"
+  "section_break_teyo",
+  "second_time_attendance_date",
+  "column_break_iahi",
+  "second_time_attendance_status"
  ],
  "fields": [
   {
@@ -84,12 +89,35 @@
    "fieldtype": "Link",
    "label": "Early Out Reason",
    "options": "Early Exit Reason"
+  },
+  {
+   "fieldname": "column_break_xaxe",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_teyo",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "second_time_attendance_date",
+   "fieldtype": "Date",
+   "label": "Second Time Attendance Date"
+  },
+  {
+   "fieldname": "column_break_iahi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "second_time_attendance_status",
+   "fieldtype": "Select",
+   "label": "second Time Attendance Status",
+   "options": "Present\nAbsent\nEarly Outs\nLate"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-30 11:21:04.363009",
+ "modified": "2026-09-11 18:37:05.652771",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Attendance",
