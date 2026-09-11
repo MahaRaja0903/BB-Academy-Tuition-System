@@ -13,6 +13,7 @@
   "column_break_1",
   "effective_date",
   "status",
+  "monthly_fees",
   "reason_section",
   "reason",
   "amended_from",
@@ -104,12 +105,18 @@
    "fieldtype": "JSON",
    "hidden": 1,
    "label": "student_details_json"
+  },
+  {
+   "fieldname": "monthly_fees",
+   "fieldtype": "Currency",
+   "label": "Monthly Fees",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-09 10:10:44.561498",
+ "modified": "2026-09-10 16:12:49.122300",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Batch Transition",

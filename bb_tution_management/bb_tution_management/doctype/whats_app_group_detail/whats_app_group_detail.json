@@ -1,0 +1,60 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-10 15:02:58.405996",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "standard",
+  "batch",
+  "gender",
+  "whatsapp_group_link"
+ ],
+ "fields": [
+  {
+   "fieldname": "standard",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Standard",
+   "options": "Standard",
+   "reqd": 1
+  },
+  {
+   "fieldname": "batch",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Batch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Gender",
+   "options": "\nBoys\nGirls",
+   "reqd": 1
+  },
+  {
+   "fieldname": "whatsapp_group_link",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Whatsapp Group Link"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-10 15:08:54.783197",
+ "modified_by": "Administrator",
+ "module": "Bb Tution Management",
+ "name": "Whats App Group Detail",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

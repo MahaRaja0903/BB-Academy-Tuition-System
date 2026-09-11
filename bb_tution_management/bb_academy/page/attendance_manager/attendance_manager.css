@@ -1038,12 +1038,8 @@
     }
     .attendance-manager .att-student-profile .avatar,
     .attendance-manager .att-student-profile .avatar-frame {
-        position: absolute !important;
-        right: 5px !important;
-        bottom: 46px !important;
-        margin: 0 !important;
-        top: auto !important;
-        left: auto !important;
+        position: static !important;
+        margin: 0 0 0 auto !important;
         z-index: 2;
     }
 }

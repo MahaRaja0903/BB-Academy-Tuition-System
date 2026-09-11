@@ -7,7 +7,9 @@
  "field_order": [
   "discount_amount_limit",
   "coupon_code_amount_at_the_time_of_joining_month",
-  "default_coupon_code_amount"
+  "default_coupon_code_amount",
+  "section_break_jxhw",
+  "whats_app_group_detail"
  ],
  "fields": [
   {
@@ -25,13 +27,23 @@
    "fieldname": "default_coupon_code_amount",
    "fieldtype": "Currency",
    "label": "Default Coupon Code Amount"
+  },
+  {
+   "fieldname": "section_break_jxhw",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "whats_app_group_detail",
+   "fieldtype": "Table",
+   "label": "Whats App Group Detail",
+   "options": "Whats App Group Detail"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-08-19 16:02:17.798210",
+ "modified": "2026-09-10 15:07:22.802614",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "BB Academy Settings",
