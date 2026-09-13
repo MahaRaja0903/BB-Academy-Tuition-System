@@ -3,15 +3,18 @@
 
 """One row per student for a month, pivoted across the performance categories.
 
-Leaving the Category filter blank puts Study, Test, Maths Test and Behaviour
-side by side, which is the view a monthly parent/staff review wants. Picking one
-category narrows the columns to just that category's grades.
+Leaving the Category filter blank puts Study, Test, both subject tests and
+Behaviour side by side, which is the view a monthly parent/staff review wants.
+Picking one category narrows the columns to just that category's grades.
+
+A standard sits only one of Maths Test / Accounts Test, so the other one's
+columns simply come back empty for its students.
 """
 
 import frappe
 from frappe.utils import cint, flt, get_first_day, get_last_day, getdate, today
 
-from bb_tution_management.bb_academy.performance_config import CATEGORIES
+from bb_tution_management.bb_academy.performance_config import CATEGORIES, SKIP_RESULT
 
 # category -> (result -> the column it feeds)
 RESULT_COLUMNS = {
@@ -19,16 +22,25 @@ RESULT_COLUMNS = {
 		"Excellent": "study_excellent",
 		"Completed": "study_completed",
 		"Incomplete": "study_incomplete",
+		SKIP_RESULT: "study_skipped",
 	},
 	"Test": {
 		"Full Mark": "test_full",
 		"Pass Mark": "test_pass",
 		"Fail": "test_fail",
+		SKIP_RESULT: "test_skipped",
 	},
 	"Maths Test": {
 		"Full Mark": "maths_full",
 		"Pass Mark": "maths_pass",
 		"Fail": "maths_fail",
+		SKIP_RESULT: "maths_skipped",
+	},
+	"Accounts Test": {
+		"Full Mark": "accounts_full",
+		"Pass Mark": "accounts_pass",
+		"Fail": "accounts_fail",
+		SKIP_RESULT: "accounts_skipped",
 	},
 	"Behaviour": {
 		"Good": "behaviour_good",
@@ -43,12 +55,14 @@ CATEGORY_COLUMNS = {
 		{"fieldname": "study_excellent", "label": "Excellent", "fieldtype": "Int", "width": 90},
 		{"fieldname": "study_completed", "label": "Completed", "fieldtype": "Int", "width": 95},
 		{"fieldname": "study_incomplete", "label": "Incomplete", "fieldtype": "Int", "width": 100},
+		{"fieldname": "study_skipped", "label": "Skipped", "fieldtype": "Int", "width": 85},
 	],
 	"Test": [
 		{"fieldname": "test_days", "label": "Tests", "fieldtype": "Int", "width": 75},
 		{"fieldname": "test_full", "label": "Full Mark", "fieldtype": "Int", "width": 95},
 		{"fieldname": "test_pass", "label": "Pass Mark", "fieldtype": "Int", "width": 95},
 		{"fieldname": "test_fail", "label": "Fail", "fieldtype": "Int", "width": 70},
+		{"fieldname": "test_skipped", "label": "Skipped", "fieldtype": "Int", "width": 85},
 		{"fieldname": "test_score", "label": "Test Score", "fieldtype": "Data", "width": 110},
 		{"fieldname": "test_pct", "label": "Test %", "fieldtype": "Percent", "width": 90},
 	],
@@ -57,8 +71,18 @@ CATEGORY_COLUMNS = {
 		{"fieldname": "maths_full", "label": "Full Mark", "fieldtype": "Int", "width": 95},
 		{"fieldname": "maths_pass", "label": "Pass Mark", "fieldtype": "Int", "width": 95},
 		{"fieldname": "maths_fail", "label": "Fail", "fieldtype": "Int", "width": 70},
+		{"fieldname": "maths_skipped", "label": "Skipped", "fieldtype": "Int", "width": 85},
 		{"fieldname": "maths_score", "label": "Maths Score", "fieldtype": "Data", "width": 115},
 		{"fieldname": "maths_pct", "label": "Maths %", "fieldtype": "Percent", "width": 95},
+	],
+	"Accounts Test": [
+		{"fieldname": "accounts_days", "label": "Accounts Tests", "fieldtype": "Int", "width": 110},
+		{"fieldname": "accounts_full", "label": "Full Mark", "fieldtype": "Int", "width": 95},
+		{"fieldname": "accounts_pass", "label": "Pass Mark", "fieldtype": "Int", "width": 95},
+		{"fieldname": "accounts_fail", "label": "Fail", "fieldtype": "Int", "width": 70},
+		{"fieldname": "accounts_skipped", "label": "Skipped", "fieldtype": "Int", "width": 85},
+		{"fieldname": "accounts_score", "label": "Accounts Score", "fieldtype": "Data", "width": 125},
+		{"fieldname": "accounts_pct", "label": "Accounts %", "fieldtype": "Percent", "width": 100},
 	],
 	"Behaviour": [
 		{"fieldname": "behaviour_days", "label": "Behaviour Days", "fieldtype": "Int", "width": 115},
@@ -69,7 +93,11 @@ CATEGORY_COLUMNS = {
 	],
 }
 
-MARKS_CATEGORIES = {"Test": ("test", "test_pct"), "Maths Test": ("maths", "maths_pct")}
+MARKS_CATEGORIES = {
+	"Test": ("test", "test_pct"),
+	"Maths Test": ("maths", "maths_pct"),
+	"Accounts Test": ("accounts", "accounts_pct"),
+}
 
 
 def execute(filters=None):
@@ -154,7 +182,7 @@ def _blank_row(key, categories):
 			field = column["fieldname"]
 			row[field] = "" if column["fieldtype"] == "Data" else 0
 	# Running totals for the marks percentages; dropped before the row is returned.
-	row._marks = {"test": [0.0, 0.0], "maths": [0.0, 0.0]}
+	row._marks = {bucket: [0.0, 0.0] for bucket, _pct in MARKS_CATEGORIES.values()}
 	return row
 
 
@@ -196,7 +224,9 @@ def _get_data(filters, categories):
 		if entry.result in ("Incomplete", "Fail", "Bad", "Worst"):
 			row.concern_count += count
 
-		if entry.category in MARKS_CATEGORIES:
+		# A skipped student never sat the paper, so their zero must not drag the
+		# monthly percentage down.
+		if entry.category in MARKS_CATEGORIES and entry.result != SKIP_RESULT:
 			bucket = MARKS_CATEGORIES[entry.category][0]
 			row._marks[bucket][0] += flt(entry.marks_obtained)
 			row._marks[bucket][1] += flt(entry.total_marks)
@@ -221,7 +251,13 @@ def _get_data(filters, categories):
 
 
 def _prefix(category):
-	return {"Study": "study", "Test": "test", "Maths Test": "maths", "Behaviour": "behaviour"}[category]
+	return {
+		"Study": "study",
+		"Test": "test",
+		"Maths Test": "maths",
+		"Accounts Test": "accounts",
+		"Behaviour": "behaviour",
+	}[category]
 
 
 def _attach_behaviour_notes(filters, rows):

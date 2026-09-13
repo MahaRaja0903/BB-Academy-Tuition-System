@@ -417,8 +417,8 @@ const profile = ref(null)
 const loading = ref(false)
 const error = ref('')
 
-const standardsResource = createResource({ url: 'frappe.client.get_list' })
-const batchesResource = createResource({ url: 'frappe.client.get_list' })
+const standardsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const batchesResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
 const searchResource = createResource({
   url: 'bb_tution_management.bb_academy.student_profile.search_students',
 })
@@ -620,8 +620,8 @@ onMounted(async () => {
   setPeriod('this_month')
 
   const [standardRows, batchRows] = await Promise.all([
-    standardsResource.submit({ doctype: 'Standard', fields: ['name'], limit_page_length: 0 }),
-    batchesResource.submit({ doctype: 'Batch', fields: ['name'], limit_page_length: 0 }),
+    standardsResource.submit({ doctype: 'Standard' }),
+    batchesResource.submit({ doctype: 'Batch' }),
   ])
   standards.value = standardRows || []
   batches.value = batchRows || []

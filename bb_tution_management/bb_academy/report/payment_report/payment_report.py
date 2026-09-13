@@ -146,6 +146,8 @@ def get_data(filters):
 			s.gender,
 			s.standard,
 			s.current_batch as batch,
+			s.reason_for_discounting_starting_amount,
+			s.reason_for_discounting_monthly_fees,
 			fi.discount_amount,
 			fi.coupon_amount,
 			fi.paid_amount,
@@ -212,6 +214,8 @@ def get_data(filters):
 			frappe._dict(
 				fee_invoice=invoice.name,
 				student_name=invoice.student_name,
+				fee_reason=get_fee_reason(invoice, has_starting, has_monthly),
+				has_starting_payment=int(has_starting),
 				gender=invoice.gender,
 				standard=invoice.standard,
 				batch=invoice.batch,
@@ -227,6 +231,36 @@ def get_data(filters):
 		)
 
 	return data
+
+
+def get_fee_reason(invoice, has_starting, has_monthly):
+	"""Why this student's fee was edited away from the standard amount.
+
+	A staff member can override either fee on the Student with "Edit Fees
+	Amount", and the reason they gave is what explains an invoice that comes in
+	lower than the Standard / Fee Structure says it should. Only the reasons
+	that bear on what this invoice was actually collected for are shown, so a
+	monthly payment does not carry the note about a discounted joining fee.
+	"""
+	reasons = []
+
+	if has_starting and invoice.reason_for_discounting_starting_amount:
+		reasons.append(
+			"{0}: {1}".format(
+				_("Starting Payment"),
+				invoice.reason_for_discounting_starting_amount.strip(),
+			)
+		)
+
+	if has_monthly and invoice.reason_for_discounting_monthly_fees:
+		reasons.append(
+			"{0}: {1}".format(
+				_("Monthly Fee"),
+				invoice.reason_for_discounting_monthly_fees.strip(),
+			)
+		)
+
+	return " | ".join(reasons)
 
 
 def get_totals(rows):

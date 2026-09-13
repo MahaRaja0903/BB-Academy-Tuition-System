@@ -15,8 +15,8 @@ no_cache = 1
 MODULES = (
 	{
 		"key": "attendance",
-		"title": "Attendance Management",
-		"description": "Mark daily attendance, handle late entries and review registers.",
+		"title": "Student Manager",
+		"description": "Mark attendance, grade performance, handle late entries and review reports.",
 		"icon": "check",
 		"route": "/attendance_manager",
 		"roles": ("Attendance Manager", "Teacher", "Receptionist", "System Manager"),

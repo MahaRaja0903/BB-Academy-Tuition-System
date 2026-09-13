@@ -5,13 +5,30 @@
         <div class="att-shell-brand">
           <img :src="LOGO_URL" alt="" />
           <div>
-            <div class="att-shell-title">BB Attendance Manager</div>
-            <div class="att-shell-sub">{{ route.meta.title }}</div>
+            <div class="att-shell-title">BB Student Manager</div>
+            <div class="att-shell-sub">{{ group?.title || route.meta.title }}</div>
           </div>
         </div>
         <button type="button" class="att-shell-logout" title="Log out" @click="session.logout.submit()">
           <i class="fa fa-sign-out"></i>
         </button>
+      </div>
+
+      <!-- Only a group that holds more than one page needs a sub-tab strip; the
+           single-page groups go straight from the bottom bar to their content. -->
+      <div v-if="group && group.children.length > 1" class="att-shell-subnav">
+        <div class="att-shell-subnav-inner">
+          <router-link
+            v-for="child in group.children"
+            :key="child.name"
+            :to="{ name: child.name }"
+            class="att-subnav-item"
+            :class="{ 'is-active': route.name === child.name }"
+          >
+            <i class="fa" :class="child.icon"></i>
+            <span>{{ child.label }}</span>
+          </router-link>
+        </div>
       </div>
     </header>
 
@@ -26,12 +43,16 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import BottomNav from '@/components/BottomNav.vue'
 import { session } from '@/data/session'
 import { LOGO_URL } from '@/data/assets'
+import { groupForRoute } from '@/data/navigation'
 
 const route = useRoute()
+
+const group = computed(() => groupForRoute(route.name))
 </script>
 
 <style>
@@ -86,6 +107,43 @@ const route = useRoute()
   font-size: 11.5px;
   color: var(--text-muted);
   line-height: 1.2;
+}
+
+.att-shell-subnav {
+  border-top: 1px solid var(--border-color);
+  background: var(--card-bg);
+}
+
+.att-shell-subnav-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 0 10px;
+  overflow-x: auto;
+}
+
+.att-subnav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.att-subnav-item i { font-size: 13px; }
+
+.att-subnav-item:hover { color: var(--text-color); }
+
+.att-subnav-item.is-active {
+  color: var(--blue-600);
+  border-bottom-color: var(--blue-600);
 }
 
 .att-shell-logout {

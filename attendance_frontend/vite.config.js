@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     port: 8081,
     proxy: {
-      '^/(app|api|assets|files)': {
+      '^/(app|api|assets|files|private)': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         ws: true,

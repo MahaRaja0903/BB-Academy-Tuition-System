@@ -1,0 +1,420 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 0,
+ "autoname": "Prompt",
+ "creation": "2026-09-13 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "student",
+  "student_name",
+  "standard",
+  "batch",
+  "gender",
+  "column_break_head",
+  "month_start",
+  "month_label",
+  "mistake_count",
+  "action_level",
+  "status",
+  "section_break_tally",
+  "test_count",
+  "study_count",
+  "column_break_tally",
+  "behaviour_count",
+  "last_mistake_on",
+  "section_break_call",
+  "call_required",
+  "call_done",
+  "spoken_to",
+  "spoken_to_name",
+  "column_break_call",
+  "called_on",
+  "called_by",
+  "call_notes",
+  "section_break_meeting",
+  "meeting_required",
+  "parents_informed",
+  "parents_informed_on",
+  "meeting_done",
+  "met_staff",
+  "meeting_on",
+  "column_break_meeting",
+  "meeting_photo",
+  "meeting_notes",
+  "section_break_category",
+  "category_review_required",
+  "category_breakdown",
+  "section_break_closure",
+  "closure_notes",
+  "closed_on",
+  "column_break_closure",
+  "closed_by",
+  "closed_at_count",
+  "reopened_on"
+ ],
+ "fields": [
+  {
+   "fieldname": "student",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Student",
+   "options": "Student",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "student.student_name",
+   "fieldname": "student_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Student Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "standard",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Standard",
+   "options": "Standard",
+   "read_only": 1
+  },
+  {
+   "fieldname": "batch",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Batch",
+   "options": "Batch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Gender",
+   "options": "\nBoys\nGirls",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "First day of the month this record tallies.",
+   "fieldname": "month_start",
+   "fieldtype": "Date",
+   "label": "Month Start",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "month_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Month",
+   "read_only": 1
+  },
+  {
+   "description": "Incomplete / Fail / Bad / Worst entries on the Student Performance Tracker this month. Kept in step automatically as performance is graded.",
+   "fieldname": "mistake_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Mistakes",
+   "read_only": 1
+  },
+  {
+   "description": "Derived from the mistake count: 3-4 Call, 5-9 Parent Meeting, 10+ Category Review.",
+   "fieldname": "action_level",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Action Level",
+   "options": "Call\nParent Meeting\nCategory Review",
+   "read_only": 1
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Open\nClosed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_tally",
+   "fieldtype": "Section Break",
+   "label": "Where The Mistakes Came From"
+  },
+  {
+   "fieldname": "test_count",
+   "fieldtype": "Int",
+   "label": "Test Mistakes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "study_count",
+   "fieldtype": "Int",
+   "label": "Study Mistakes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_tally",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "behaviour_count",
+   "fieldtype": "Int",
+   "label": "Behaviour Mistakes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_mistake_on",
+   "fieldtype": "Date",
+   "label": "Last Mistake On",
+   "read_only": 1
+  },
+  {
+   "collapsible": 0,
+   "depends_on": "call_required",
+   "fieldname": "section_break_call",
+   "fieldtype": "Section Break",
+   "label": "Level 1 - Call Home (3+ mistakes)"
+  },
+  {
+   "default": "0",
+   "description": "A call home is due for this student.",
+   "fieldname": "call_required",
+   "fieldtype": "Check",
+   "label": "Call Should Be Made",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "call_done",
+   "fieldtype": "Check",
+   "label": "Call Made"
+  },
+  {
+   "depends_on": "call_done",
+   "fieldname": "spoken_to",
+   "fieldtype": "Select",
+   "label": "Whom They Spoke To",
+   "options": "\nFather\nMother\nGuardian\nStudent\nOther"
+  },
+  {
+   "depends_on": "call_done",
+   "fieldname": "spoken_to_name",
+   "fieldtype": "Data",
+   "label": "Name / Number Spoken To"
+  },
+  {
+   "fieldname": "column_break_call",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "call_done",
+   "fieldname": "called_on",
+   "fieldtype": "Datetime",
+   "label": "When Was Called"
+  },
+  {
+   "depends_on": "call_done",
+   "description": "Who spoke from the tuition.",
+   "fieldname": "called_by",
+   "fieldtype": "Link",
+   "label": "Spoken By (Tuition)",
+   "options": "Staff"
+  },
+  {
+   "depends_on": "call_done",
+   "fieldname": "call_notes",
+   "fieldtype": "Small Text",
+   "label": "What They Spoke"
+  },
+  {
+   "collapsible": 0,
+   "depends_on": "meeting_required",
+   "fieldname": "section_break_meeting",
+   "fieldtype": "Section Break",
+   "label": "Level 2 - Parents Informed & Meeting (5+ mistakes)"
+  },
+  {
+   "default": "0",
+   "description": "Parents must be informed and must meet the staff in person.",
+   "fieldname": "meeting_required",
+   "fieldtype": "Check",
+   "label": "Parent Meeting Required",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "parents_informed",
+   "fieldtype": "Check",
+   "label": "Parents Informed"
+  },
+  {
+   "depends_on": "parents_informed",
+   "fieldname": "parents_informed_on",
+   "fieldtype": "Datetime",
+   "label": "Parents Informed On"
+  },
+  {
+   "default": "0",
+   "fieldname": "meeting_done",
+   "fieldtype": "Check",
+   "label": "Parents Met The Staff"
+  },
+  {
+   "depends_on": "meeting_done",
+   "fieldname": "met_staff",
+   "fieldtype": "Link",
+   "label": "Met Staff",
+   "options": "Staff"
+  },
+  {
+   "depends_on": "meeting_done",
+   "description": "The time the parents actually met the staff.",
+   "fieldname": "meeting_on",
+   "fieldtype": "Datetime",
+   "label": "Meeting Time"
+  },
+  {
+   "fieldname": "column_break_meeting",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "meeting_done",
+   "description": "Photo taken at the meeting.",
+   "fieldname": "meeting_photo",
+   "fieldtype": "Attach Image",
+   "label": "Meeting Photo"
+  },
+  {
+   "depends_on": "meeting_done",
+   "fieldname": "meeting_notes",
+   "fieldtype": "Small Text",
+   "label": "What Was Discussed"
+  },
+  {
+   "collapsible": 0,
+   "depends_on": "category_review_required",
+   "fieldname": "section_break_category",
+   "fieldtype": "Section Break",
+   "label": "Level 3 - Monthly Category Review (10+ mistakes)"
+  },
+  {
+   "default": "0",
+   "description": "Test, Study and Behaviour must each be recorded and reviewed separately for this month.",
+   "fieldname": "category_review_required",
+   "fieldtype": "Check",
+   "label": "Category Review Required",
+   "read_only": 1
+  },
+  {
+   "fieldname": "category_breakdown",
+   "fieldtype": "Table",
+   "label": "Test / Study / Behaviour",
+   "options": "Student Mistake Category Item"
+  },
+  {
+   "fieldname": "section_break_closure",
+   "fieldtype": "Section Break",
+   "label": "Closure"
+  },
+  {
+   "fieldname": "closure_notes",
+   "fieldtype": "Small Text",
+   "label": "Closure Notes"
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Datetime",
+   "label": "Closed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_closure",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "closed_by",
+   "fieldtype": "Link",
+   "label": "Closed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "description": "The mistake count at the moment it was closed. A later mistake pushes the count past this and reopens the record.",
+   "fieldname": "closed_at_count",
+   "fieldtype": "Int",
+   "label": "Closed At Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reopened_on",
+   "fieldtype": "Datetime",
+   "label": "Reopened On",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-13 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "Student Mistake Record",
+ "naming_rule": "Set by user",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Performance Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Attendance Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "student_name,month_label,action_level",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "student_name",
+ "track_changes": 1
+}

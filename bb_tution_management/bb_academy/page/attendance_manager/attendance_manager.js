@@ -18,6 +18,10 @@ class AttendanceManager {
         // Optional client-side view filter driven by KPI card clicks.
         // One of: null, 'Present', 'Absent', 'Late', 'Pending'
         this.status_filter = null;
+        // Second round of the day. Unlocked only once every listed student has
+        // a first-round status, because it writes onto the row the first round
+        // created rather than inserting a new one.
+        this.second_round = false;
 
         this.setup_ui();
     }
@@ -39,6 +43,9 @@ class AttendanceManager {
         this.$kpi_grid = this.wrapper.find('#att-kpi-grid');
         this.$filter_chip = this.wrapper.find('#att-filter-chip');
         this.$filter_chip_label = this.wrapper.find('#att-filter-chip-label');
+        this.$second_round = this.wrapper.find('#att-second-round');
+        this.$second_round_wrap = this.wrapper.find('#att-second-round-wrap');
+        this.$second_round_banner = this.wrapper.find('#att-second-round-banner');
 
 
         this.$date.val(frappe.datetime.get_today());
@@ -91,6 +98,18 @@ class AttendanceManager {
             }
         });
 
+        this.$second_round.on('change', () => {
+            this.second_round = this.$second_round.is(':checked');
+            this.status_filter = null;
+            this.selected.clear();
+            this.update_kpi_active_state();
+            this.$second_round_banner.toggle(this.second_round);
+            this.$second_round_wrap.toggleClass('is-on', this.second_round);
+            if(this.raw_students) {
+                this.render_students(this.raw_students, this.summary);
+            }
+        });
+
 
         this.$tbody.on('change', 'input[type=radio]', (e) => {
             let $input = $(e.target);
@@ -98,10 +117,19 @@ class AttendanceManager {
             let $tr = $input.closest('tr');
             let student = $tr.data('id');
 
-            if (status === 'Late') {
+            // Remarks are shared with the first round, so a second-round
+            // reason would clobber the first one -- don't ask for what can't
+            // be stored.
+            if (status === 'Late' && !this.second_round) {
                 let old_status = $tr.attr('data-current-status') || '';
                 let lp_reason = $input.attr('data-lp-reason') || '';
-                let desc = lp_reason ? `<div style="color: green; font-weight: bold;"><i class="fa fa-info-circle"></i> Parents informed for late reason</div>` : 'Pick a reason for the late entry.';
+                let lp_informed = $input.attr('data-lp-informed') === '1';
+                let desc = 'Pick a reason for the late entry.';
+                if (lp_reason) {
+                    desc = lp_informed
+                        ? `<div style="color: green; font-weight: bold;"><i class="fa fa-info-circle"></i> Parents informed for late reason</div>`
+                        : `<div style="color: #842029; font-weight: bold;"><i class="fa fa-exclamation-triangle"></i> Parents NOT informed for late reason</div>`;
+                }
                 
                 this.prompt_late_reason(
                     (late_reason) => this.mark_attendance(student, status, $input, late_reason),
@@ -185,6 +213,13 @@ class AttendanceManager {
         });
     }
 
+    // The mark the screen is currently reading/writing — first round, or the
+    // second when the Second Attendance toggle is on. Everything that renders
+    // or filters a row goes through here so both rounds behave identically.
+    status_of(s) {
+        return (this.second_round ? s.second_status : s.today_status) || '';
+    }
+
     set_status_filter(filter_key) {
         const map = { present: 'Present', absent: 'Absent', late: 'Late', pending: 'Pending' };
         let value = filter_key ? (map[filter_key] || null) : null;
@@ -214,13 +249,32 @@ class AttendanceManager {
         this.$filter_chip.show();
     }
 
-    // Shows a small dialog asking for a Late Reason. The field is a dropdown
-    // of reasons used before (pulled from past attendance remarks — no extra
-    // doctype needed), but the user can also just type a brand new reason;
-    // it's saved as free text either way.
+    // Shows a small dialog asking for a Late Reason, picked from the Late
+    // Entry Reason master. The list is fetched through the lookups endpoint
+    // rather than a Link field, because a Link's search still runs a
+    // permission check and Teachers hold no DocPerm on that master.
     prompt_late_reason(on_confirm, on_cancel, opts) {
         opts = opts || {};
-        this.show_late_reason_dialog(null, on_confirm, on_cancel, opts);
+        this.with_late_entry_reasons(
+            (reasons) => this.show_late_reason_dialog(reasons, on_confirm, on_cancel, opts)
+        );
+    }
+
+    // Fetched once per page load — the master is tiny and rarely edited.
+    with_late_entry_reasons(callback) {
+        if(this.late_entry_reasons) {
+            callback(this.late_entry_reasons);
+            return;
+        }
+
+        frappe.call({
+            method: 'bb_tution_management.bb_academy.lookups.get_options',
+            args: { doctype: 'Late Entry Reason' },
+            callback: (r) => {
+                this.late_entry_reasons = (r.message || []).map(d => d.name);
+                callback(this.late_entry_reasons);
+            }
+        });
     }
 
     show_late_reason_dialog(reason_options, on_confirm, on_cancel, opts) {
@@ -236,8 +290,10 @@ class AttendanceManager {
                 },
                 {
                     fieldname: 'late_reason',
-                    fieldtype: 'Link',
-                    options: 'Late Entry Reason',
+                    fieldtype: 'Select',
+                    // A leading blank keeps the picker from silently
+                    // defaulting to whichever reason happens to sort first.
+                    options: [''].concat(reason_options || []).join('\n'),
                     label: 'Late Reason',
                     reqd: 1,
                     default: opts.default_reason || ''
@@ -329,13 +385,8 @@ class AttendanceManager {
 
     load_standards() {
         frappe.call({
-            method: 'frappe.client.get_list',
-            args: {
-                doctype: 'Standard',
-                fields: ['name'],
-                limit_page_length: 0,
-                order_by: 'name asc'
-            },
+            method: 'bb_tution_management.bb_academy.lookups.get_options',
+            args: { doctype: 'Standard' },
             callback: (r) => {
                 if(r.message) {
                     let html = '<option value="">Select Standard</option>';
@@ -355,14 +406,8 @@ class AttendanceManager {
         }
         
         frappe.call({
-            method: 'frappe.client.get_list',
-            args: {
-                doctype: 'Batch',
-                fields: ['name'],
-                
-                limit_page_length: 0,
-                order_by: 'name asc'
-            },
+            method: 'bb_tution_management.bb_academy.lookups.get_options',
+            args: { doctype: 'Batch' },
             callback: (r) => {
                 let html = '<option value="">Select Batch</option>';
                 if(r.message) {
@@ -385,6 +430,7 @@ class AttendanceManager {
         this.selected.clear();
         this.update_bulk_bar();
         this.update_summary({present: 0, absent: 0, late: 0, pending: 0});
+        this.update_second_round_toggle();
         this.wrapper.find('#sum-total').text(0);
         this.$hol_msg.hide();
         this.$table.show();
@@ -408,7 +454,7 @@ class AttendanceManager {
         this.$tbody.html(row.repeat(4));
     }
 
-    load_students() {
+    load_students(on_loaded) {
         let std = this.$std.val();
         let batch = this.$batch.val();
         let gender = this.$gender.val();
@@ -417,6 +463,12 @@ class AttendanceManager {
         if(!std || !batch || !date) return;
 
         this.status_filter = null;
+        // A new batch/date starts at round one; the toggle re-opens once that
+        // selection's own first round is complete.
+        this.second_round = false;
+        this.$second_round.prop('checked', false);
+        this.$second_round_wrap.removeClass('is-on');
+        this.$second_round_banner.hide();
         this.update_kpi_active_state();
         this.$hol_msg.hide();
         this.$table.show();
@@ -440,6 +492,7 @@ class AttendanceManager {
                         this.render_students(r.message.students, r.message.summary);
                     }
                 }
+                if(on_loaded) on_loaded();
             }
         });
     }
@@ -455,6 +508,7 @@ class AttendanceManager {
         this.selected.clear();
         this.update_bulk_bar();
         this.update_summary({present: 0, absent: 0, late: 0, pending: 0});
+        this.update_second_round_toggle();
         this.wrapper.find('#sum-total').text(0);
     }
 
@@ -463,12 +517,16 @@ class AttendanceManager {
         this.$table.show();
         this.selected.clear();
 
-        let visible_students = students.filter(s => this.student_visible_for_status(s.today_status));
+        let visible_students = students.filter(s => this.student_visible_for_status(this.status_of(s)));
         this.students = visible_students;
 
         this.update_summary(summary);
+        this.update_second_round_toggle();
         this.wrapper.find('#sum-total').text(students.length);
         this.update_kpi_active_state();
+
+        this.wrapper.find('#att-th-prev').text(this.second_round ? 'First Attendance' : 'Previous Day');
+        this.wrapper.find('#att-th-actions').text(this.second_round ? 'Second Attendance' : "Today's Attendance");
 
         let birthday_students = students.filter(s => s.is_birthday);
         if (birthday_students.length > 0) {
@@ -491,7 +549,9 @@ class AttendanceManager {
                     `No students match the "${this.status_filter}" filter for this selection.`));
             } else {
                 this.$tbody.html(this.empty_state_html('fa-check-circle', 'All Done!',
-                    'Awesome! All attendance has been marked for this date.', 'is-success'));
+                    this.second_round
+                        ? 'Awesome! The second attendance has been marked for this date.'
+                        : 'Awesome! All attendance has been marked for this date.', 'is-success'));
             }
             this.update_bulk_bar();
             return;
@@ -501,14 +561,21 @@ class AttendanceManager {
         let template = this.wrapper.find('#att-row-template').html();
 
         visible_students.forEach(s => {
+            // Everything below reads the active round's mark, so the same
+            // template renders round one and round two.
+            let active_status = this.status_of(s);
             let row = template;
             row = row.replace(/\${student_id}/g, s.student_id);
             row = row.replace(/\${student_name}/g, s.student_name);
             row = row.replace(/\${student_name_lower}/g, (s.student_name || "").toLowerCase());
-            row = row.replace(/\${today_status_raw}/g, s.today_status || "");
+            row = row.replace(/\${today_status_raw}/g, active_status);
             row = row.replace(/\${monthly_absent}/g, s.monthly_absent);
             row = row.replace(/\${monthly_late}/g, s.monthly_late);
-            row = row.replace(/\${previous_status}/g, s.previous_status);
+            // In round two the neighbouring column shows that day's first
+            // mark, which is what staff actually need to see there.
+            row = row.replace(/\${prev_label}/g, this.second_round ? 'First' : 'Previous');
+            row = row.replace(/\${previous_status}/g,
+                (this.second_round ? s.today_status : s.previous_status) || 'N/A');
             row = row.replace(/\${new_joiner_class}/g, s.is_new_joiner ? 'att-new-joiner' : '');
             row = row.replace(/\${gender}/g, s.gender || "");
             row = row.replace(/\${gender_icon}/g, s.gender === 'Girls' ? 'fa-female' : (s.gender === 'Boys' ? 'fa-male' : ''));
@@ -518,13 +585,24 @@ class AttendanceManager {
             let lp_disabled = "";
             let lp_disabled_attr = "";
             let lp_reason = "";
-            if(s.has_late_permission) {
-                lp_msg = `<div style="font-size: 11px; color: #856404; background: #fff3cd; padding: 2px 5px; border-radius: 3px; margin-top: 5px;"><i class="fa fa-info-circle"></i> Parents informed for late reason: ${s.late_reason}</div>`;
+            let lp_informed = "0";
+            if(s.has_late_permission && !this.second_round) {
+                // Reflects the Parents Informed flag from the Late Permission
+                // record; it used to read "Parents informed" unconditionally.
+                let informed = !!s.parents_informed;
+                let lp_style = informed
+                    ? "color: #856404; background: #fff3cd;"
+                    : "color: #842029; background: #f8d7da; font-weight: 600;";
+                let lp_icon = informed ? "fa-info-circle" : "fa-exclamation-triangle";
+                let lp_text = informed ? "Parents informed" : "Parents NOT informed";
+                lp_msg = `<div style="font-size: 11px; ${lp_style} padding: 2px 5px; border-radius: 3px; margin-top: 5px;"><i class="fa ${lp_icon}"></i> ${lp_text} for late reason: ${s.late_reason}</div>`;
                 lp_disabled = "disabled";
                 lp_disabled_attr = "disabled";
                 lp_reason = s.late_reason;
+                lp_informed = s.parents_informed ? "1" : "0";
             }
             row = row.replace(/\${lp_msg}/g, lp_msg);
+            row = row.replace(/\${lp_informed}/g, lp_informed);
             row = row.replace(/\${lp_disabled}/g, lp_disabled);
             row = row.replace(/\${lp_disabled_attr}/g, lp_disabled_attr);
             row = row.replace(/\${lp_reason}/g, lp_reason);
@@ -544,14 +622,14 @@ class AttendanceManager {
             let avatar_html = frappe.get_avatar('avatar-large', s.student_name, s.image).replace('<img ', '<img loading="lazy" ');
             row = row.replace(/\${avatar_html}/g, avatar_html);
 
-            row = row.replace(/\${present_active}/g, s.today_status === 'Present' ? 'active' : '');
-            row = row.replace(/\${present_checked}/g, s.today_status === 'Present' ? 'checked' : '');
+            row = row.replace(/\${present_active}/g, active_status === 'Present' ? 'active' : '');
+            row = row.replace(/\${present_checked}/g, active_status === 'Present' ? 'checked' : '');
 
-            row = row.replace(/\${absent_active}/g, s.today_status === 'Absent' ? 'active' : '');
-            row = row.replace(/\${absent_checked}/g, s.today_status === 'Absent' ? 'checked' : '');
+            row = row.replace(/\${absent_active}/g, active_status === 'Absent' ? 'active' : '');
+            row = row.replace(/\${absent_checked}/g, active_status === 'Absent' ? 'checked' : '');
 
-            row = row.replace(/\${late_active}/g, s.today_status === 'Late' ? 'active' : '');
-            row = row.replace(/\${late_checked}/g, s.today_status === 'Late' ? 'checked' : '');
+            row = row.replace(/\${late_active}/g, active_status === 'Late' ? 'active' : '');
+            row = row.replace(/\${late_checked}/g, active_status === 'Late' ? 'checked' : '');
 
             html += row;
         });
@@ -564,18 +642,64 @@ class AttendanceManager {
 
     update_summary(s) {
         this.summary = s;
-        this.wrapper.find('#sum-present').text(s.present);
-        this.wrapper.find('#sum-absent').text(s.absent);
-        this.wrapper.find('#sum-late').text(s.late);
-        this.wrapper.find('#sum-pending').text(s.pending);
+        let r2 = this.second_round;
+        this.wrapper.find('#sum-present').text(r2 ? (s.second_present || 0) : s.present);
+        this.wrapper.find('#sum-absent').text(r2 ? (s.second_absent || 0) : s.absent);
+        this.wrapper.find('#sum-late').text(r2 ? (s.second_late || 0) : s.late);
+        this.wrapper.find('#sum-pending').text(r2 ? (s.second_pending || 0) : s.pending);
+    }
+
+    // Re-derives both rounds' counts from the loaded students, so an individual
+    // save doesn't have to guess which of the eight counters moved.
+    recompute_summary() {
+        let s = {
+            present: 0, absent: 0, late: 0, pending: 0,
+            second_present: 0, second_absent: 0, second_late: 0, second_pending: 0
+        };
+        (this.raw_students || []).forEach(st => {
+            if(st.today_status === 'Present') s.present++;
+            else if(st.today_status === 'Absent') s.absent++;
+            else if(st.today_status === 'Late') s.late++;
+            else s.pending++;
+
+            if(st.second_status === 'Present') s.second_present++;
+            else if(st.second_status === 'Absent') s.second_absent++;
+            else if(st.second_status === 'Late') s.second_late++;
+            else s.second_pending++;
+        });
+        s.first_round_complete = (this.raw_students || []).length > 0 && s.pending === 0;
+        this.update_summary(s);
+        this.update_second_round_toggle();
+    }
+
+    // Locks the toggle until the first round is complete, and drops out of the
+    // second round if an edit makes the first incomplete again.
+    update_second_round_toggle() {
+        let complete = !!(this.summary && this.summary.first_round_complete);
+
+        this.$second_round.prop('disabled', !complete);
+        this.$second_round_wrap.toggleClass('is-locked', !complete);
+        this.$second_round_wrap.attr('title', complete
+            ? 'Take the second attendance for this batch'
+            : 'Finish the first attendance for every student to unlock this');
+
+        if(!complete && this.second_round) {
+            this.second_round = false;
+            this.$second_round.prop('checked', false);
+            this.$second_round_wrap.removeClass('is-on');
+            this.$second_round_banner.hide();
+            if(this.raw_students) this.render_students(this.raw_students, this.summary);
+        }
     }
 
     mark_attendance(student, status, $input, late_reason) {
         let date = this.$date.val();
+        let round = this.second_round ? 2 : 1;
         let args = {
             student: student,
             attendance_date: date,
-            status: status
+            status: status,
+            attendance_round: round
         };
         if(late_reason) args.late_reason = late_reason;
 
@@ -587,20 +711,21 @@ class AttendanceManager {
                     frappe.show_alert({message: `Attendance updated for ${student}`, indicator: 'green'}, 3);
                     
                     let $tr = this.$tbody.find(`tr[data-id="${student}"]`);
-
-                    let old_status = $tr.attr('data-current-status');
                     $tr.attr('data-current-status', status);
 
                     // Also update raw_students array so it persists on toggle
                     let raw_s = this.raw_students.find(x => x.student_id === student);
-                    if(raw_s) raw_s.today_status = status;
+                    if(raw_s) {
+                        if(round === 2) raw_s.second_status = status;
+                        else raw_s.today_status = status;
+                    }
 
                     if(!this.student_visible_for_status(status)) {
                         $tr.fadeOut(200, () => {
                             $tr.remove();
                             this.selected.delete(student);
                             this.update_bulk_bar();
-                            this.recalc_summary(status, old_status);
+                            this.recompute_summary();
 
                             if(this.$tbody.find('tr.att-student-row').length === 0) {
                                 if(this.status_filter) {
@@ -608,12 +733,14 @@ class AttendanceManager {
                                         `No students match the "${this.status_filter}" filter for this selection.`));
                                 } else {
                                     this.$tbody.html(this.empty_state_html('fa-check-circle', 'All Done!',
-                                        'Awesome! All attendance has been marked for this date.', 'is-success'));
+                                        this.second_round
+                                            ? 'Awesome! The second attendance has been marked for this date.'
+                                            : 'Awesome! All attendance has been marked for this date.', 'is-success'));
                                 }
                             }
                         });
                     } else {
-                        this.recalc_summary(status, old_status);
+                        this.recompute_summary();
                     }
                 }
             },
@@ -632,7 +759,7 @@ class AttendanceManager {
         let std = this.$std.val();
         let batch = this.$batch.val();
 
-        if(status === 'Late') {
+        if(status === 'Late' && !this.second_round) {
             this.prompt_late_reason(
                 (late_reason) => this.submit_bulk_attendance(students, std, batch, date, status, late_reason),
                 null,
@@ -646,7 +773,8 @@ class AttendanceManager {
         }
 
         frappe.confirm(
-            `Mark <b>${students.length}</b> selected student(s) as <b>${status}</b>?`,
+            `Mark <b>${students.length}</b> selected student(s) as <b>${status}</b>` +
+                (this.second_round ? ' for the <b>second attendance</b>' : '') + '?',
             () => this.submit_bulk_attendance(students, std, batch, date, status)
         );
     }
@@ -657,7 +785,8 @@ class AttendanceManager {
             standard: std,
             batch: batch,
             attendance_date: date,
-            status: status
+            status: status,
+            attendance_round: this.second_round ? 2 : 1
         };
         if(late_reason) args.late_reason = late_reason;
 
@@ -669,29 +798,20 @@ class AttendanceManager {
                 if(r.message && r.message.status === 'success') {
                     frappe.show_alert({message: `Attendance marked ${status} for ${r.message.count} student(s)`, indicator: 'green'}, 3);
                     this.selected.clear();
-                    this.load_students();
+                    // load_students() resets to round one, so restore the round
+                    // the user was working in once the fresh data lands.
+                    let resume_second_round = this.second_round;
+                    this.load_students(() => {
+                        if(resume_second_round && this.summary && this.summary.first_round_complete) {
+                            this.$second_round.prop('checked', true).trigger('change');
+                        }
+                    });
                 }
             },
             error: () => {
                 frappe.msgprint('Error saving bulk attendance');
             }
         });
-    }
-
-    recalc_summary(status, old_status) {
-        if(status && this.summary) {
-            if(!old_status) {
-                this.summary.pending--;
-            } else {
-                if(old_status === 'Present') this.summary.present--;
-                if(old_status === 'Absent') this.summary.absent--;
-                if(old_status === 'Late') this.summary.late--;
-            }
-            if(status === 'Present') this.summary.present++;
-            if(status === 'Absent') this.summary.absent++;
-            if(status === 'Late') this.summary.late++;
-            this.update_summary(this.summary);
-        }
     }
 
     show_holiday_dialog() {

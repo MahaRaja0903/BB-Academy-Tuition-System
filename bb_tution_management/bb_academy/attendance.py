@@ -20,10 +20,18 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
 
     date_obj = getdate(attendance_date)
 
-    # 1. Check for Holiday
-    holiday = get_holiday_details(attendance_date, standard, batch)
+    # 1. Check for Holiday. A Special Class Day cancels it for this scope, in
+    #    which case the day lists students exactly like an ordinary one.
+    day = get_day_context(date_obj, standard, batch)
+    holiday = day["holiday"]
     if holiday:
-        return {"holiday": holiday, "students": [], "summary": {}}
+        return {
+            "holiday": holiday,
+            "special_class": None,
+            "students": [],
+            "summary": {},
+            "previous_day_pending": None,
+        }
 
     # 2. Get active students for the standard and batch, filtering by admission_date
     gender_filter = " AND gender = %s" if gender else ""
@@ -47,16 +55,27 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
     
     student_ids = [s.name for s in students]
     if not student_ids:
-        return {"students": [], "summary": {"present": 0, "absent": 0, "late": 0, "pending": 0}, "holiday": None}
+        return {
+            "students": [],
+            "summary": {
+                "present": 0, "absent": 0, "late": 0, "pending": 0,
+                "second_present": 0, "second_absent": 0, "second_late": 0, "second_pending": 0,
+                "first_round_complete": False,
+            },
+            "holiday": None,
+            "special_class": day["special_class"],
+            "previous_day_pending": None,
+        }
         
     # 3. Get Today's attendance
     today_att = frappe.db.sql("""
-        SELECT student, status
+        SELECT student, status, second_time_attendance_status
         FROM `tabStudent Attendance`
         WHERE attendance_date = %s
           AND student IN %s
     """, (date_obj, tuple(student_ids)), as_dict=True)
     today_map = {r.student: r.status for r in today_att}
+    second_map = {r.student: r.second_time_attendance_status for r in today_att}
     
     # 4. Get Previous working day's attendance
     # Find the last attendance date before this date for any of these students
@@ -103,7 +122,10 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
 
     # Combine data
     result_students = []
-    summary = {"present": 0, "absent": 0, "late": 0, "pending": 0}
+    summary = {
+        "present": 0, "absent": 0, "late": 0, "pending": 0,
+        "second_present": 0, "second_absent": 0, "second_late": 0, "second_pending": 0,
+    }
     
     for s in students:
         t_stat = today_map.get(s.name)
@@ -111,6 +133,14 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
         elif t_stat == 'Absent': summary["absent"] += 1
         elif t_stat == 'Late': summary["late"] += 1
         else: summary["pending"] += 1
+
+        # Second round is only ever recorded on a row the first round created,
+        # so an unmarked first round counts as pending here too.
+        s_stat = second_map.get(s.name)
+        if s_stat == 'Present': summary["second_present"] += 1
+        elif s_stat == 'Absent': summary["second_absent"] += 1
+        elif s_stat == 'Late': summary["second_late"] += 1
+        else: summary["second_pending"] += 1
         
         # Calculate if new joiner (joined within 7 days of attendance date)
         is_new_joiner = False
@@ -145,24 +175,176 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
             "late_reason": lp.late_reason if lp else "",
             "parents_informed": lp.parents_informed if lp else 0,
             "is_temporary": is_temporary,
-            "original_batch": s.current_batch
+            "original_batch": s.current_batch,
+            "second_status": second_map.get(s.name)
         })
-        
+
+    # Gates the "Second Attendance" toggle in both UIs: the second round can
+    # only start once every listed student has a first-round status, because
+    # it writes onto the row the first round created.
+    summary["first_round_complete"] = bool(students) and summary["pending"] == 0
+
+    # Blocks marking in the UI until the last open working day is closed off.
+    # Computed here rather than in a second round-trip so the screen never
+    # renders a markable table it is about to lock.
     return {
         "students": result_students,
         "summary": summary,
-        "holiday": None
+        "holiday": None,
+        "special_class": day["special_class"],
+        "previous_day_pending": _previous_day_pending(standard, batch, date_obj),
     }
 
 
-def _validate_status(status):
+# ---------------------------------------------------------------------------
+# Previous working day guard
+# ---------------------------------------------------------------------------
+
+# How far back the guard will walk past consecutive holidays looking for the
+# last working day. Beyond this the batch is treated as clear rather than
+# scanning an unbounded stretch of the calendar.
+PREV_DAY_LOOKBACK_DAYS = 30
+
+
+def _get_batch_students(standard, batch, date_obj):
+    """Active students of this standard+batch as of `date_obj`.
+
+    Deliberately ignores the screen's gender filter: completeness of a day is a
+    property of the whole batch, not of whichever slice is on screen.
+    """
+    return frappe.db.sql("""
+        SELECT name, student_name
+        FROM `tabStudent`
+        WHERE status = 'Active'
+          AND standard = %s
+          AND (
+              (IFNULL(attendance_batch_set, 0) = 1 AND attendance_batch = %s)
+              OR (IFNULL(attendance_batch_set, 0) = 0 AND current_batch = %s)
+          )
+          AND admission_date <= %s
+        ORDER BY TRIM(SUBSTRING_INDEX(student_name, '.', -1)) ASC
+    """, (standard, batch, batch, date_obj), as_dict=True)
+
+
+def _previous_day_pending(standard, batch, attendance_date):
+    """Details of the last working day before `attendance_date` that is still
+    unfinished, or None when the batch is clear to mark `attendance_date`.
+
+    A day counts as finished when it is a holiday for this standard/batch, or
+    when every student active on that day carries a first-round status. Holidays
+    are skipped over so a Monday is validated against the previous Saturday.
+
+    Returns None (rather than blocking) in the cases where there is nothing to
+    complete: the batch has no students, or it has never had attendance taken
+    at all — otherwise a newly onboarded batch could never record its first day.
+    """
+    date_obj = getdate(attendance_date)
+
+    students = _get_batch_students(standard, batch, date_obj)
+    if not students:
+        return None
+
+    student_ids = tuple(s.name for s in students)
+    started_on = frappe.db.sql("""
+        SELECT MIN(attendance_date)
+        FROM `tabStudent Attendance`
+        WHERE student IN %s
+    """, (student_ids,))[0][0]
+    if not started_on:
+        return None
+
+    started_on = getdate(started_on)
+    cursor = getdate(add_days(date_obj, -1))
+
+    for _ in range(PREV_DAY_LOOKBACK_DAYS):
+        if cursor < started_on:
+            # Nothing was ever recorded on or before this day for this batch,
+            # so there is no earlier day left to complete.
+            return None
+
+        if get_holiday_details(cursor, standard, batch):
+            cursor = getdate(add_days(cursor, -1))
+            continue
+
+        day_students = _get_batch_students(standard, batch, cursor)
+        if not day_students:
+            # No student had joined yet on that day.
+            return None
+
+        day_ids = tuple(s.name for s in day_students)
+        marked = {
+            r[0] for r in frappe.db.sql("""
+                SELECT student
+                FROM `tabStudent Attendance`
+                WHERE attendance_date = %s
+                  AND student IN %s
+                  AND IFNULL(status, '') != ''
+            """, (cursor, day_ids))
+        }
+
+        pending = [s for s in day_students if s.name not in marked]
+        if not pending:
+            return None
+
+        return {
+            "date": str(cursor),
+            "standard": standard,
+            "batch": batch,
+            "total": len(day_students),
+            "marked": len(day_students) - len(pending),
+            "pending_count": len(pending),
+            "students": [
+                {"student_id": s.name, "student_name": s.student_name}
+                for s in pending
+            ],
+        }
+
+    return None
+
+
+@frappe.whitelist()
+def get_previous_day_status(standard, batch, attendance_date):
+    """Whitelisted view of the guard, for a UI that wants to re-check on demand."""
+    if not frappe.has_permission("Student Attendance", "read"):
+        frappe.throw("No permission to read attendance")
+
+    return {"pending": _previous_day_pending(standard, batch, attendance_date)}
+
+
+def _guard_previous_day(standard, batch, attendance_date):
+    """Refuse to record `attendance_date` while an earlier working day is open.
+
+    Enforced here and not only in the UI: the desk page, a stale browser tab and
+    a direct API call all reach these endpoints too.
+    """
+    pending = _previous_day_pending(standard, batch, attendance_date)
+    if not pending:
+        return
+
+    frappe.throw(
+        "Previous day attendance is still pending for {date} — {pending} of {total} "
+        "students are unmarked for Standard {standard} / Batch {batch}. "
+        "Complete {date} for this standard and batch (or mark it a holiday) "
+        "before taking attendance for {today}.".format(
+            date=pending["date"],
+            pending=pending["pending_count"],
+            total=pending["total"],
+            standard=standard,
+            batch=batch,
+            today=getdate(attendance_date),
+        ),
+        title="Previous Day Attendance Pending",
+    )
+
+
+def _validate_status(status, fieldname="status"):
     """Check `status` against the doctype's Select options.
 
     The update path below writes with raw SQL, which bypasses Frappe's
     _validate_selects(). Without this, an unknown status (e.g. "Vacation")
     was silently written whenever the row already existed.
     """
-    options = frappe.get_meta("Student Attendance").get_field("status").options or ""
+    options = frappe.get_meta("Student Attendance").get_field(fieldname).options or ""
     allowed = [o.strip() for o in options.split("\n") if o.strip()]
     if status not in allowed:
         frappe.throw(
@@ -211,6 +393,43 @@ def _update_attendance_row(student, attendance_date, status, late_reason=None):
     return bool(frappe.db._cursor.rowcount)
 
 
+def _save_second_attendance(student, attendance_date, status):
+    """Record the second round onto the row the first round already created.
+
+    Never inserts: the second round is a second reading of the *same* day, so
+    it lives in second_time_attendance_status on that one row. A missing row
+    means the first round was never taken, which the UI gates against but a
+    stale tab or a direct API call can still reach — so it is rejected here
+    rather than silently creating a row with no first-round status.
+    """
+    _validate_status(status, "second_time_attendance_status")
+
+    values = {
+        "status": status,
+        "student": student,
+        "attendance_date": attendance_date,
+        "modified": now(),
+        "modified_by": frappe.session.user,
+    }
+    frappe.db.sql(
+        """
+        UPDATE `tabStudent Attendance`
+        SET second_time_attendance_status = %(status)s,
+            second_time_attendance_date = %(attendance_date)s,
+            modified = %(modified)s,
+            modified_by = %(modified_by)s
+        WHERE student = %(student)s AND attendance_date = %(attendance_date)s
+        """,
+        values,
+    )
+    if not frappe.db._cursor.rowcount:
+        frappe.throw(
+            f"First attendance is not marked for {student} on {attendance_date}. "
+            "Complete the first attendance before taking the second one.",
+            title="First Attendance Missing",
+        )
+
+
 def _upsert_attendance(student, student_name, standard, attendance_date, status, late_reason=None):
     """Create or update one Student Attendance row, idempotently.
 
@@ -253,9 +472,11 @@ def _upsert_attendance(student, student_name, standard, attendance_date, status,
 
 
 @frappe.whitelist()
-def save_student_attendance(student, attendance_date, status, late_reason=None):
+def save_student_attendance(student, attendance_date, status, late_reason=None, attendance_round=1):
     if not frappe.has_permission("Student Attendance", "write"):
         frappe.throw("No permission to write attendance")
+
+    attendance_round = int(attendance_round or 1)
 
     # Prevent future attendance
     if getdate(attendance_date) > getdate(today()):
@@ -270,14 +491,24 @@ def save_student_attendance(student, attendance_date, status, late_reason=None):
     if holiday:
         frappe.throw("Cannot mark attendance on a holiday")
 
-    _upsert_attendance(
-        student=student,
-        student_name=stu.student_name,
-        standard=stu.standard,
-        attendance_date=attendance_date,
-        status=status,
-        late_reason=late_reason,
-    )
+    # Round one only. The second round is optional and writes onto a row the
+    # first round already created, so the day it belongs to was validated when
+    # that row was saved — re-checking here would strand an in-progress second
+    # pass if an earlier day were reopened in the meantime.
+    if attendance_round == 1:
+        _guard_previous_day(stu.standard, batch, attendance_date)
+
+    if attendance_round == 2:
+        _save_second_attendance(student, attendance_date, status)
+    else:
+        _upsert_attendance(
+            student=student,
+            student_name=stu.student_name,
+            standard=stu.standard,
+            attendance_date=attendance_date,
+            status=status,
+            late_reason=late_reason,
+        )
 
     # Return updated monthly stats
     date_obj = getdate(attendance_date)
@@ -303,9 +534,11 @@ def save_student_attendance(student, attendance_date, status, late_reason=None):
     }
 
 @frappe.whitelist()
-def save_bulk_attendance(students, standard, batch, attendance_date, status, late_reason=None):
+def save_bulk_attendance(students, standard, batch, attendance_date, status, late_reason=None, attendance_round=1):
     if not frappe.has_permission("Student Attendance", "write"):
         frappe.throw("No permission to write attendance")
+
+    attendance_round = int(attendance_round or 1)
 
     if getdate(attendance_date) > getdate(today()):
         frappe.throw("Cannot mark attendance for future dates")
@@ -320,6 +553,10 @@ def save_bulk_attendance(students, standard, batch, attendance_date, status, lat
     if holiday:
         frappe.throw("Cannot mark attendance on a holiday")
 
+    # Round one only — see save_student_attendance.
+    if attendance_round == 1:
+        _guard_previous_day(standard, batch, attendance_date)
+
     date_obj = getdate(attendance_date)
 
     student_names = frappe.db.get_all(
@@ -331,16 +568,19 @@ def save_bulk_attendance(students, standard, batch, attendance_date, status, lat
 
     count = 0
     for student in students:
-        # Shares the single-row upsert so a bulk save racing an individual one
-        # (or another device) updates rather than blowing up on a duplicate key.
-        _upsert_attendance(
-            student=student,
-            student_name=name_map.get(student),
-            standard=standard,
-            attendance_date=attendance_date,
-            status=status,
-            late_reason=late_reason,
-        )
+        if attendance_round == 2:
+            _save_second_attendance(student, attendance_date, status)
+        else:
+            # Shares the single-row upsert so a bulk save racing an individual one
+            # (or another device) updates rather than blowing up on a duplicate key.
+            _upsert_attendance(
+                student=student,
+                student_name=name_map.get(student),
+                standard=standard,
+                attendance_date=attendance_date,
+                status=status,
+                late_reason=late_reason,
+            )
         count += 1
 
     return {"status": "success", "count": count}
@@ -364,7 +604,13 @@ def get_late_reasons():
 
 
 @frappe.whitelist()
-def get_holiday_details(attendance_date, standard, batch):
+def get_declared_holiday(attendance_date, standard, batch):
+    """The holiday on the register for this date, ignoring whether class ran.
+
+    Use this only to *show* what was declared. Every "can I write to this day"
+    check must go through get_holiday_details, which also honours a Special
+    Class Day.
+    """
     # Entire school
     school_hol = frappe.db.get_value("Attendance Holiday", {"holiday_date": attendance_date, "scope": "Entire School"}, ["holiday_type", "reason"], as_dict=True)
     if school_hol: return school_hol
@@ -378,6 +624,63 @@ def get_holiday_details(attendance_date, standard, batch):
     if batch_hol: return batch_hol
     
     return None
+
+
+@frappe.whitelist()
+def get_special_class_day(class_date, standard, batch):
+    """The record saying class was conducted on this date despite the holiday.
+
+    Matched the same way holidays are: a school-wide record covers everyone, a
+    Standard record covers that standard's batches, and the narrowest covers
+    one batch. A school-wide special class therefore lifts a standard-only
+    holiday, and a single batch can work through a school-wide holiday.
+    """
+    for filters in (
+        {"class_date": class_date, "scope": "Entire School"},
+        {"class_date": class_date, "scope": "Standard", "standard": standard},
+        {"class_date": class_date, "scope": "Standard + Batch", "standard": standard, "batch": batch},
+    ):
+        row = frappe.db.get_value(
+            "Special Class Day", filters, ["name", "scope", "reason"], as_dict=True
+        )
+        if row:
+            return row
+
+    return None
+
+
+@frappe.whitelist()
+def get_holiday_details(attendance_date, standard, batch):
+    """The holiday that *blocks* this date, or None if the day is workable.
+
+    This is the single gate every read and write path already goes through, so
+    honouring the Special Class Day here is what makes a holiday on which class
+    was actually taken behave like an ordinary working day everywhere at once —
+    the attendance screen, the performance screen, the previous-day guard and
+    the monthly register.
+    """
+    holiday = get_declared_holiday(attendance_date, standard, batch)
+    if not holiday:
+        return None
+
+    if get_special_class_day(attendance_date, standard, batch):
+        return None
+
+    return holiday
+
+
+@frappe.whitelist()
+def get_day_context(date, standard, batch):
+    """What the screens need to explain a date: what was declared, whether a
+    class was recorded against it anyway, and whether writes are blocked."""
+    declared = get_declared_holiday(date, standard, batch)
+    special = get_special_class_day(date, standard, batch) if declared else None
+
+    return {
+        "declared_holiday": declared,
+        "special_class": special,
+        "holiday": None if special else declared,
+    }
 
 @frappe.whitelist()
 def assign_holiday(date, holiday_type, reason, scope, standard=None, batch=None):
@@ -395,6 +698,61 @@ def assign_holiday(date, holiday_type, reason, scope, standard=None, batch=None)
     })
     doc.insert()
     return doc.name
+
+@frappe.whitelist()
+def assign_special_class_day(date, reason, scope="Standard + Batch", standard=None, batch=None):
+    """Record that class was taken on a declared holiday, unblocking the day.
+
+    Defaults to the narrowest scope: one batch working through a holiday must
+    not quietly re-open the day for the whole school.
+    """
+    if not frappe.has_permission("Special Class Day", "create"):
+        frappe.throw("No permission to record a class on a holiday")
+
+    date_obj = getdate(date)
+
+    if not get_declared_holiday(date_obj, standard, batch):
+        frappe.throw(
+            f"{date_obj} is not a holiday for this selection — attendance and performance "
+            "can already be recorded.",
+            title="Not A Holiday",
+        )
+
+    existing = get_special_class_day(date_obj, standard, batch)
+    if existing:
+        return frappe.get_doc("Special Class Day", existing.name).as_dict()
+
+    doc = frappe.get_doc({
+        "doctype": "Special Class Day",
+        "class_date": date_obj,
+        "scope": scope,
+        "standard": standard,
+        "batch": batch,
+        "reason": reason,
+    })
+    doc.insert()
+
+    return doc.as_dict()
+
+
+@frappe.whitelist()
+def remove_special_class_day(date, standard=None, batch=None):
+    """Undo a Special Class Day, putting the holiday back.
+
+    Whatever was already recorded against the day stays — deleting attendance
+    or grades someone deliberately entered would lose real work — so the day
+    goes back to being a holiday that happens to carry records.
+    """
+    if not frappe.has_permission("Special Class Day", "delete"):
+        frappe.throw("No permission to remove a class from a holiday")
+
+    existing = get_special_class_day(getdate(date), standard, batch)
+    if not existing:
+        return {"status": "success", "removed": False}
+
+    frappe.delete_doc("Special Class Day", existing.name)
+    return {"status": "success", "removed": True, "scope": existing.scope}
+
 
 @frappe.whitelist()
 def get_attendance_dashboard():

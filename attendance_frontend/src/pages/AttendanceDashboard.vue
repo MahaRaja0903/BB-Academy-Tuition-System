@@ -273,8 +273,8 @@ const NARROW_BP = 768
 const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
 const isNarrow = computed(() => viewportWidth.value < NARROW_BP)
 
-const standardsResource = createResource({ url: 'frappe.client.get_list' })
-const batchesResource = createResource({ url: 'frappe.client.get_list' })
+const standardsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const batchesResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
 const dashboardResource = createResource({
   url: 'bb_tution_management.bb_academy.attendance.get_attendance_dashboard_data',
 })
@@ -530,9 +530,9 @@ function onKpiClick(k) {
 
 async function loadFilters() {
   standards.value =
-    (await standardsResource.submit({ doctype: 'Standard', fields: ['name'], limit_page_length: 0 })) || []
+    (await standardsResource.submit({ doctype: 'Standard' })) || []
   batches.value =
-    (await batchesResource.submit({ doctype: 'Batch', fields: ['name'], limit_page_length: 0 })) || []
+    (await batchesResource.submit({ doctype: 'Batch' })) || []
 }
 
 async function loadData() {

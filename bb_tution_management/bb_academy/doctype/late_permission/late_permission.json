@@ -48,7 +48,7 @@
    "reqd": 1
   },
   {
-   "default": "1",
+   "default": "0",
    "fieldname": "parents_informed",
    "fieldtype": "Check",
    "label": "Parents Informed"

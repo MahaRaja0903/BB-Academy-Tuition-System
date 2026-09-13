@@ -18,7 +18,7 @@ def execute(filters=None):
     for i in range(days):
         d = add_days(from_date, i)
         d_str = d.strftime("%d")
-        columns.append({"fieldname": f"day_{i}", "label": d_str, "fieldtype": "Data", "width": 50})
+        columns.append({"fieldname": f"day_{i}", "label": d_str, "fieldtype": "Data", "width": 60})
         
     columns.extend([
         {"fieldname": "present", "label": "Present", "fieldtype": "Int", "width": 80},
@@ -53,7 +53,8 @@ def execute(filters=None):
     gender_cond2 = f" AND s.gender = '{filters.get('gender')}'" if filters.get('gender') else ""
     
     data = frappe.db.sql(f"""
-        SELECT a.student, a.student_name, a.attendance_date, a.status, s.standard, s.current_batch as batch
+        SELECT a.student, a.student_name, a.attendance_date, a.status,
+               a.second_time_attendance_status, s.standard, s.current_batch as batch
         FROM `tabStudent Attendance` a
         JOIN `tabStudent` s ON a.student = s.name
         WHERE a.attendance_date BETWEEN %(from_date)s AND %(to_date)s
@@ -74,9 +75,13 @@ def execute(filters=None):
         dt = r.attendance_date
         diff = (dt - from_date).days
         if 0 <= diff < days:
-            stat_char = r.status[0] # P, A, L
-            students_map[stu][f"day_{diff}"] = stat_char
-            
+            stat_char = r.status[0] # P, A, L, E
+            # A second round on the same day is appended to the same cell, so
+            # "PP" is present both times and "AP" absent first, present second.
+            # Days with no second round keep the single character.
+            second = r.second_time_attendance_status
+            students_map[stu][f"day_{diff}"] = stat_char + (second[0] if second else "")
+
             if stat_char == 'P': students_map[stu]["present"] += 1
             elif stat_char == 'A': students_map[stu]["absent"] += 1
             elif stat_char == 'L': students_map[stu]["late"] += 1
@@ -92,6 +97,28 @@ def execute(filters=None):
     for h in holidays:
         hd = getdate(h.holiday_date)
         holidays_by_date[hd].append(h)
+
+    # Days a class was taken anyway are ordinary working days, so a student with
+    # no record on one reads as a blank rather than an "H" nobody has to explain.
+    special_days = frappe.db.sql("""
+        SELECT class_date, scope, standard, batch
+        FROM `tabSpecial Class Day`
+        WHERE class_date BETWEEN %(from_date)s AND %(to_date)s
+    """, filters, as_dict=True)
+
+    special_by_date = defaultdict(list)
+    for sd in special_days:
+        special_by_date[getdate(sd.class_date)].append(sd)
+
+    def _covers(rule, row):
+        """Does a holiday / special-class rule apply to this student's row?"""
+        if rule.scope == 'Entire School':
+            return True
+        if rule.scope == 'Standard':
+            return rule.standard == row.get('standard')
+        if rule.scope == 'Standard + Batch':
+            return rule.standard == row.get('standard') and rule.batch == row.get('batch')
+        return False
         
     out = []
     for stu, row in students_map.items():
@@ -104,18 +131,10 @@ def execute(filters=None):
             col = f"day_{i}"
             if col not in row:
                 d = add_days(from_date, i)
-                is_holiday = False
-                if d in holidays_by_date:
-                    for h in holidays_by_date[d]:
-                        if h.scope == 'Entire School':
-                            is_holiday = True
-                            break
-                        elif h.scope == 'Standard' and h.standard == row.get('standard'):
-                            is_holiday = True
-                            break
-                        elif h.scope == 'Standard + Batch' and h.standard == row.get('standard') and h.batch == row.get('batch'):
-                            is_holiday = True
-                            break
+                is_holiday = any(_covers(h, row) for h in holidays_by_date.get(d, []))
+                if is_holiday and any(_covers(sd, row) for sd in special_by_date.get(d, [])):
+                    # Class was conducted despite the holiday.
+                    is_holiday = False
                 row[col] = "H" if is_holiday else "-"
                 
         out.append(row)

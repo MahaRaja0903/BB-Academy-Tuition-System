@@ -1,11 +1,22 @@
 # Copyright (c) 2026, BB Academy and contributors
 # For license information, please see license.txt
 
+from calendar import monthrange
+
 import frappe
 from frappe.model.document import Document
 from frappe import _
-from frappe.utils import cint, flt
+from frappe.utils import cint, flt, nowdate
 
+from bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice import (
+	MONTH_NAMES,
+	STARTING_PAYMENT,
+	get_advance_months,
+	get_join_date,
+	get_row_default_amount,
+	is_prorated_month,
+	should_bill_month,
+)
 from bb_tution_management.bb_academy.doctype.fee_structure.fee_structure import (
 	get_monthly_fee as get_fee_structure_monthly_fee,
 )
@@ -14,6 +25,20 @@ from bb_tution_management.bb_tution_management.doctype.group.group import get_gr
 # A Group (Science / Commerce / Bio Maths ...) only applies to higher standards.
 # Standards with academic_order above this are the ones that carry Groups.
 GROUP_MIN_ACADEMIC_ORDER = 5
+
+# Editable fee field -> (field holding the reason for the change, fields the fee
+# is normally derived from). Mirrors the Student, which carries the same two
+# fees and the same two reasons, and which these are handed on to at submit.
+EDITABLE_FEES = {
+	"starting_payment": {
+		"reason_field": "reason_for_discounting_starting_amount",
+		"source_fields": ("standard",),
+	},
+	"monthly_fee": {
+		"reason_field": "reason_for_discounting_monthly_fees",
+		"source_fields": ("standard", "assigned_batch"),
+	},
+}
 
 
 def standard_takes_group(standard):
@@ -36,8 +61,37 @@ class StudentAdmissionForm(Document):
 		self.set_standard_academic_order()
 		self.validate_group()
 		self.fetch_fees()
+		self.set_fee_row_amounts()
 		self.validate_admission_number()
 		self.validate_discount_amount()
+
+	def set_fee_row_amounts(self):
+		"""Fill in what each fee row is billed for, so the grid never relies on
+		the client having computed it -- the public admission web form saves the
+		same table without running the desk script at all.
+		"""
+		if self.is_yearly_payment:
+			return
+
+		for row in self.get("fees__invoice_details", []):
+			if not row.month:
+				continue
+
+			if not row.amount_need_to_pay:
+				row.amount_need_to_pay = get_row_default_amount(self.as_fee_profile(), row.month)
+
+			if flt(row.paid_amount) > flt(row.amount_need_to_pay):
+				frappe.throw(
+					_("Row {0}: Paid Amount ({1}) cannot be more than the Amount Need to Pay ({2}) for {3}.").format(
+						row.idx, row.paid_amount, row.amount_need_to_pay, row.month
+					)
+				)
+
+	def as_fee_profile(self):
+		"""This admission seen as the Student the Fee Invoice rules expect."""
+		return make_fee_profile(
+			self.academic_year, self.application_date, self.starting_payment, self.monthly_fee
+		)
 
 	def before_submit(self):
 		if not self.fees_due_date:
@@ -152,13 +206,38 @@ class StudentAdmissionForm(Document):
 				title=_("Invalid Group"),
 			)
 
+	def has_manual_fee(self, fee_field):
+		"""True when this fee was agreed by hand through "Edit Fee Amount" and
+		should not be pulled back from the Standard / Fee Structure.
+
+		The override is dropped as soon as one of the fields the fee is derived
+		from changes -- a discount agreed for one standard/batch does not carry
+		over to another. Unlike the Student, the dialog here can be used before
+		the admission has ever been saved, so an override on a new document is
+		taken at face value.
+		"""
+		config = EDITABLE_FEES[fee_field]
+		if not self.get(config["reason_field"]):
+			return False
+
+		doc_before = None if self.is_new() else self.get_doc_before_save()
+		if not doc_before:
+			return True
+
+		return all(doc_before.get(f) == self.get(f) for f in config["source_fields"])
+
 	def fetch_fees(self):
-		if self.standard:
+		if self.standard and not self.has_manual_fee("starting_payment"):
+			# Any manual amount has been superseded -- drop the reason that went with it.
+			self.reason_for_discounting_starting_amount = None
+
 			starting_payment = frappe.db.get_value("Standard", self.standard, "starting_payment")
 			if starting_payment is not None and not self.starting_payment:
 				self.starting_payment = starting_payment
 
-		if self.standard and self.assigned_batch:
+		if self.standard and self.assigned_batch and not self.has_manual_fee("monthly_fee"):
+			self.reason_for_discounting_monthly_fees = None
+
 			monthly_fee = get_monthly_fee(self.standard, self.assigned_batch)
 			if monthly_fee is not None:
 				self.monthly_fee = monthly_fee
@@ -266,12 +345,24 @@ class StudentAdmissionForm(Document):
 				"address": self.address,
 				"starting_payment": self.starting_payment,
 				"monthly_fee": self.monthly_fee,
+				"reason_for_discounting_starting_amount": self.reason_for_discounting_starting_amount,
+				"reason_for_discounting_monthly_fees": self.reason_for_discounting_monthly_fees,
 				"referred_by": self.get("referred_by") or self.get("referred_by_student_id"),
 				"yearly_fees_student": 1 if self.is_yearly_payment else 0,
 				"yearly_fees_amount": self.total_year_payment_amount if self.is_yearly_payment else 0,
 				"yearly_fees_pending_amount": flt(self.total_year_payment_amount) if self.is_yearly_payment else 0,
 				"status": "Active"
 			})
+
+			# The Student re-derives both fees on validate, and on a brand-new
+			# record it has no earlier version to tell a hand-agreed amount from a
+			# fetched one -- so an amount the admission was approved on would be
+			# pulled straight back to the Standard / Fee Structure figure, taking
+			# its reason with it. Both fees are already settled on the admission,
+			# so the fetch has nothing to add here either way.
+			if self.reason_for_discounting_starting_amount or self.reason_for_discounting_monthly_fees:
+				student.flags.ignore_fee_fetch = True
+
 			student.insert(ignore_permissions=True)
 		except frappe.ValidationError:
 			raise
@@ -393,6 +484,77 @@ def get_admission_form_options(standard=None):
 @frappe.whitelist()
 def get_monthly_fee(standard, batch):
 	return get_fee_structure_monthly_fee(standard, batch) or 0
+
+
+def make_fee_profile(academic_year, application_date, starting_payment, monthly_fee):
+	"""A stand-in for the Student the Fee Invoice fee rules read.
+
+	Those rules -- the pro-rated joining month, the months the starting payment
+	covers in advance -- are the ones an admission is quoted on, but the Student
+	does not exist yet. So the handful of fields they look at are handed over on
+	their own, with no month settled against them yet.
+	"""
+	return frappe._dict({
+		"academic_year": academic_year,
+		"admission_date": application_date or nowdate(),
+		"starting_payment": flt(starting_payment),
+		"monthly_fee": flt(monthly_fee),
+		"payment_details": [],
+	})
+
+
+@frappe.whitelist()
+def get_admission_fee_rows(academic_year=None, application_date=None, starting_payment=0, monthly_fee=0):
+	"""Rows to seed the Fees Invoice Details grid of a new admission.
+
+	The same two rows a Fee Invoice would raise for this student: the starting
+	payment, and the month they join -- billed by the day when they join after
+	the cutoff, and left off altogether when the starting payment already covers
+	it in advance. Unlike the invoice this goes by the application date rather
+	than today, since that is the month the admission starts from.
+	"""
+	student = make_fee_profile(academic_year, application_date, starting_payment, monthly_fee)
+
+	rows = []
+	notes = []
+
+	starting_pending = get_row_default_amount(student, STARTING_PAYMENT)
+	if starting_pending > 0:
+		rows.append({
+			"month": STARTING_PAYMENT,
+			"amount_need_to_pay": starting_pending,
+			"paid_amount": starting_pending,
+		})
+
+		first_month, last_month = get_advance_months(student)
+		advance = ", ".join(m for m in (first_month, last_month) if m)
+		if advance:
+			notes.append(
+				_("Paying the starting payment in full also settles {0}.").format(advance)
+			)
+
+	join_date = get_join_date(student)
+	join_month = MONTH_NAMES[join_date.month - 1]
+	if should_bill_month(student, join_month, starting_pending):
+		amount = get_row_default_amount(student, join_month)
+		rows.append({
+			"month": join_month,
+			"amount_need_to_pay": amount,
+			"paid_amount": amount,
+		})
+
+		if is_prorated_month(student, join_month):
+			days_in_month = monthrange(join_date.year, join_date.month)[1]
+			notes.append(
+				_("{0} is billed for {1} of {2} days, from the admission date {3}.").format(
+					join_month,
+					days_in_month - join_date.day + 1,
+					days_in_month,
+					frappe.format_value(join_date, {"fieldtype": "Date"}),
+				)
+			)
+
+	return {"rows": rows, "notes": notes}
 
 @frappe.whitelist(allow_guest=True)
 def get_enquiry_details(enquiry_name):

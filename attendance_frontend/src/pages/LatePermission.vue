@@ -121,6 +121,16 @@
                       :title="s.gender"
                     ></i>
                   </div>
+                  <img
+                    v-if="s.image"
+                    class="lp-avatar"
+                    :src="s.image"
+                    :alt="s.student_name"
+                    loading="lazy"
+                  />
+                  <div v-else class="lp-avatar lp-avatar-fallback">
+                    {{ initials(s.student_name) }}
+                  </div>
                 </div>
               </td>
               <td class="lp-td-att-status">
@@ -140,7 +150,7 @@
                     Permission Granted ({{ s.late_reason }})
                   </span>
                   <span v-if="s.has_permission && s.time" class="lp-time-chip">
-                    <i class="fa fa-clock-o"></i> {{ s.time }}
+                    <i class="fa fa-clock-o"></i> {{ displayTime(s.time) }}
                   </span>
                   <span v-if="!s.has_permission" class="lp-badge lp-badge-secondary">None</span>
                   <label v-if="s.has_permission" class="lp-parents-toggle">
@@ -211,6 +221,9 @@
             >
               Clear
             </button>
+            <!-- The native picker follows the browser locale, which may render
+                 24-hour. This read-out is always 12-hour. -->
+            <span v-if="modal.time" class="lp-time-preview">{{ displayTime(modal.time) }}</span>
           </div>
 
           <label class="lp-checkbox">
@@ -220,7 +233,10 @@
         </template>
         <template v-else>
           <label class="lp-modal-label">Early Out Time <span class="lp-req">*</span></label>
-          <input type="time" class="form-control" v-model="modal.time" />
+          <div class="lp-time-row">
+            <input type="time" class="form-control" v-model="modal.time" />
+            <span v-if="modal.time" class="lp-time-preview">{{ displayTime(modal.time) }}</span>
+          </div>
           <label class="lp-modal-label">Early Out Reason <span class="lp-req">*</span></label>
           <select class="form-control" v-model="modal.reason">
             <option value="">Select a reason</option>
@@ -273,8 +289,9 @@ const modal = reactive({
   student: null,
   reason: '',
   time: '',
-  // Late Permission doctype defaults parents_informed to 1
-  parentsInformed: true,
+  // Starts unchecked, matching the doctype default: informing the parents is a
+  // separate action the user confirms, not something granting a permission assumes.
+  parentsInformed: false,
   saving: false,
   error: '',
 })
@@ -313,10 +330,10 @@ const emptyState = computed(() => {
   return null
 })
 
-const standardsResource = createResource({ url: 'frappe.client.get_list' })
-const batchesResource = createResource({ url: 'frappe.client.get_list' })
-const lateEntryReasonsResource = createResource({ url: 'frappe.client.get_list' })
-const earlyExitReasonsResource = createResource({ url: 'frappe.client.get_list' })
+const standardsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const batchesResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const lateEntryReasonsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const earlyExitReasonsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
 const listResource = createResource({
   url: 'bb_tution_management.bb_academy.late_permission.get_students_for_late_permission',
 })
@@ -336,12 +353,36 @@ const setParentsInformedResource = createResource({
   url: 'bb_tution_management.bb_academy.late_permission.set_parents_informed',
 })
 
+// `<input type="time">` and the Frappe Time field both speak 24-hour "HH:MM",
+// so that stays the stored and transported format.
 function nowTime() {
   return new Date().toTimeString().slice(0, 5)
 }
 
+// Display only: "14:05" -> "2:05 PM". Everything read back from the server is
+// already normalised to "HH:MM" by _format_time().
+function displayTime(value) {
+  if (!value) return ''
+  const [h, m] = String(value).split(':')
+  const hour = Number(h)
+  if (Number.isNaN(hour)) return value
+  const suffix = hour < 12 ? 'AM' : 'PM'
+  const hour12 = hour % 12 || 12
+  return `${hour12}:${(m || '00').slice(0, 2)} ${suffix}`
+}
+
 function setTimeNow() {
   modal.time = nowTime()
+}
+
+// Stands in for a missing photo, matching the attendance screen.
+function initials(name) {
+  return (name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join('')
 }
 
 function attendanceBadgeClass(status) {
@@ -354,7 +395,7 @@ function attendanceBadgeClass(status) {
 
 function earlyOutInfo(s) {
   const parts = []
-  if (s.early_out_time) parts.push(s.early_out_time)
+  if (s.early_out_time) parts.push(displayTime(s.early_out_time))
   if (s.early_out_reason) parts.push(s.early_out_reason)
   return parts.length ? ` (${parts.join(' - ')})` : ''
 }
@@ -371,21 +412,13 @@ function stepDate(delta) {
 
 async function loadFilters() {
   standards.value =
-    (await standardsResource.submit({ doctype: 'Standard', fields: ['name'], limit_page_length: 0 })) || []
+    (await standardsResource.submit({ doctype: 'Standard' })) || []
   batches.value =
-    (await batchesResource.submit({ doctype: 'Batch', fields: ['name'], limit_page_length: 0 })) || []
+    (await batchesResource.submit({ doctype: 'Batch' })) || []
   lateEntryReasons.value =
-    (await lateEntryReasonsResource.submit({
-      doctype: 'Late Entry Reason',
-      fields: ['name'],
-      limit_page_length: 0,
-    })) || []
+    (await lateEntryReasonsResource.submit({ doctype: 'Late Entry Reason' })) || []
   earlyExitReasons.value =
-    (await earlyExitReasonsResource.submit({
-      doctype: 'Early Exit Reason',
-      fields: ['name'],
-      limit_page_length: 0,
-    })) || []
+    (await earlyExitReasonsResource.submit({ doctype: 'Early Exit Reason' })) || []
 }
 
 async function loadStudents() {
@@ -419,7 +452,7 @@ function openGrantModal(student) {
       ? student.early_out_time || nowTime()
       // Late Permission time is optional: prefill only what was already stored
       : student.time || ''
-  modal.parentsInformed = student.has_permission ? !!student.parents_informed : true
+  modal.parentsInformed = student.has_permission ? !!student.parents_informed : false
   modal.error = ''
   modal.saving = false
 }
@@ -697,6 +730,34 @@ watch([standard, batch, date, type, gender], loadStudents)
 .lp-manager .lp-student-name-wrap { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
 .lp-manager .lp-student-name { font-size: 13.5px; color: var(--text-color); }
 
+/* Mirrors .att-avatar on the attendance screen so a student looks the same on
+   both: square, right-aligned in the name cell. */
+.lp-manager .lp-avatar {
+  border-radius: 0 !important;
+  width: 78px !important;
+  height: 78px !important;
+  min-width: 78px;
+  object-fit: cover;
+  margin-left: auto;
+}
+
+.lp-manager .lp-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gray-200);
+  color: var(--gray-600);
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.lp-manager .lp-time-preview {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .lp-manager .lp-gender-icon { margin-left: 6px; font-size: 12px; color: var(--gray-500); }
 .lp-manager .lp-gender-icon-female { color: #ff69b4; }
 .lp-manager .lp-gender-icon-male { color: #2196f3; }
@@ -930,15 +991,19 @@ watch([standard, batch, date, type, gender], loadStudents)
     margin-bottom: 12px;
   }
 
+  /* Media-object card, matching the attendance screen: the photo gets a fixed
+     column of its own spanning the three identity rows, so it can be large
+     while the permission badges and the Grant/Edit/Revoke buttons keep their
+     own full-width rows below. */
   .lp-manager .lp-table tbody tr.lp-student-row {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) 104px;
     grid-template-areas:
-      'id'
-      'name'
-      'att-status'
-      'status'
-      'actions';
+      'id         avatar'
+      'name       avatar'
+      'att-status avatar'
+      'status     status'
+      'actions    actions';
     row-gap: 10px;
     column-gap: 10px;
     border-left: 4px solid var(--gray-300);
@@ -957,19 +1022,64 @@ watch([standard, batch, date, type, gender], loadStudents)
     border-bottom: none;
   }
 
-  .lp-manager .lp-td-id { grid-area: id; }
-  .lp-manager .lp-td-name {
-    grid-area: name;
-    padding-top: 10px !important;
-    border-top: 1px solid var(--border-color);
+  .lp-manager .lp-td-id { grid-area: id; align-self: center; }
+
+  /* Cell and flex wrapper dissolve so the name block and the photo become grid
+     items of the card itself, which is what lets the photo span rows. */
+  .lp-manager .lp-td-name,
+  .lp-manager .lp-student-profile {
+    /* !important: the blanket `tr.lp-student-row td { display: block }` rule
+       above is more specific and would otherwise win. */
+    display: contents !important;
   }
+
+  .lp-manager .lp-student-name-wrap {
+    grid-area: name;
+    min-width: 0;
+    align-self: center;
+  }
+
+  .lp-manager .lp-student-name { overflow-wrap: anywhere; }
   .lp-manager .lp-td-att-status { grid-area: att-status; }
   .lp-manager .lp-td-status { grid-area: status; }
   .lp-manager .lp-td-actions { grid-area: actions; display: flex; gap: 8px; }
   .lp-manager .lp-td-actions .lp-btn { flex: 1; margin-right: 0; padding: 9px 12px; }
+
+  /* Fill the whole three-row span rather than sitting at the top of it, so no
+     dead space is left under the photo. */
+  .lp-manager .lp-avatar {
+    grid-area: avatar;
+    align-self: stretch;
+    justify-self: end;
+    position: static !important;
+    margin: 0 !important;
+    width: 104px !important;
+    height: auto !important;
+    min-width: 104px;
+    min-height: 104px;
+    object-fit: cover;
+  }
+
+  .lp-manager .lp-avatar-fallback { font-size: 28px; }
 }
 
 @media (max-width: 480px) {
   .lp-manager .lp-student-id { font-size: 13px; }
+}
+
+/* Narrowest phones: give the text column back some room. */
+@media (max-width: 380px) {
+  .lp-manager .lp-table tbody tr.lp-student-row {
+    grid-template-columns: minmax(0, 1fr) 84px;
+    column-gap: 8px;
+  }
+
+  .lp-manager .lp-avatar {
+    width: 84px !important;
+    min-width: 84px;
+    min-height: 84px;
+  }
+
+  .lp-manager .lp-avatar-fallback { font-size: 24px; }
 }
 </style>

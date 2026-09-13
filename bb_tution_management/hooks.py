@@ -139,6 +139,18 @@ after_migrate = "bb_tution_management.bb_academy.setup.setup_bb_academy"
 # ---------------
 # Hook on document methods and events
 
+# A graded mistake has to move the student's monthly follow-up record with it,
+# whether it was entered from the Performance Manager, the desk, or a bulk save.
+# Hanging it off the tracker rather than off each save path means no caller can
+# forget it.
+doc_events = {
+	"Student Performance Tracker": {
+		"after_insert": "bb_tution_management.bb_academy.mistakes.sync_from_tracker",
+		"on_update": "bb_tution_management.bb_academy.mistakes.sync_from_tracker",
+		"after_delete": "bb_tution_management.bb_academy.mistakes.sync_from_tracker",
+	}
+}
+
 # doc_events = {
 # 	"*": {
 # 		"on_update": "method",
@@ -152,7 +164,10 @@ after_migrate = "bb_tution_management.bb_academy.setup.setup_bb_academy"
 
 scheduler_events = {
 	"daily": [
-		"bb_tution_management.bb_academy.doctype.student.student.check_attendance_batch_expiry"
+		"bb_tution_management.bb_academy.doctype.student.student.check_attendance_batch_expiry",
+		# Self-heal: doc_events keep the records live, this catches anything
+		# written around them (imports, patches, direct SQL).
+		"bb_tution_management.bb_academy.mistakes.sync_current_month",
 	],
 	"monthly": [
 		# "bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice.auto_generate_monthly_invoices"

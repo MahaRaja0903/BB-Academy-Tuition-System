@@ -38,7 +38,7 @@ self.addEventListener('fetch', event => {
 @frappe.whitelist(allow_guest=True)
 def sw_attendance():
     js_content = """
-const CACHE_NAME = 'bb-attendance-manager-pwa-v1';
+const CACHE_NAME = 'bb-student-manager-pwa-v1';
 const urlsToCache = [
   '/attendance_manager',
 ];

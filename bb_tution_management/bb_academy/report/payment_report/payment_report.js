@@ -62,12 +62,32 @@ frappe.query_reports["Payment Report"] = {
 			if (column.fieldname === "payment_method" && data.payment_method === "Split Up") {
 				value = `<span style="color: var(--orange-500, orange); font-weight: 600;">${value}</span>`;
 			}
-			if (column.fieldname === "payment_type" && data.payment_type === "Starting Payment") {
-				value = `<span style="color: var(--blue-500, blue); font-weight: 600;">${value}</span>`;
+			// One invoice can cover the starting payment and a month or two at
+			// once, so the label reads "Starting Payment, September" and the
+			// starting part is picked out of it rather than matched whole.
+			if (column.fieldname === "payment_type" && data.has_starting_payment) {
+				value = value.replace(
+					/Starting Payment/g,
+					`<span style="color: var(--blue-500, blue); font-weight: 600;">$&</span>`
+				);
+			}
+			// The staff can edit a student's Starting Payment or Monthly Fee
+			// with a reason; showing it here answers "why is this amount low?"
+			// without opening the Student.
+			if (column.fieldname === "student_name" && data.fee_reason) {
+				const reason = frappe.utils.escape_html(data.fee_reason);
+				value = `<div style="line-height: 1.2;">${value}</div>
+					<div title="${reason}" style="color: var(--text-muted, #8d99a6); font-size: 10px; line-height: 1.2; margin-top: 2px; overflow: hidden; text-overflow: ellipsis;">${reason}</div>`;
 			}
 		}
 
 		return value;
+	},
+
+	// The student name can carry a second line with the reason its fee was
+	// edited, which the default row height clips.
+	get_datatable_options: function (options) {
+		return Object.assign(options, { cellHeight: 46 });
 	},
 
 	// Every standard starts out selected. onload runs before the first refresh

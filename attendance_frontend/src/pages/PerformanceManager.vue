@@ -28,7 +28,7 @@
         <div class="perf-field perf-field-category">
           <label for="perf-category"><i class="fa" :class="config.icon"></i> Category</label>
           <select id="perf-category" class="form-control" v-model="category">
-            <option v-for="c in CATEGORY_NAMES" :key="c" :value="c">{{ c }}</option>
+            <option v-for="c in categoryOptions" :key="c" :value="c">{{ c }}</option>
           </select>
         </div>
       </div>
@@ -50,6 +50,12 @@
             <i class="fa fa-arrow-right"></i>
           </button>
         </div>
+      </div>
+
+      <div class="perf-panel-actions">
+        <button type="button" class="perf-holiday-btn" @click="openHolidayModal">
+          <i class="fa fa-calendar-plus-o"></i> <span>Assign Holiday</span>
+        </button>
       </div>
     </div>
 
@@ -75,13 +81,76 @@
               No subject is mapped to {{ standard }} yet — add one in the Subject master.
             </small>
           </div>
-          <div class="perf-field">
-            <label for="perf-lesson">Lesson</label>
-            <input id="perf-lesson" type="text" class="form-control" v-model="setup.lesson" />
+          <div class="perf-field perf-field-lesson">
+            <label for="perf-lesson-search">Lesson</label>
+            <small v-if="!setup.subject" class="perf-field-hint">
+              Pick a Subject first — a lesson belongs to one subject of one standard.
+            </small>
+            <div v-else class="perf-picker">
+              <div class="perf-tag-row">
+                <span v-for="name in setup.lessons" :key="name" class="perf-tag">
+                  {{ lessonTitle(name) }}
+                  <button
+                    type="button"
+                    class="perf-tag-x"
+                    :title="`Remove ${lessonTitle(name)}`"
+                    @click="removeLesson(setup.lessons, name)"
+                  >
+                    <i class="fa fa-times"></i>
+                  </button>
+                </span>
+                <small v-if="!setup.lessons.length" class="perf-field-hint">
+                  No lesson picked yet — pick as many as the class covered.
+                </small>
+              </div>
+              <div class="perf-inline-add">
+                <input
+                  id="perf-lesson-search"
+                  type="text"
+                  class="form-control"
+                  placeholder="Search a lesson, or type a new one to add it"
+                  v-model="lessonSearch"
+                  @keyup.enter="addLesson"
+                />
+                <button
+                  type="button"
+                  class="perf-btn perf-btn-secondary perf-btn-compact"
+                  :disabled="!lessonSearch.trim() || addingLesson"
+                  @click="addLesson"
+                >
+                  <i class="fa fa-plus"></i> Add
+                </button>
+              </div>
+              <ul class="perf-option-list">
+                <li v-for="l in setupLessonPicks" :key="l.name">
+                  <button type="button" @click="pickLesson(setup.lessons, l.name)">
+                    <i class="fa fa-plus-circle"></i> {{ l.lesson_name }}
+                  </button>
+                </li>
+                <li v-if="!setupLessonPicks.length" class="perf-option-empty">
+                  {{ lessonEmptyText(lessons, setup.lessons, lessonSearch) }}
+                </li>
+              </ul>
+            </div>
+            <small v-if="lessonError" class="perf-modal-error">{{ lessonError }}</small>
           </div>
-          <div class="perf-field">
-            <label for="perf-portion">Portion</label>
-            <input id="perf-portion" type="text" class="form-control" v-model="setup.portion" />
+          <div class="perf-field perf-field-wide">
+            <label>Portion</label>
+            <div class="perf-chip-picker">
+              <button
+                v-for="p in portionOptions"
+                :key="p.name"
+                type="button"
+                class="perf-chip"
+                :class="{ active: setup.portions.includes(p.name) }"
+                @click="togglePortion(setup.portions, p.name)"
+              >
+                {{ p.portion_name }}
+              </button>
+              <small v-if="!portionOptions.length" class="perf-field-hint">
+                The Portion master is empty — add 1M, 2M … in the Portion master.
+              </small>
+            </div>
           </div>
           <div v-if="config.usesQuestions" class="perf-field">
             <label for="perf-questions">Total Number of Questions</label>
@@ -117,8 +186,10 @@
 
         <p v-if="config.usesMarks" class="perf-setup-hint">
           <i class="fa fa-info-circle"></i>
+          Pass Marks fills in at half the total; change it and your value sticks.
           Enter each student's marks below and the grade is set automatically —
-          <strong>Full Mark</strong> at {{ setup.total_marks || 'the total' }},
+          <strong>Full Mark</strong> from {{ fullMarkFrom || 'one mark below the total' }} up (a
+          single dropped mark still counts),
           <strong>Pass Mark</strong> from {{ setup.pass_marks || 'the pass mark' }} up, otherwise
           <strong>Fail</strong>. Tapping a grade always overrides it.
         </p>
@@ -148,6 +219,14 @@
     <div v-if="setupNotice" class="perf-alert perf-alert-ok">
       <i class="fa fa-check-circle"></i> {{ setupNotice }}
       <button type="button" @click="setupNotice = ''"><i class="fa fa-times"></i></button>
+    </div>
+
+    <div v-if="specialClass" class="perf-alert perf-alert-ok">
+      <i class="fa fa-check-circle"></i>
+      This date is a holiday, but class was conducted
+      <strong v-if="specialClass.scope !== 'Entire School'">for this {{ specialClass.scope }}</strong>
+      — <em>{{ specialClass.reason }}</em>. Grade as usual.
+      <button type="button" class="perf-alert-link" @click="undoSpecialClass">Undo</button>
     </div>
 
     <!-- KPI cards -->
@@ -231,6 +310,13 @@
         <p><span class="perf-holiday-key">Type</span><span>{{ holiday.holiday_type }}</span></p>
         <p><span class="perf-holiday-key">Reason</span><span>{{ holiday.reason }}</span></p>
         <p class="perf-holiday-note">No performance is recorded for this date.</p>
+        <button
+          type="button"
+          class="perf-btn perf-btn-secondary perf-holiday-action"
+          @click="openSpecialModal"
+        >
+          <i class="fa fa-check-circle"></i> Class was conducted — record anyway
+        </button>
       </div>
     </div>
 
@@ -329,8 +415,16 @@
               <td class="perf-td-id">
                 <div class="perf-student-id">{{ s.student_id }}</div>
                 <div class="perf-student-stats">
-                  <span class="perf-stat-chip">Graded <b>{{ s.monthly_graded }}</b></span>
-                  <span class="perf-stat-chip perf-stat-low">Concerns <b>{{ s.monthly_low }}</b></span>
+                  <span
+                    v-for="chip in monthlyChips(s)"
+                    :key="chip.key"
+                    class="perf-stat-chip"
+                    :class="`perf-tone-${chip.tone}`"
+                    :title="`${chip.key} this month`"
+                  >{{ chip.key }} Count <b>{{ chip.count }}</b></span>
+                  <span v-if="!monthlyChips(s).length" class="perf-stat-chip perf-stat-none">
+                    Nothing recorded this month
+                  </span>
                 </div>
               </td>
               <td v-if="config.usesMarks" class="perf-td-marks">
@@ -342,9 +436,9 @@
                     step="0.5"
                     class="perf-marks-input"
                     :max="s.total_marks || undefined"
-                    :value="s.marks_obtained"
-                    :disabled="savingStudent === s.student_id || isFutureDate"
-                    placeholder="—"
+                    :value="s.skipped ? '' : s.marks_obtained"
+                    :disabled="savingStudent === s.student_id || isFutureDate || !!s.skipped"
+                    :placeholder="s.skipped ? 'Skipped' : '—'"
                     @change="onMarksChange(s, $event.target.value)"
                   />
                   <span class="perf-marks-total">/ {{ s.total_marks || setup.total_marks || 0 }}</span>
@@ -378,12 +472,25 @@
                 </div>
 
                 <div class="perf-row-meta">
+                  <label v-if="config.usesSkip" class="perf-skip-toggle" :class="{ active: !!s.skipped }">
+                    <input
+                      type="checkbox"
+                      :checked="!!s.skipped"
+                      :disabled="savingStudent === s.student_id || isFutureDate"
+                      @change="onSkipToggle(s, $event.target.checked)"
+                    />
+                    <span>{{ config.skipLabel }}</span>
+                  </label>
                   <span v-if="config.usesSyllabus && rowSyllabus(s)" class="perf-row-syllabus">
                     <i class="fa fa-book"></i> {{ rowSyllabus(s) }}
                   </span>
                   <button type="button" class="perf-row-edit" @click="openDetail(s)">
                     <i class="fa fa-pencil"></i> Details
                   </button>
+                </div>
+
+                <div v-if="s.skipped && s.remarks" class="perf-skip-msg">
+                  <i class="fa fa-info-circle"></i> {{ s.remarks }}
                 </div>
 
                 <div v-if="s.behaviour_reasons.length" class="perf-reason-msg">
@@ -456,6 +563,126 @@
       </div>
     </div>
 
+    <!-- Assign holiday modal -->
+    <div v-if="holidayModal.open" class="perf-modal-backdrop" @click.self="holidayModal.open = false">
+      <div class="perf-modal">
+        <h3>Assign Holiday</h3>
+
+        <label class="perf-modal-label">Date <span class="perf-required">*</span></label>
+        <input type="date" class="form-control" v-model="holidayModal.date" :max="serverToday" />
+
+        <label class="perf-modal-label">Holiday Type <span class="perf-required">*</span></label>
+        <select class="form-control" v-model="holidayModal.holiday_type">
+          <option value="">Select type</option>
+          <option v-for="t in HOLIDAY_TYPES" :key="t" :value="t">{{ t }}</option>
+        </select>
+
+        <label class="perf-modal-label">Reason <span class="perf-required">*</span></label>
+        <textarea class="form-control perf-textarea" rows="2" v-model="holidayModal.reason"></textarea>
+
+        <label class="perf-modal-label">Scope <span class="perf-required">*</span></label>
+        <select class="form-control" v-model="holidayModal.scope">
+          <option v-for="sc in HOLIDAY_SCOPES" :key="sc" :value="sc">{{ sc }}</option>
+        </select>
+
+        <template v-if="holidayModal.scope !== 'Entire School'">
+          <label class="perf-modal-label">Standard</label>
+          <select class="form-control" v-model="holidayModal.standard">
+            <option value="">Select Standard</option>
+            <option v-for="st in standards" :key="st.name" :value="st.name">{{ st.name }}</option>
+          </select>
+        </template>
+        <template v-if="holidayModal.scope === 'Standard + Batch'">
+          <label class="perf-modal-label">Batch</label>
+          <select class="form-control" v-model="holidayModal.batch">
+            <option value="">Select Batch</option>
+            <option v-for="b in batches" :key="b.name" :value="b.name">{{ b.name }}</option>
+          </select>
+        </template>
+
+        <p v-if="holidayModal.error" class="perf-modal-error">{{ holidayModal.error }}</p>
+
+        <div class="perf-modal-actions">
+          <button class="perf-btn perf-btn-secondary" @click="holidayModal.open = false">Cancel</button>
+          <button class="perf-btn perf-btn-primary" :disabled="holidayModal.saving" @click="confirmHoliday">
+            {{ holidayModal.saving ? 'Saving…' : 'Assign Holiday' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- "Class was conducted" modal -->
+    <div v-if="specialModal.open" class="perf-modal-backdrop" @click.self="specialModal.open = false">
+      <div class="perf-modal">
+        <h3>Class Conducted on a Holiday</h3>
+        <p class="perf-modal-sub">
+          {{ date }} is a holiday, but a class was taken. Recording that re-opens the day for
+          attendance and performance — for the scope you pick and nobody else. Mark attendance
+          first; only students marked Present can be graded.
+        </p>
+
+        <label class="perf-modal-label">Who sat the class <span class="perf-required">*</span></label>
+        <select class="form-control" v-model="specialModal.scope">
+          <option value="Standard + Batch">Only {{ standard }} — Batch {{ batch }}</option>
+          <option value="Standard">All batches of {{ standard }}</option>
+          <option value="Entire School">The entire school</option>
+        </select>
+
+        <label class="perf-modal-label">Reason <span class="perf-required">*</span></label>
+        <textarea
+          class="form-control perf-textarea"
+          rows="2"
+          placeholder="Why was class held on a holiday?"
+          v-model="specialModal.reason"
+        ></textarea>
+
+        <p v-if="specialModal.error" class="perf-modal-error">{{ specialModal.error }}</p>
+
+        <div class="perf-modal-actions">
+          <button class="perf-btn perf-btn-secondary" @click="specialModal.open = false">Cancel</button>
+          <button
+            class="perf-btn perf-btn-primary"
+            :disabled="!specialModal.reason.trim() || specialModal.saving"
+            @click="confirmSpecialClass"
+          >
+            {{ specialModal.saving ? 'Saving…' : 'Class Was Conducted' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skip Test / Study modal — a skip is only ever recorded with a reason -->
+    <div v-if="skipModal.open" class="perf-modal-backdrop" @click.self="closeSkipModal">
+      <div class="perf-modal">
+        <h3>{{ config.skipLabel }} — {{ skipModal.student?.student_name }}</h3>
+        <p class="perf-modal-sub">
+          The student is excused from today's {{ category }}. It counts as neither a pass nor a
+          fail, and is left out of the monthly percentage.
+        </p>
+
+        <label class="perf-modal-label">Remarks <span class="perf-required">*</span></label>
+        <textarea
+          class="form-control perf-textarea"
+          rows="3"
+          placeholder="Why was this student excused?"
+          v-model="skipModal.remarks"
+        ></textarea>
+
+        <p v-if="skipModal.error" class="perf-modal-error">{{ skipModal.error }}</p>
+
+        <div class="perf-modal-actions">
+          <button class="perf-btn perf-btn-secondary" @click="closeSkipModal">Cancel</button>
+          <button
+            class="perf-btn perf-btn-primary"
+            :disabled="!skipModal.remarks.trim() || skipModal.saving"
+            @click="confirmSkip"
+          >
+            {{ skipModal.saving ? 'Saving…' : config.skipLabel }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Per-student override modal -->
     <div v-if="detailModal.open" class="perf-modal-backdrop" @click.self="detailModal.open = false">
       <div class="perf-modal">
@@ -474,10 +701,57 @@
           </select>
 
           <label class="perf-modal-label">Lesson</label>
-          <input type="text" class="form-control" v-model="detailModal.lesson" />
+          <small v-if="!detailModal.subject" class="perf-field-hint">
+            Pick a Subject first — a lesson belongs to one subject of one standard.
+          </small>
+          <div v-else class="perf-picker">
+            <div class="perf-tag-row">
+              <span v-for="name in detailModal.lessons" :key="name" class="perf-tag">
+                {{ lessonTitle(name, detailLessons) }}
+                <button
+                  type="button"
+                  class="perf-tag-x"
+                  :title="`Remove ${lessonTitle(name, detailLessons)}`"
+                  @click="removeLesson(detailModal.lessons, name)"
+                >
+                  <i class="fa fa-times"></i>
+                </button>
+              </span>
+              <small v-if="!detailModal.lessons.length" class="perf-field-hint">
+                No lesson picked yet.
+              </small>
+            </div>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Search a lesson"
+              v-model="detailLessonSearch"
+            />
+            <ul class="perf-option-list">
+              <li v-for="l in detailLessonPicks" :key="l.name">
+                <button type="button" @click="pickLesson(detailModal.lessons, l.name)">
+                  <i class="fa fa-plus-circle"></i> {{ l.lesson_name }}
+                </button>
+              </li>
+              <li v-if="!detailLessonPicks.length" class="perf-option-empty">
+                {{ lessonEmptyText(detailLessons, detailModal.lessons, detailLessonSearch) }}
+              </li>
+            </ul>
+          </div>
 
           <label class="perf-modal-label">Portion</label>
-          <textarea class="form-control perf-textarea" rows="2" v-model="detailModal.portion"></textarea>
+          <div class="perf-chip-picker">
+            <button
+              v-for="p in portionOptions"
+              :key="p.name"
+              type="button"
+              class="perf-chip"
+              :class="{ active: detailModal.portions.includes(p.name) }"
+              @click="togglePortion(detailModal.portions, p.name)"
+            >
+              {{ p.portion_name }}
+            </button>
+          </div>
         </template>
 
         <template v-if="config.usesQuestions">
@@ -496,8 +770,14 @@
           <input type="number" min="0" class="form-control" v-model.number="detailModal.marks_obtained" />
         </template>
 
-        <label class="perf-modal-label">Remarks</label>
+        <label class="perf-modal-label">
+          Remarks
+          <span v-if="detailModal.student?.skipped" class="perf-required">*</span>
+        </label>
         <textarea class="form-control perf-textarea" rows="2" v-model="detailModal.remarks"></textarea>
+        <small v-if="detailModal.student?.skipped" class="perf-field-hint">
+          Required — this student is marked {{ config.skipLabel }}.
+        </small>
 
         <p v-if="detailModal.error" class="perf-modal-error">{{ detailModal.error }}</p>
         <p v-if="!detailModal.student?.result" class="perf-modal-warn">
@@ -520,12 +800,24 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import { serverToday, loadServerToday, formatDate, addDays } from '@/data/serverDate'
 
 // Mirrors bb_academy/performance_config.py — the server validates against its
 // own copy, so any change here needs the same change there.
+//
+// "Maths Test" and "Accounts Test" are the same test under the name the
+// standard actually sits it under; `categoryOptions` offers exactly one of them.
+const TEST_RESULTS = [
+  { value: 'Full Mark', icon: 'fa-trophy', tone: 'good' },
+  { value: 'Pass Mark', icon: 'fa-check-circle', tone: 'mid' },
+  { value: 'Fail', icon: 'fa-times-circle', tone: 'bad' },
+]
+
+const SKIP_RESULT = 'Skipped'
+const SKIP_OPTION = { value: SKIP_RESULT, icon: 'fa-ban', tone: 'skip' }
+
 const CATEGORY_CONFIG = {
   Study: {
     icon: 'fa-book',
@@ -533,6 +825,8 @@ const CATEGORY_CONFIG = {
     usesQuestions: true,
     usesMarks: false,
     usesReasons: false,
+    usesSkip: true,
+    skipLabel: 'Skip Study',
     results: [
       { value: 'Excellent', icon: 'fa-star', tone: 'good' },
       { value: 'Completed', icon: 'fa-check-circle', tone: 'mid' },
@@ -545,11 +839,9 @@ const CATEGORY_CONFIG = {
     usesQuestions: false,
     usesMarks: true,
     usesReasons: false,
-    results: [
-      { value: 'Full Mark', icon: 'fa-trophy', tone: 'good' },
-      { value: 'Pass Mark', icon: 'fa-check-circle', tone: 'mid' },
-      { value: 'Fail', icon: 'fa-times-circle', tone: 'bad' },
-    ],
+    usesSkip: true,
+    skipLabel: 'Skip Test',
+    results: TEST_RESULTS,
   },
   'Maths Test': {
     icon: 'fa-calculator',
@@ -557,11 +849,19 @@ const CATEGORY_CONFIG = {
     usesQuestions: false,
     usesMarks: true,
     usesReasons: false,
-    results: [
-      { value: 'Full Mark', icon: 'fa-trophy', tone: 'good' },
-      { value: 'Pass Mark', icon: 'fa-check-circle', tone: 'mid' },
-      { value: 'Fail', icon: 'fa-times-circle', tone: 'bad' },
-    ],
+    usesSkip: true,
+    skipLabel: 'Skip Test',
+    results: TEST_RESULTS,
+  },
+  'Accounts Test': {
+    icon: 'fa-inr',
+    usesSyllabus: true,
+    usesQuestions: false,
+    usesMarks: true,
+    usesReasons: false,
+    usesSkip: true,
+    skipLabel: 'Skip Test',
+    results: TEST_RESULTS,
   },
   Behaviour: {
     icon: 'fa-smile-o',
@@ -569,6 +869,8 @@ const CATEGORY_CONFIG = {
     usesQuestions: false,
     usesMarks: false,
     usesReasons: true,
+    usesSkip: false,
+    skipLabel: '',
     results: [
       { value: 'Good', icon: 'fa-smile-o', tone: 'good' },
       { value: 'Bad', icon: 'fa-frown-o', tone: 'mid' },
@@ -577,7 +879,29 @@ const CATEGORY_CONFIG = {
   },
 }
 
-const CATEGORY_NAMES = Object.keys(CATEGORY_CONFIG)
+// Every standard sits Study, Test and Behaviour; the subject test is whichever
+// one the Standard master names (Accounts Test for Commerce).
+const SHARED_CATEGORIES = ['Study', 'Test']
+const SUBJECT_TESTS = ['Maths Test', 'Accounts Test']
+const DEFAULT_SUBJECT_TEST = 'Maths Test'
+
+// Mirrors the Select options on the Attendance Holiday doctype.
+const HOLIDAY_TYPES = [
+  'Rain',
+  'Government Holiday',
+  'School Holiday',
+  'Emergency',
+  'Sunday',
+  'KPI Meeting',
+  'Other',
+]
+const HOLIDAY_SCOPES = ['Entire School', 'Standard', 'Standard + Batch']
+
+// Half the paper passes — the same rule bb_academy/performance_config.py applies.
+function halfOf(total) {
+  return total ? Math.round((total / 2) * 2) / 2 : 0
+}
+
 // Grades the teacher must justify against the Behaviour Reason master list.
 const REASON_REQUIRED = ['Bad', 'Worst']
 
@@ -585,6 +909,14 @@ const standards = ref([])
 const batches = ref([])
 // Subject master, narrowed to the picked standard.
 const subjects = ref([])
+// Lesson master, narrowed to the standard + the subject the setup card holds.
+const lessons = ref([])
+// The same list for the per-student modal, which can be on another subject.
+const detailLessons = ref([])
+// Portion master — the same 1M / 2M / 5M list for every standard.
+const portionOptions = ref([])
+// Which subject test this standard sits. Server-decided, so the two never drift.
+const subjectTest = ref(DEFAULT_SUBJECT_TEST)
 const standard = ref('')
 const batch = ref('')
 const gender = ref('')
@@ -594,6 +926,10 @@ const date = ref(serverToday.value)
 const students = ref([])
 const summary = ref({})
 const holiday = ref(null)
+// Set when this date is a holiday a class was taken on anyway. The server then
+// treats the day as ordinary, so `holiday` comes back null and this is what
+// tells the screen why the students are listed.
+const specialClass = ref(null)
 const loading = ref(false)
 const totalStudents = ref(0)
 const attendanceMarked = ref(0)
@@ -612,12 +948,31 @@ const selected = reactive(new Set())
 const setupOpen = ref(false)
 const setup = reactive({
   subject: '',
-  lesson: '',
-  portion: '',
+  lessons: [],
+  portions: [],
   total_questions: 0,
   total_marks: 0,
   pass_marks: 0,
 })
+// One box does both jobs: it filters the list below, and its text is what the
+// Add button pushes into the Lesson master.
+const lessonSearch = ref('')
+const detailLessonSearch = ref('')
+const addingLesson = ref(false)
+const lessonError = ref('')
+
+// Raised while a load writes Subject and Lesson in the same tick. Without it the
+// "subject changed, so the lessons no longer apply" rule below would fire on
+// our own write and drop the lessons we just loaded.
+let syncingSyllabus = false
+
+function syncSyllabus(apply) {
+  syncingSyllabus = true
+  apply()
+  nextTick(() => {
+    syncingSyllabus = false
+  })
+}
 const applyToAll = ref(false)
 const setupSaving = ref(false)
 const setupError = ref('')
@@ -637,12 +992,40 @@ const reasonModal = reactive({
   error: '',
 })
 
+const holidayModal = reactive({
+  open: false,
+  date: '',
+  holiday_type: '',
+  reason: '',
+  scope: 'Entire School',
+  standard: '',
+  batch: '',
+  saving: false,
+  error: '',
+})
+
+const specialModal = reactive({
+  open: false,
+  scope: 'Standard + Batch',
+  reason: '',
+  saving: false,
+  error: '',
+})
+
+const skipModal = reactive({
+  open: false,
+  student: null,
+  remarks: '',
+  saving: false,
+  error: '',
+})
+
 const detailModal = reactive({
   open: false,
   student: null,
   subject: '',
-  lesson: '',
-  portion: '',
+  lessons: [],
+  portions: [],
   total_questions: 0,
   total_marks: 0,
   pass_marks: 0,
@@ -652,8 +1035,8 @@ const detailModal = reactive({
   error: '',
 })
 
-const standardsResource = createResource({ url: 'frappe.client.get_list' })
-const batchesResource = createResource({ url: 'frappe.client.get_list' })
+const standardsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const batchesResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
 const studentsResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.get_performance_students',
 })
@@ -675,16 +1058,101 @@ const subjectsResource = createResource({
 const addReasonResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.add_behaviour_reason',
 })
+const metaResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.get_performance_meta',
+})
+const lessonsResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.get_lessons',
+})
+const detailLessonsResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.get_lessons',
+})
+const portionsResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.get_portions',
+})
+const addLessonResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.add_lesson',
+})
+const clearResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.clear_student_performance',
+})
+const assignHolidayResource = createResource({
+  url: 'bb_tution_management.bb_academy.attendance.assign_holiday',
+})
+const specialClassResource = createResource({
+  url: 'bb_tution_management.bb_academy.attendance.assign_special_class_day',
+})
+const removeSpecialClassResource = createResource({
+  url: 'bb_tution_management.bb_academy.attendance.remove_special_class_day',
+})
 
 const config = computed(() => CATEGORY_CONFIG[category.value] || CATEGORY_CONFIG.Study)
 const columnCount = computed(() => (config.value.usesMarks ? 5 : 4))
 
+// The standard sits exactly one subject test, so only that one is offered.
+const categoryOptions = computed(() => [...SHARED_CATEGORIES, subjectTest.value, 'Behaviour'])
+
+// The grade buttons stay three wide; Skipped is set by its own checkbox, but it
+// still needs a KPI card and a stat chip of its own.
+const allResultOptions = computed(() =>
+  config.value.usesSkip ? [...config.value.results, SKIP_OPTION] : config.value.results
+)
+
+const fullMarkFrom = computed(() => {
+  const total = setup.total_marks || 0
+  if (!total) return 0
+  const threshold = total - 1
+  return threshold <= 0 || threshold <= (setup.pass_marks || 0) ? total : threshold
+})
+
 const gradedCount = computed(() => students.value.filter((s) => s.result).length)
+
+function lessonTitle(name, pool) {
+  // The setup card and the per-student modal each load their own list and can
+  // sit on different subjects, so a name is looked up in both before giving up.
+  const hit = [pool, lessons.value, detailLessons.value]
+    .filter(Boolean)
+    .map((p) => p.find((l) => l.name === name))
+    .find(Boolean)
+  // A lesson neither list carries still has to read as something; the docname
+  // carries the title, so it is the honest fallback.
+  return hit ? hit.lesson_name : name
+}
+
+// What the picker offers: the master minus everything already picked, narrowed
+// by whatever is typed in the search box.
+function lessonPicks(pool, picked, query) {
+  const q = (query || '').trim().toLowerCase()
+  return pool.filter(
+    (l) => !picked.includes(l.name) && (!q || l.lesson_name.toLowerCase().includes(q))
+  )
+}
+
+function lessonEmptyText(pool, picked, query) {
+  if (!pool.length) return 'No lesson is mapped to this subject yet — type one above and add it.'
+  if ((query || '').trim()) return 'No lesson matches — type the full title above to add it.'
+  if (picked.length >= pool.length) return 'Every lesson for this subject is already picked.'
+  return 'No lesson left to pick.'
+}
+
+const setupLessonPicks = computed(() =>
+  lessonPicks(lessons.value, setup.lessons, lessonSearch.value)
+)
+
+const detailLessonPicks = computed(() =>
+  lessonPicks(detailLessons.value, detailModal.lessons, detailLessonSearch.value)
+)
+
+function portionTitle(name) {
+  const hit = portionOptions.value.find((p) => p.name === name)
+  return hit ? hit.portion_name : name
+}
 
 const setupSummary = computed(() => {
   const parts = []
   if (setup.subject) parts.push(setup.subject)
-  if (setup.lesson) parts.push(setup.lesson)
+  if (setup.lessons.length) parts.push(setup.lessons.map((n) => lessonTitle(n)).join(' / '))
+  if (setup.portions.length) parts.push(setup.portions.map(portionTitle).join(' / '))
   if (config.value.usesQuestions && setup.total_questions) {
     parts.push(`${setup.total_questions} questions`)
   }
@@ -695,7 +1163,7 @@ const setupSummary = computed(() => {
 })
 
 function toneOf(result) {
-  const opt = config.value.results.find((r) => r.value === result)
+  const opt = allResultOptions.value.find((r) => r.value === result)
   return opt ? opt.tone : ''
 }
 
@@ -711,7 +1179,7 @@ const kpis = computed(() => {
       title: 'Show all present students',
     },
   ]
-  config.value.results.forEach((opt) => {
+  allResultOptions.value.forEach((opt) => {
     cards.push({
       key: opt.value,
       filter: opt.value,
@@ -822,7 +1290,35 @@ function initials(name) {
 }
 
 function rowSyllabus(s) {
-  return [s.subject, s.lesson, s.portion].filter(Boolean).join(' • ')
+  const portions = (s.portions || []).map(portionTitle).join(' / ')
+  const lessonNames = (s.lesson_titles?.length ? s.lesson_titles : s.lessons || []).join(' / ')
+  return [s.subject, lessonNames, portions].filter(Boolean).join(' • ')
+}
+
+// "Full Mark Count 4 · Fail Count 1" — one chip per grade the student actually
+// picked up this month. A zero says nothing, so it is left out entirely.
+function monthlyChips(s) {
+  const counts = s.monthly_counts || {}
+  return allResultOptions.value
+    .filter((opt) => (counts[opt.value] || 0) > 0)
+    .map((opt) => ({ key: opt.value, count: counts[opt.value], tone: opt.tone }))
+}
+
+function togglePortion(list, name) {
+  const at = list.indexOf(name)
+  if (at === -1) list.push(name)
+  else list.splice(at, 1)
+}
+
+function pickLesson(list, name) {
+  // The list below never offers what is already picked, so this cannot double
+  // up — but a stale click during a reload could, and the server rejects that.
+  if (!list.includes(name)) list.push(name)
+}
+
+function removeLesson(list, name) {
+  const at = list.indexOf(name)
+  if (at !== -1) list.splice(at, 1)
 }
 
 function toggleFilter(key) {
@@ -856,17 +1352,12 @@ function errorText(e, fallback) {
 
 async function loadStandards() {
   standards.value =
-    (await standardsResource.submit({
-      doctype: 'Standard',
-      fields: ['name'],
-      limit_page_length: 0,
-    })) || []
+    (await standardsResource.submit({ doctype: 'Standard' })) || []
 }
 
 async function loadBatches() {
   batches.value =
-    (await batchesResource.submit({ doctype: 'Batch', fields: ['name'], limit_page_length: 0 })) ||
-    []
+    (await batchesResource.submit({ doctype: 'Batch' })) || []
 }
 
 async function loadSubjects() {
@@ -875,6 +1366,78 @@ async function loadSubjects() {
     return
   }
   subjects.value = (await subjectsResource.submit({ standard: standard.value })) || []
+}
+
+async function loadMeta() {
+  // Which subject test this standard sits is the server's call, so the PWA asks
+  // rather than re-deriving it from the standard's name.
+  if (!standard.value) {
+    subjectTest.value = DEFAULT_SUBJECT_TEST
+    return
+  }
+  try {
+    const meta = await metaResource.submit({ standard: standard.value })
+    subjectTest.value = meta?.subject_test || DEFAULT_SUBJECT_TEST
+  } catch (e) {
+    subjectTest.value = DEFAULT_SUBJECT_TEST
+  }
+  // The standard just switched away from the test the screen was showing.
+  if (SUBJECT_TESTS.includes(category.value) && category.value !== subjectTest.value) {
+    category.value = subjectTest.value
+  }
+}
+
+async function loadLessons() {
+  if (!standard.value || !setup.subject) {
+    lessons.value = []
+    return
+  }
+  lessons.value =
+    (await lessonsResource.submit({
+      standard: standard.value,
+      subject: setup.subject,
+      include: setup.lessons.length ? JSON.stringify(setup.lessons) : undefined,
+    })) || []
+}
+
+async function loadDetailLessons(subject, include) {
+  if (!standard.value || !subject) {
+    detailLessons.value = []
+    return
+  }
+  detailLessons.value =
+    (await detailLessonsResource.submit({
+      standard: standard.value,
+      subject,
+      include: include?.length ? JSON.stringify(include) : undefined,
+    })) || []
+}
+
+async function loadPortions() {
+  portionOptions.value = (await portionsResource.submit()) || []
+}
+
+async function addLesson() {
+  const title = lessonSearch.value.trim()
+  if (!title || !setup.subject) return
+  addingLesson.value = true
+  lessonError.value = ''
+  try {
+    // The server hands back the existing lesson when the title is already in
+    // the master, so typing one that exists picks it rather than duplicating it.
+    const res = await addLessonResource.submit({
+      lesson_name: title,
+      subject: setup.subject,
+      standard: standard.value,
+    })
+    if (res?.name) pickLesson(setup.lessons, res.name)
+    await loadLessons()
+    lessonSearch.value = ''
+  } catch (e) {
+    lessonError.value = errorText(e, 'Failed to add lesson')
+  } finally {
+    addingLesson.value = false
+  }
 }
 
 function subjectOptions(current) {
@@ -892,6 +1455,7 @@ async function loadStudents() {
   if (!standard.value || !batch.value || !category.value || !date.value) {
     students.value = []
     holiday.value = null
+    specialClass.value = null
     totalStudents.value = 0
     attendanceMarked.value = 0
     return
@@ -908,6 +1472,7 @@ async function loadStudents() {
       gender: gender.value || undefined,
     })
     holiday.value = res.holiday || null
+    specialClass.value = res.special_class || null
     students.value = res.students || []
     summary.value = res.summary || {}
     totalStudents.value = res.total_students || 0
@@ -922,19 +1487,24 @@ async function loadStudents() {
 }
 
 function applySessionToForm(session) {
-  setup.subject = session?.subject || ''
-  setup.lesson = session?.lesson || ''
-  setup.portion = session?.portion || ''
+  syncSyllabus(() => {
+    setup.subject = session?.subject || ''
+    setup.lessons = [...(session?.lessons || [])]
+  })
+  lessonSearch.value = ''
+
+  setup.portions = [...(session?.portions || [])]
   setup.total_questions = session?.total_questions || 0
   setup.total_marks = session?.total_marks || 0
   setup.pass_marks = session?.pass_marks || 0
   // Nudge the teacher into filling the setup in before grading a fresh batch.
   setupOpen.value = config.value.usesSyllabus && !session
+  loadLessons()
 }
 
 function recomputeSummary() {
   const next = {}
-  config.value.results.forEach((opt) => {
+  allResultOptions.value.forEach((opt) => {
     next[opt.value] = 0
   })
   next.pending = 0
@@ -944,6 +1514,99 @@ function recomputeSummary() {
   })
   next.total = students.value.length
   summary.value = next
+}
+
+function openHolidayModal() {
+  holidayModal.open = true
+  holidayModal.date = date.value
+  holidayModal.holiday_type = ''
+  holidayModal.reason = ''
+  holidayModal.scope = 'Entire School'
+  holidayModal.standard = standard.value
+  holidayModal.batch = batch.value
+  holidayModal.error = ''
+  holidayModal.saving = false
+}
+
+async function confirmHoliday() {
+  holidayModal.error = ''
+  if (!holidayModal.date || !holidayModal.holiday_type || !holidayModal.reason.trim()) {
+    holidayModal.error = 'Date, Holiday Type and Reason are required.'
+    return
+  }
+  if (holidayModal.scope !== 'Entire School' && !holidayModal.standard) {
+    holidayModal.error = 'Standard is required for this scope.'
+    return
+  }
+  if (holidayModal.scope === 'Standard + Batch' && !holidayModal.batch) {
+    holidayModal.error = 'Batch is required for this scope.'
+    return
+  }
+
+  holidayModal.saving = true
+  try {
+    await assignHolidayResource.submit({
+      date: holidayModal.date,
+      holiday_type: holidayModal.holiday_type,
+      reason: holidayModal.reason,
+      scope: holidayModal.scope,
+      standard: holidayModal.scope !== 'Entire School' ? holidayModal.standard : undefined,
+      batch: holidayModal.scope === 'Standard + Batch' ? holidayModal.batch : undefined,
+    })
+    holidayModal.open = false
+    await loadStudents()
+  } catch (e) {
+    holidayModal.error = errorText(e, 'Failed to assign holiday')
+  } finally {
+    holidayModal.saving = false
+  }
+}
+
+function openSpecialModal() {
+  specialModal.open = true
+  // Default to the narrowest scope: one batch working through a holiday must
+  // not re-open the day for the whole school by accident.
+  specialModal.scope = 'Standard + Batch'
+  specialModal.reason = ''
+  specialModal.error = ''
+  specialModal.saving = false
+}
+
+async function confirmSpecialClass() {
+  const reason = specialModal.reason.trim()
+  if (!reason) return
+  specialModal.saving = true
+  specialModal.error = ''
+  try {
+    await specialClassResource.submit({
+      date: date.value,
+      reason,
+      scope: specialModal.scope,
+      standard: specialModal.scope !== 'Entire School' ? standard.value : undefined,
+      batch: specialModal.scope === 'Standard + Batch' ? batch.value : undefined,
+    })
+    specialModal.open = false
+    await loadStudents()
+  } catch (e) {
+    specialModal.error = errorText(e, 'Failed to save')
+  } finally {
+    specialModal.saving = false
+  }
+}
+
+async function undoSpecialClass() {
+  saveError.value = ''
+  try {
+    await removeSpecialClassResource.submit({
+      date: date.value,
+      standard: standard.value,
+      batch: batch.value,
+    })
+    await loadStudents()
+  } catch (e) {
+    // Grades already recorded stay; only the "it was a working day" flag goes.
+    saveError.value = errorText(e, 'Failed to undo')
+  }
 }
 
 async function saveSetup() {
@@ -961,8 +1624,8 @@ async function saveSetup() {
       category: category.value,
       performance_date: date.value,
       subject: setup.subject || undefined,
-      lesson: setup.lesson || undefined,
-      portion: setup.portion || undefined,
+      lessons: JSON.stringify(setup.lessons),
+      portions: JSON.stringify(setup.portions),
       total_questions: setup.total_questions || 0,
       total_marks: setup.total_marks || 0,
       pass_marks: setup.pass_marks || 0,
@@ -983,6 +1646,8 @@ async function saveSetup() {
 function onResultClick(student, result) {
   if (savingStudent.value === student.student_id) return
   if (student.result === result && !config.value.usesReasons) return
+  // Grading a skipped student un-skips them — the server clears the flag when
+  // it sees a real grade come in.
   if (isFutureDate.value) {
     saveError.value = 'Cannot record performance for future dates.'
     return
@@ -1014,17 +1679,23 @@ async function applyResult(student, payload) {
       behaviour_reasons: payload.behaviour_reasons
         ? JSON.stringify(payload.behaviour_reasons)
         : undefined,
+      lessons: payload.lessons ? JSON.stringify(payload.lessons) : undefined,
+      portions: payload.portions ? JSON.stringify(payload.portions) : undefined,
     })
     if (res) {
       student.result = res.result
+      student.skipped = res.skipped || 0
       student.marks_obtained = res.marks_obtained
+      student.remarks = res.remarks || ''
       student.behaviour_reasons = res.behaviour_reasons || []
+      student.portions = res.portions || []
+      student.lessons = res.lessons || []
+      student.lesson_titles = student.lessons.map((n) => lessonTitle(n))
+      student.monthly_counts = res.monthly_counts || {}
       student.monthly_low = res.monthly_low
       student.monthly_graded = res.monthly_graded
     }
     if (payload.subject !== undefined) student.subject = payload.subject
-    if (payload.lesson !== undefined) student.lesson = payload.lesson
-    if (payload.portion !== undefined) student.portion = payload.portion
     if (payload.total_questions !== undefined) student.total_questions = payload.total_questions
     if (payload.total_marks !== undefined) student.total_marks = payload.total_marks
     if (payload.pass_marks !== undefined) student.pass_marks = payload.pass_marks
@@ -1063,6 +1734,85 @@ function onMarksChange(student, raw) {
     saveError.value = errorText(e, 'Failed to save marks')
     students.value = [...students.value]
   })
+}
+
+// Ticking "Skip Test / Study" always goes through the modal — a skip without a
+// reason is exactly the record nobody can explain a month later.
+function onSkipToggle(student, checked) {
+  if (isFutureDate.value) {
+    saveError.value = 'Cannot record performance for future dates.'
+    students.value = [...students.value]
+    return
+  }
+
+  if (checked) {
+    skipModal.open = true
+    skipModal.student = student
+    skipModal.remarks = student.remarks || ''
+    skipModal.error = ''
+    return
+  }
+
+  // Un-ticking puts the student back to ungraded rather than inventing a grade.
+  clearResult(student).catch((e) => {
+    saveError.value = errorText(e, 'Failed to clear the skip')
+    students.value = [...students.value]
+  })
+}
+
+function closeSkipModal() {
+  skipModal.open = false
+  skipModal.student = null
+  skipModal.remarks = ''
+  skipModal.error = ''
+  // The checkbox has already flipped; re-render to snap it back to what is saved.
+  students.value = [...students.value]
+}
+
+async function confirmSkip() {
+  const student = skipModal.student
+  const remarks = skipModal.remarks.trim()
+  if (!student || !remarks) return
+
+  skipModal.saving = true
+  skipModal.error = ''
+  try {
+    await applyResult(student, { result: SKIP_RESULT, skipped: 1, remarks })
+    skipModal.open = false
+    skipModal.student = null
+    skipModal.remarks = ''
+  } catch (e) {
+    skipModal.error = errorText(e, 'Failed to save')
+  } finally {
+    skipModal.saving = false
+  }
+}
+
+async function clearResult(student) {
+  saveError.value = ''
+  savingStudent.value = student.student_id
+  try {
+    const res = await clearResource.submit({
+      student: student.student_id,
+      performance_date: date.value,
+      category: category.value,
+      standard: standard.value,
+      batch: batch.value,
+    })
+    student.result = null
+    student.skipped = 0
+    student.marks_obtained = null
+    student.remarks = ''
+    student.behaviour_reasons = []
+    if (res) {
+      student.monthly_counts = res.monthly_counts || {}
+      student.monthly_low = res.monthly_low
+      student.monthly_graded = res.monthly_graded
+    }
+    recomputeSummary()
+  } finally {
+    savingStudent.value = null
+  }
 }
 
 function openReasonModal(result, student) {
@@ -1190,20 +1940,30 @@ async function bulkMark(result) {
 function openDetail(student) {
   detailModal.open = true
   detailModal.student = student
-  detailModal.subject = student.subject || setup.subject || ''
-  detailModal.lesson = student.lesson || setup.lesson || ''
-  detailModal.portion = student.portion || setup.portion || ''
+  syncSyllabus(() => {
+    detailModal.subject = student.subject || setup.subject || ''
+    detailModal.lessons = [...(student.lessons?.length ? student.lessons : setup.lessons)]
+  })
+  detailLessonSearch.value = ''
+
+  detailModal.portions = [...(student.portions?.length ? student.portions : setup.portions)]
   detailModal.total_questions = student.total_questions || setup.total_questions || 0
   detailModal.total_marks = student.total_marks || setup.total_marks || 0
   detailModal.pass_marks = student.pass_marks || setup.pass_marks || 0
   detailModal.marks_obtained = student.marks_obtained || 0
   detailModal.remarks = student.remarks || ''
   detailModal.error = ''
+  loadDetailLessons(detailModal.subject, detailModal.lessons)
 }
 
 async function saveDetail() {
   const student = detailModal.student
   if (!student?.result) return
+  // The row is only Skipped because someone said why; an edit must not strip it.
+  if (student.skipped && !detailModal.remarks.trim()) {
+    detailModal.error = `Remarks are required while this student is marked ${config.value.skipLabel}.`
+    return
+  }
   detailModal.saving = true
   detailModal.error = ''
   try {
@@ -1212,8 +1972,8 @@ async function saveDetail() {
       // category rules to validate the rest of the payload against.
       result: student.result,
       subject: config.value.usesSyllabus ? detailModal.subject : undefined,
-      lesson: config.value.usesSyllabus ? detailModal.lesson : undefined,
-      portion: config.value.usesSyllabus ? detailModal.portion : undefined,
+      lessons: config.value.usesSyllabus ? detailModal.lessons : undefined,
+      portions: config.value.usesSyllabus ? detailModal.portions : undefined,
       total_questions: config.value.usesQuestions ? detailModal.total_questions : undefined,
       total_marks: config.value.usesMarks ? detailModal.total_marks : undefined,
       pass_marks: config.value.usesMarks ? detailModal.pass_marks : undefined,
@@ -1235,10 +1995,62 @@ onMounted(async () => {
   loadStandards()
   loadBatches()
   loadBehaviourReasons()
+  loadPortions()
 })
 
 watch([standard, batch, gender, category, date], loadStudents)
-watch(standard, loadSubjects)
+watch(standard, async () => {
+  await loadMeta()
+  await loadSubjects()
+  await loadLessons()
+})
+
+// A lesson belongs to its subject, so switching subject reloads the list and
+// drops picks that no longer apply.
+watch(
+  () => setup.subject,
+  (subject, previous) => {
+    if (!syncingSyllabus && previous !== undefined && subject !== previous) {
+      setup.lessons = []
+      lessonSearch.value = ''
+    }
+    loadLessons()
+  }
+)
+
+watch(
+  () => detailModal.subject,
+  (subject, previous) => {
+    if (!detailModal.open) return
+    if (!syncingSyllabus && previous !== undefined && subject !== previous) {
+      detailModal.lessons = []
+      detailLessonSearch.value = ''
+    }
+    loadDetailLessons(subject, detailModal.lessons)
+  }
+)
+
+// Pass Marks follows the total at 50% until someone types their own value —
+// after that their number is left alone.
+watch(
+  () => setup.total_marks,
+  (total, previous) => {
+    if (!config.value.usesMarks) return
+    if (!setup.pass_marks || setup.pass_marks === halfOf(previous || 0)) {
+      setup.pass_marks = halfOf(total || 0)
+    }
+  }
+)
+
+watch(
+  () => detailModal.total_marks,
+  (total, previous) => {
+    if (!detailModal.open || !config.value.usesMarks) return
+    if (!detailModal.pass_marks || detailModal.pass_marks === halfOf(previous || 0)) {
+      detailModal.pass_marks = halfOf(total || 0)
+    }
+  }
+)
 
 // Selections must not survive a filter change that hides the rows.
 watch([resultFilter, showCompleted, search], () => {
@@ -1470,6 +2282,15 @@ watch([resultFilter, showCompleted, search], () => {
   color: var(--text-on-green);
 }
 
+/* The alert's generic rule pushes a lone button to the right; this one is part
+   of the sentence, so it stays inline. */
+.perf-manager .perf-alert .perf-alert-link {
+  margin-left: 6px;
+  padding: 0;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .perf-manager .perf-alert button {
   margin-left: auto;
   border: none;
@@ -1542,6 +2363,8 @@ watch([resultFilter, showCompleted, search], () => {
 .perf-manager .perf-kpi-card.perf-tone-mid.is-active { color: var(--orange-600, var(--text-on-orange)); }
 .perf-manager .perf-kpi-card.perf-tone-bad .perf-kpi-icon { background: var(--bg-red); color: var(--text-on-red); }
 .perf-manager .perf-kpi-card.perf-tone-bad.is-active { color: var(--red-600); }
+.perf-manager .perf-kpi-card.perf-tone-skip .perf-kpi-icon { background: var(--gray-100); color: var(--gray-700); }
+.perf-manager .perf-kpi-card.perf-tone-skip.is-active { color: var(--gray-700); }
 .perf-manager .perf-kpi-card.perf-tone-pending .perf-kpi-icon { background: var(--bg-yellow); color: var(--text-on-yellow); }
 .perf-manager .perf-kpi-card.perf-tone-pending.is-active { color: var(--yellow-700, var(--text-on-yellow)); }
 
@@ -1729,6 +2552,36 @@ watch([resultFilter, showCompleted, search], () => {
   font-style: italic;
 }
 
+.perf-manager .perf-holiday-action {
+  margin-top: 12px;
+  white-space: normal;
+  text-align: left;
+}
+
+/* ---- panel actions ---- */
+.perf-manager .perf-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.perf-manager .perf-holiday-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-color);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--perf-radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.perf-manager .perf-holiday-btn:hover { border-color: var(--gray-400); }
+
 /* ---- empty / skeleton ---- */
 .perf-manager .perf-empty-state { text-align: center; padding: 48px 20px; color: var(--text-muted); }
 .perf-manager .perf-empty-icon { font-size: 34px; color: var(--gray-400); margin-bottom: 12px; }
@@ -1842,8 +2695,22 @@ watch([resultFilter, showCompleted, search], () => {
   gap: 3px;
 }
 
+.perf-manager .perf-student-stats { flex-wrap: wrap; }
+
 .perf-manager .perf-stat-chip b { font-weight: 700; }
 .perf-manager .perf-stat-low b { color: var(--red-600); }
+.perf-manager .perf-stat-none { font-style: italic; }
+
+/* One chip per grade, coloured the same way its button is, so a month of
+   Fails reads red at a glance without anyone reading the numbers. */
+.perf-manager .perf-stat-chip.perf-tone-good { background: var(--bg-green); color: var(--text-on-green); }
+.perf-manager .perf-stat-chip.perf-tone-good b { color: var(--green-600); }
+.perf-manager .perf-stat-chip.perf-tone-mid { background: var(--bg-orange); color: var(--text-on-orange); }
+.perf-manager .perf-stat-chip.perf-tone-mid b { color: var(--orange-600, var(--text-on-orange)); }
+.perf-manager .perf-stat-chip.perf-tone-bad { background: var(--bg-red); color: var(--text-on-red); }
+.perf-manager .perf-stat-chip.perf-tone-bad b { color: var(--red-600); }
+.perf-manager .perf-stat-chip.perf-tone-skip { background: var(--gray-100); color: var(--gray-700); }
+.perf-manager .perf-stat-chip.perf-tone-skip b { color: var(--gray-700); }
 
 .perf-manager .perf-student-profile { display: flex; align-items: center; gap: 10px; }
 
@@ -1987,6 +2854,178 @@ watch([resultFilter, showCompleted, search], () => {
 }
 
 .perf-manager .perf-row-edit:hover { text-decoration: underline; }
+
+/* ---- skip toggle ---- */
+.perf-manager .perf-skip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 2px 8px 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.perf-manager .perf-skip-toggle input { margin: 0; cursor: pointer; }
+.perf-manager .perf-skip-toggle:hover { border-color: var(--gray-400); }
+
+.perf-manager .perf-skip-toggle.active {
+  background: var(--gray-100);
+  border-color: var(--gray-400);
+  color: var(--gray-800, var(--text-color));
+}
+
+.perf-manager .perf-skip-msg {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--gray-700);
+  background: var(--gray-100);
+  border-radius: var(--perf-radius-sm);
+  padding: 4px 8px;
+}
+
+.perf-manager .perf-skip-msg i { margin-right: 4px; }
+
+/* ---- portion chip picker ---- */
+.perf-manager .perf-field-wide { flex: 1 1 100%; min-width: 100%; }
+
+/* The lesson picker stacks chips, a search box and a list, so it takes the
+   whole row of the setup grid rather than one 180px cell. `1 / -1` spans the
+   explicit columns without creating an implicit one when the grid collapses
+   to a single column on a phone. */
+.perf-manager .perf-field-lesson { grid-column: 1 / -1; }
+
+.perf-manager .perf-chip-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.perf-manager .perf-chip {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.perf-manager .perf-chip:hover { border-color: var(--gray-400); }
+
+.perf-manager .perf-chip.active {
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: #fff;
+}
+
+/* ---- inline "add to the master" row ---- */
+.perf-manager .perf-inline-add {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.perf-manager .perf-inline-add .form-control { flex: 1 1 auto; min-width: 0; }
+
+/* ---- searchable multiselect (Lesson) ----
+   A chip row for what is picked, one box that both searches the master and
+   names a new lesson to add, then the list of what is left. A lesson already
+   picked never appears in the list, so it cannot be added twice. */
+.perf-manager .perf-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.perf-manager .perf-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+}
+
+.perf-manager .perf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--blue-600);
+  border-radius: 999px;
+}
+
+.perf-manager .perf-tag-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 10px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.22);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.perf-manager .perf-tag-x:hover { background: rgba(255, 255, 255, 0.4); }
+
+.perf-manager .perf-option-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 152px;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--perf-radius-sm);
+}
+
+.perf-manager .perf-option-list li { margin: 0; }
+
+.perf-manager .perf-option-list button {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+  color: var(--text-color);
+  background: transparent;
+  border: 0;
+  border-radius: var(--perf-radius-sm);
+  cursor: pointer;
+}
+
+.perf-manager .perf-option-list button:hover { background: var(--gray-100); }
+.perf-manager .perf-option-list button i { margin-right: 6px; color: var(--blue-600); }
+
+.perf-manager .perf-option-empty {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.perf-manager .perf-required { color: var(--red-600); }
+
+/* Skipped is neither a win nor a loss — it reads grey wherever it appears. */
+.perf-manager .perf-status-btn.perf-tone-skip { background: var(--gray-100); border-color: var(--gray-300, var(--border-color)); color: var(--gray-700); }
+.perf-manager .perf-status-btn.perf-tone-skip.active { background: var(--gray-700); border-color: var(--gray-700); color: #fff; }
+.perf-manager .perf-bulk-btn.perf-tone-skip { color: var(--gray-700); }
+.perf-manager .perf-bulk-btn.perf-tone-skip:hover { background: var(--gray-700); color: #fff; }
+.perf-manager .perf-student-row[data-tone='skip'] { opacity: 0.92; }
 
 .perf-manager .perf-reason-msg {
   font-size: 11px;

@@ -488,10 +488,18 @@ def _get_timeline(student, from_date, to_date, can_attendance=True, can_performa
 	"""
 	performance = [] if not can_performance else frappe.db.sql(
 		"""
-		SELECT date, category, result, subject, lesson, marks_obtained, total_marks
-		FROM `tabStudent Performance Tracker`
-		WHERE student = %(student)s AND date BETWEEN %(from_date)s AND %(to_date)s
-		ORDER BY date DESC
+		SELECT
+			p.date, p.category, p.result, p.subject, p.marks_obtained, p.total_marks,
+			(
+				SELECT GROUP_CONCAT(l.lesson_name ORDER BY li.idx SEPARATOR ', ')
+				FROM `tabLesson Item` li
+				INNER JOIN `tabLesson` l ON l.name = li.lesson
+				WHERE li.parenttype = 'Student Performance Tracker'
+					AND li.parentfield = 'lessons' AND li.parent = p.name
+			) AS lessons
+		FROM `tabStudent Performance Tracker` p
+		WHERE p.student = %(student)s AND p.date BETWEEN %(from_date)s AND %(to_date)s
+		ORDER BY p.date DESC
 		LIMIT %(limit)s
 		""",
 		{"student": student, "from_date": from_date, "to_date": to_date, "limit": limit},
@@ -514,7 +522,7 @@ def _get_timeline(student, from_date, to_date, can_attendance=True, can_performa
 
 	events = []
 	for row in performance:
-		detail = " · ".join(filter(None, [row.subject, row.lesson]))
+		detail = " · ".join(filter(None, [row.subject, row.lessons]))
 		if row.total_marks:
 			detail = " · ".join(filter(None, [detail, f"{flt(row.marks_obtained):g}/{flt(row.total_marks):g}"]))
 		events.append(

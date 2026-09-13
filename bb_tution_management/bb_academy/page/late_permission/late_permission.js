@@ -15,6 +15,18 @@ class LatePermissionManager {
         this.setup_ui();
     }
 
+    // Display only: "14:05" -> "2:05 PM". The Time field itself stays 24-hour,
+    // which is what the doctype and frappe.ui.Dialog's Time control expect.
+    format_time_12h(value) {
+        if (!value) return "";
+        let parts = String(value).split(":");
+        let hour = parseInt(parts[0], 10);
+        if (isNaN(hour)) return value;
+        let suffix = hour < 12 ? "AM" : "PM";
+        let hour12 = hour % 12 || 12;
+        return `${hour12}:${(parts[1] || "00").slice(0, 2)} ${suffix}`;
+    }
+
     setup_ui() {
         this.wrapper.html(frappe.render_template("late_permission", {}));
 
@@ -94,8 +106,8 @@ class LatePermissionManager {
 
     load_standards() {
         frappe.call({
-            method: "frappe.client.get_list",
-            args: { doctype: "Standard", fields: ["name"] },
+            method: "bb_tution_management.bb_academy.lookups.get_options",
+            args: { doctype: "Standard" },
             callback: (r) => {
                 if(r.message) {
                     let opts = '<option value="">Select Standard</option>';
@@ -113,8 +125,8 @@ class LatePermissionManager {
         }
         
         frappe.call({
-            method: "frappe.client.get_list",
-            args: { doctype: "Batch", fields: ["name"], limit_page_length: 0 },
+            method: "bb_tution_management.bb_academy.lookups.get_options",
+            args: { doctype: "Batch" },
             callback: (r) => {
                 let opts = '<option value="">Select Batch</option>';
                 if(r.message) {
@@ -183,7 +195,7 @@ class LatePermissionManager {
                 // Early Out mode
                 if(s.has_permission) {
                     let info_parts = [];
-                    if(s.early_out_time) info_parts.push(s.early_out_time);
+                    if(s.early_out_time) info_parts.push(this.format_time_12h(s.early_out_time));
                     if(s.early_out_reason) info_parts.push(s.early_out_reason);
                     let info_text = info_parts.length > 0 ? ` (${info_parts.join(' - ')})` : '';
                     row = row.replace(/\${status_badge}/g, `<span class="badge badge-info">Early Out Granted${info_text}</span>`);
@@ -210,10 +222,40 @@ class LatePermissionManager {
         this.apply_filters();
     }
     
+    // Reason masters are read through the lookups endpoint rather than a Link
+    // field, because a Link's search still runs a permission check and
+    // Teachers hold no DocPerm on Late Entry Reason / Early Exit Reason.
+    // Fetched once per page load — both masters are tiny and rarely edited.
+    with_reasons(doctype, callback) {
+        this.reasons = this.reasons || {};
+        if(this.reasons[doctype]) {
+            callback(this.reasons[doctype]);
+            return;
+        }
+
+        frappe.call({
+            method: 'bb_tution_management.bb_academy.lookups.get_options',
+            args: { doctype: doctype },
+            callback: (r) => {
+                // A leading blank keeps the picker from silently defaulting to
+                // whichever reason happens to sort first.
+                this.reasons[doctype] = [''].concat((r.message || []).map(d => d.name));
+                callback(this.reasons[doctype]);
+            }
+        });
+    }
+
     prompt_permission(student) {
         let type = this.get_type();
         let is_early_out = type === 'Early Out';
 
+        this.with_reasons(
+            is_early_out ? 'Early Exit Reason' : 'Late Entry Reason',
+            (reasons) => this.show_permission_prompt(student, is_early_out, reasons)
+        );
+    }
+
+    show_permission_prompt(student, is_early_out, reasons) {
         if(is_early_out) {
             // Early Out prompt
             frappe.prompt([
@@ -226,8 +268,8 @@ class LatePermissionManager {
                 },
                 {
                     fieldname: 'early_out_reason',
-                    fieldtype: 'Link',
-                    options: 'Early Exit Reason',
+                    fieldtype: 'Select',
+                    options: reasons.join('\n'),
                     label: 'Early Out Reason',
                     reqd: 1
                 }
@@ -253,9 +295,9 @@ class LatePermissionManager {
             frappe.prompt([
                 {
                     fieldname: 'late_reason',
-                    fieldtype: 'Link',
+                    fieldtype: 'Select',
                     label: 'Late Reason',
-                    options: 'Late Entry Reason',
+                    options: reasons.join('\n'),
                     reqd: 1
                 },
                 {

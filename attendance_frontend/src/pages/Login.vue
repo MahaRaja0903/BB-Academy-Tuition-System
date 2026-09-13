@@ -2,9 +2,9 @@
   <div class="min-h-screen w-screen bg-black flex items-center justify-center p-4">
     <div class="w-full max-w-sm bg-white rounded-2xl p-8 shadow-2xl">
       <div class="text-center space-y-3 mb-8">
-        <img :src="LOGO_URL" class="w-16 h-16 rounded-2xl mx-auto shadow-lg" alt="BB Attendance Manager" />
+        <img :src="LOGO_URL" class="w-16 h-16 rounded-2xl mx-auto shadow-lg" alt="BB Student Manager" />
         <div>
-          <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">BB Attendance Manager</h1>
+          <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">BB Student Manager</h1>
           <p class="text-xs font-bold text-brand-600 mt-1 uppercase tracking-widest">Black Building Academy</p>
         </div>
       </div>

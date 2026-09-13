@@ -109,7 +109,12 @@ def get_students_for_late_permission(standard, batch, date, gender=None, permiss
     return {"students": students}
 
 @frappe.whitelist()
-def grant_late_permission(student, date, late_reason, parents_informed=1, time=None):
+def grant_late_permission(student, date, late_reason, parents_informed=0, time=None):
+    """Grant (or re-grant) a late permission.
+
+    `parents_informed` defaults to 0 to match the doctype: informing the parents
+    is a separate action the user confirms, never something a grant assumes.
+    """
     if not frappe.has_permission("Late Permission", "write"):
         frappe.throw("No permission")
 

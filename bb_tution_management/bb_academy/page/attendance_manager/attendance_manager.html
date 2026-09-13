@@ -102,7 +102,18 @@
                 <input type="checkbox" class="custom-control-input" id="att-show-completed">
                 <label class="custom-control-label" for="att-show-completed">Show Completed</label>
             </div>
+            <div class="custom-control custom-switch att-second-round-switch is-locked" id="att-second-round-wrap"
+                 title="Finish the first attendance for every student to unlock this">
+                <input type="checkbox" class="custom-control-input" id="att-second-round" disabled>
+                <label class="custom-control-label" for="att-second-round">Second Attendance</label>
+            </div>
         </div>
+    </div>
+
+    <!-- Second-round banner -->
+    <div id="att-second-round-banner" class="att-second-round-banner" style="display: none;">
+        <i class="fa fa-repeat"></i>
+        <span><b>Second Attendance</b> &mdash; marks are saved onto the same record as the first attendance for this date.</span>
     </div>
 
     <!-- Bulk selection action bar -->
@@ -136,8 +147,8 @@
                         <th class="att-col-select"></th>
                         <th class="att-col-name">Student Name</th>
                         <th class="att-col-id">Student ID &amp; Stats</th>
-                        <th class="att-col-prev">Previous Day</th>
-                        <th class="att-col-actions">Today&apos;s Attendance</th>
+                        <th class="att-col-prev" id="att-th-prev">Previous Day</th>
+                        <th class="att-col-actions" id="att-th-actions">Today&apos;s Attendance</th>
                     </tr>
                 </thead>
                 <tbody id="att-tbody">
@@ -179,7 +190,7 @@
             </div>
         </td>
         <td class="att-td-prev">
-            <span class="att-prev-label">Previous</span>
+            <span class="att-prev-label">${prev_label}</span>
             <span class="att-prev-badge" data-status="${previous_status}">${previous_status}</span>
         </td>
         <td class="att-td-actions">
@@ -193,7 +204,7 @@
                     <i class="fa fa-times-circle"></i><span>Absent</span>
                 </label>
                 <label class="btn att-status-btn att-status-late ${late_active}">
-                    <input type="radio" name="att_${student_id}" value="Late" autocomplete="off" ${late_checked} data-lp-reason="${lp_reason}">
+                    <input type="radio" name="att_${student_id}" value="Late" autocomplete="off" ${late_checked} data-lp-reason="${lp_reason}" data-lp-informed="${lp_informed}">
                     <i class="fa fa-clock-o"></i><span>Late</span>
                 </label>
             </div>

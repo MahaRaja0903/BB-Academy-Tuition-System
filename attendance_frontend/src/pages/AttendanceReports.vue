@@ -237,9 +237,9 @@ const loading = ref(false)
 const ran = ref(false)
 const error = ref('')
 
-const standardsResource = createResource({ url: 'frappe.client.get_list' })
-const batchesResource = createResource({ url: 'frappe.client.get_list' })
-const studentsResource = createResource({ url: 'frappe.client.get_list' })
+const standardsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const batchesResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const studentsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
 const reportResource = createResource({ url: 'frappe.desk.query_report.run' })
 
 const activeReport = computed(() => REPORTS.find((r) => r.name === reportName.value) || REPORTS[0])
@@ -296,17 +296,11 @@ function buildFilters() {
 
 async function loadFilters() {
   standards.value =
-    (await standardsResource.submit({ doctype: 'Standard', fields: ['name'], limit_page_length: 0 })) || []
+    (await standardsResource.submit({ doctype: 'Standard' })) || []
   batches.value =
-    (await batchesResource.submit({ doctype: 'Batch', fields: ['name'], limit_page_length: 0 })) || []
+    (await batchesResource.submit({ doctype: 'Batch' })) || []
   studentList.value =
-    (await studentsResource.submit({
-      doctype: 'Student',
-      fields: ['name', 'student_name'],
-      filters: { status: 'Active' },
-      order_by: 'student_name asc',
-      limit_page_length: 0,
-    })) || []
+    (await studentsResource.submit({ doctype: 'Student' })) || []
 }
 
 async function runReport() {

@@ -13,8 +13,8 @@
   "category",
   "section_break_setup",
   "subject",
-  "lesson",
-  "portion",
+  "lessons",
+  "portions",
   "column_break_setup",
   "total_questions",
   "total_marks",
@@ -57,7 +57,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Category",
-   "options": "Study\nTest\nMaths Test\nBehaviour",
+   "options": "Study\nTest\nMaths Test\nAccounts Test\nBehaviour",
    "reqd": 1
   },
   {
@@ -73,14 +73,18 @@
    "options": "Subject"
   },
   {
-   "fieldname": "lesson",
-   "fieldtype": "Data",
-   "label": "Lesson"
+   "description": "From the Lesson master — only lessons mapped to this standard and subject are listed.",
+   "fieldname": "lessons",
+   "fieldtype": "Table MultiSelect",
+   "label": "Lesson",
+   "options": "Lesson Item"
   },
   {
-   "fieldname": "portion",
-   "fieldtype": "Small Text",
-   "label": "Portion"
+   "description": "The mark weights covered, e.g. 1M and 5M. Portions are common to every standard.",
+   "fieldname": "portions",
+   "fieldtype": "Table MultiSelect",
+   "label": "Portion",
+   "options": "Portion Item"
   },
   {
    "fieldname": "column_break_setup",
@@ -94,15 +98,16 @@
    "non_negative": 1
   },
   {
-   "depends_on": "eval:['Test','Maths Test'].includes(doc.category)",
+   "depends_on": "eval:['Test','Maths Test','Accounts Test'].includes(doc.category)",
+   "description": "A score within 1 mark of the total counts as a Full Mark.",
    "fieldname": "total_marks",
    "fieldtype": "Float",
    "label": "Total Marks",
    "non_negative": 1
   },
   {
-   "depends_on": "eval:['Test','Maths Test'].includes(doc.category)",
-   "description": "Marks at or above this value count as Pass Mark; below it, Fail.",
+   "depends_on": "eval:['Test','Maths Test','Accounts Test'].includes(doc.category)",
+   "description": "Marks at or above this value count as Pass Mark; below it, Fail. Left blank it is set to half the Total Marks.",
    "fieldname": "pass_marks",
    "fieldtype": "Float",
    "label": "Pass Marks",
@@ -112,7 +117,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-06 10:00:00.000000",
+ "modified": "2026-09-12 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Performance Session",

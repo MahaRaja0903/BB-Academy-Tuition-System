@@ -7,6 +7,7 @@ import PerformanceManager from '@/pages/PerformanceManager.vue'
 import StudentProfile from '@/pages/StudentProfile.vue'
 import LatePermission from '@/pages/LatePermission.vue'
 import AttendanceReports from '@/pages/AttendanceReports.vue'
+import StudentMistakes from '@/pages/StudentMistakes.vue'
 import Login from '@/pages/Login.vue'
 import { sessionUser } from '@/data/session'
 import { userResource } from '@/data/user'
@@ -16,7 +17,7 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: Login,
-    meta: { title: 'Login - BB Attendance Manager', guestOnly: true },
+    meta: { title: 'Login - BB Student Manager', guestOnly: true },
   },
   {
     path: '/',
@@ -54,6 +55,12 @@ const routes = [
         meta: { title: 'Late Permission' },
       },
       {
+        path: 'mistakes',
+        name: 'StudentMistakes',
+        component: StudentMistakes,
+        meta: { title: 'Student Mistakes' },
+      },
+      {
         path: 'reports',
         name: 'AttendanceReports',
         component: AttendanceReports,
@@ -84,7 +91,7 @@ const fetchUserWithTimeout = async () => {
 }
 
 router.beforeEach(async (to, from, next) => {
-  document.title = to.meta.title ? `${to.meta.title} - BB Attendance Manager` : 'BB Attendance Manager'
+  document.title = to.meta.title ? `${to.meta.title} - BB Student Manager` : 'BB Student Manager'
   try {
     const user = await fetchUserWithTimeout()
 

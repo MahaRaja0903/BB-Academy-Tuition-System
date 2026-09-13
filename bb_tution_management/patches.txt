@@ -5,4 +5,5 @@
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 bb_tution_management.patches.remove_sms_settings
-
+bb_tution_management.patches.performance_lesson_portion_masters
+bb_tution_management.patches.performance_lessons_multiselect

@@ -2,36 +2,30 @@
   <nav class="att-bottom-nav">
     <div class="att-bottom-nav-inner">
       <router-link
-        v-for="tab in tabs"
-        :key="tab.name"
-        :to="{ name: tab.name }"
+        v-for="group in NAV_GROUPS"
+        :key="group.key"
+        :to="{ name: landingRoute(group) }"
         class="att-nav-item"
-        :class="{ 'is-active': isActive(tab.name) }"
+        :class="{ 'is-active': group.key === activeKey }"
+        :title="group.title"
       >
-        <i class="fa" :class="tab.icon"></i>
-        <span>{{ tab.label }}</span>
+        <i class="fa" :class="group.icon"></i>
+        <span>{{ group.label }}</span>
       </router-link>
     </div>
   </nav>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { NAV_GROUPS, groupForRoute, landingRoute } from '@/data/navigation'
 
 const route = useRoute()
 
-const tabs = [
-  { name: 'AttendanceManager', label: 'Attendance', icon: 'fa-check-circle' },
-  { name: 'PerformanceManager', label: 'Performance', icon: 'fa-star' },
-  { name: 'StudentProfile', label: 'Profile', icon: 'fa-id-card-o' },
-  { name: 'AttendanceDashboard', label: 'Dashboard', icon: 'fa-bar-chart' },
-  { name: 'LatePermission', label: 'Late', icon: 'fa-clock-o' },
-  { name: 'AttendanceReports', label: 'Reports', icon: 'fa-list-alt' },
-]
-
-function isActive(name) {
-  return route.name === name
-}
+// A tab stays lit for every page of its group, so opening Student Profile keeps
+// Performance highlighted rather than lighting nothing at all.
+const activeKey = computed(() => groupForRoute(route.name)?.key)
 </script>
 
 <style>
@@ -73,7 +67,7 @@ function isActive(name) {
 
 .att-nav-item i { font-size: 17px; }
 
-/* Six tabs: the label has to shrink before it wraps on a narrow phone. */
+/* Five tabs: the label still has to shrink before it wraps on a narrow phone. */
 @media (max-width: 480px) {
   .att-nav-item { font-size: 9.5px; padding: 8px 1px; letter-spacing: -0.01em; }
   .att-nav-item i { font-size: 16px; }

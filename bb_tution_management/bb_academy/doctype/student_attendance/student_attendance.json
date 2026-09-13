@@ -110,8 +110,8 @@
   {
    "fieldname": "second_time_attendance_status",
    "fieldtype": "Select",
-   "label": "second Time Attendance Status",
-   "options": "Present\nAbsent\nEarly Outs\nLate"
+   "label": "Second Time Attendance Status",
+   "options": "\nPresent\nAbsent\nEarly Outs\nLate"
   }
  ],
  "grid_page_length": 50,

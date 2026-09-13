@@ -353,6 +353,50 @@
     cursor: pointer;
 }
 
+/* The second round is a distinct mode, so its toggle reads as one: muted and
+   plainly un-clickable until the first round is complete, tinted once on. */
+
+.attendance-manager .att-second-round-switch {
+    display: flex;
+    align-items: center;
+    padding-left: 1.9rem;
+    white-space: nowrap;
+}
+
+.attendance-manager .att-second-round-switch .custom-control-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.attendance-manager .att-second-round-switch.is-locked {
+    opacity: 0.45;
+}
+
+.attendance-manager .att-second-round-switch.is-locked .custom-control-label,
+.attendance-manager .att-second-round-switch.is-locked .custom-control-input {
+    cursor: not-allowed;
+}
+
+.attendance-manager .att-second-round-switch.is-on .custom-control-label {
+    color: #6b21a8;
+    font-weight: 600;
+}
+
+.attendance-manager .att-second-round-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f6f0fb;
+    border: 1px solid #d8bdf0;
+    color: #6b21a8;
+    border-radius: var(--att-radius, 8px);
+    padding: 10px 14px;
+    font-size: 12.5px;
+    font-weight: 500;
+    margin-bottom: 14px;
+}
+
 /* --------------------------------------------------------------------------
    Bulk selection action bar
    -------------------------------------------------------------------------- */
@@ -910,14 +954,19 @@
         display: block;
     }
 
+    /* Media-object card. The photo owns a fixed column of its own spanning the
+       three identity rows, so it can be large without taking width from the
+       name, the stats or the Present/Absent/Late buttons, which keep their own
+       full-width row. The select box moves to a narrow leading gutter, freeing
+       the top-right corner the photo used to share with the name. */
     .attendance-manager .att-table tbody tr.att-student-row {
         display: grid;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: auto minmax(0, 1fr) 104px;
         grid-template-areas:
-            "name   select"
-            "id     id"
-            "prev   prev"
-            "actions actions";
+            "select  name    avatar"
+            "select  id      avatar"
+            "select  prev    avatar"
+            "actions actions actions";
         row-gap: 10px;
         column-gap: 10px;
         border-left: 4px solid var(--gray-300);
@@ -939,16 +988,27 @@
     .attendance-manager .att-td-select {
         grid-area: select;
         align-self: start;
-        text-align: right;
+        text-align: center;
     }
 
-    .attendance-manager .att-td-id { grid-area: id; }
+    .attendance-manager .att-td-id { grid-area: id; align-self: center; }
 
-    .attendance-manager .att-td-name {
+    /* The name cell and its flex wrapper dissolve so that the name block and the
+       photo inside them become grid items of the card itself -- that is what
+       lets the photo span rows it is not nested in. The wrapper carries an
+       inline display:flex from the row template, hence !important. */
+    .attendance-manager .att-td-name,
+    .attendance-manager .att-student-profile {
+        display: contents !important;
+    }
+
+    .attendance-manager .att-student-name-wrap {
         grid-area: name;
-        padding-top: 10px !important;
-        border-top: 1px solid var(--border-color);
+        min-width: 0;
+        align-self: center;
     }
+
+    .attendance-manager .att-student-name { overflow-wrap: anywhere; }
 
     .attendance-manager .att-td-prev {
         grid-area: prev;
@@ -1031,15 +1091,53 @@
     object-fit: cover;
 }
 
-/* Mobile specific positioning for the avatar */
+/* On mobile the photo is a grid item of the card, in its own column. */
 @media (max-width: 767px) {
     .attendance-manager .att-table tbody tr.att-student-row {
         position: relative !important;
     }
+
+    /* Fill the whole three-row span rather than sitting at the top of it: the
+       text rows beside the photo are usually taller than a square, and anything
+       left over would otherwise show as dead space under the photo. */
+    .attendance-manager .att-student-profile .avatar {
+        grid-area: avatar;
+        align-self: stretch;
+        justify-self: end;
+        height: auto !important;
+        min-height: 104px;
+    }
+
+    .attendance-manager .att-student-profile .avatar-frame {
+        height: 100% !important;
+        background-size: cover;
+        object-fit: cover;
+    }
+
     .attendance-manager .att-student-profile .avatar,
     .attendance-manager .att-student-profile .avatar-frame {
         position: static !important;
-        margin: 0 0 0 auto !important;
+        margin: 0 !important;
+        width: 104px !important;
+        min-width: 104px;
+        font-size: 28px;
         z-index: 2;
+    }
+}
+
+/* Narrowest phones: give the name column back some room. */
+@media (max-width: 380px) {
+    .attendance-manager .att-table tbody tr.att-student-row {
+        grid-template-columns: auto minmax(0, 1fr) 84px;
+        column-gap: 8px;
+    }
+
+    .attendance-manager .att-student-profile .avatar { min-height: 84px; }
+
+    .attendance-manager .att-student-profile .avatar,
+    .attendance-manager .att-student-profile .avatar-frame {
+        width: 84px !important;
+        min-width: 84px;
+        font-size: 24px;
     }
 }

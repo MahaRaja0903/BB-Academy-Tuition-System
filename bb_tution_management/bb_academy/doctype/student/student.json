@@ -187,7 +187,8 @@
   {
    "fieldname": "starting_payment",
    "fieldtype": "Currency",
-   "label": "Starting Payment"
+   "label": "Starting Payment",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_3",
@@ -537,7 +538,7 @@
    "link_fieldname": "student"
   }
  ],
- "modified": "2026-09-10 21:29:51.326931",
+ "modified": "2026-09-13 13:09:02.120146",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

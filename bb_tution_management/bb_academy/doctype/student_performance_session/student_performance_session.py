@@ -3,10 +3,12 @@
 
 import frappe
 from frappe.model.document import Document
+from frappe.utils import flt
 
 from bb_tution_management.bb_academy.performance_config import (
 	CATEGORIES,
 	category_config,
+	default_pass_marks,
 	slug,
 )
 
@@ -38,11 +40,14 @@ class StudentPerformanceSession(Document):
 			self.pass_marks = 0
 		if not cfg["uses_syllabus"]:
 			self.subject = None
-			self.lesson = None
-			self.portion = None
+			self.lessons = []
+			self.portions = []
 
 		if cfg["uses_marks"]:
-			if (self.total_marks or 0) < 0 or (self.pass_marks or 0) < 0:
+			if flt(self.total_marks) < 0 or flt(self.pass_marks) < 0:
 				frappe.throw("Total Marks and Pass Marks cannot be negative.")
-			if (self.pass_marks or 0) > (self.total_marks or 0):
+			# Half the paper is the pass mark until the teacher overrides it.
+			if self.total_marks and not self.pass_marks:
+				self.pass_marks = default_pass_marks(self.total_marks)
+			if flt(self.pass_marks) > flt(self.total_marks):
 				frappe.throw("Pass Marks cannot be greater than Total Marks.")

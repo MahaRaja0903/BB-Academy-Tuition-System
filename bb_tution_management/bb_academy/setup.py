@@ -9,6 +9,7 @@ def setup_bb_academy():
 	"""Setup roles and initial dummy records for BB Academy Module."""
 	create_roles()
 	setup_attendance_manager_permissions()
+	seed_performance_masters()
 
 
 # Doctypes the Attendance screens read but never write. The Attendance
@@ -53,6 +54,24 @@ def setup_attendance_manager_permissions():
 		for ptype in ("read", "report"):
 			update_permission_property(doctype, role, 0, ptype, 1, validate=False)
 
+	frappe.db.commit()
+
+
+def seed_performance_masters():
+	"""Fill the Portion master with the mark weights every standard shares.
+
+	The Performance Manager's Portion picker is useless until the master has
+	rows, and 1M ... 7M are the same everywhere, so there is nothing for anyone
+	to type in by hand first. Idempotent.
+	"""
+	if not frappe.db.exists("DocType", "Portion"):
+		return
+
+	from bb_tution_management.bb_tution_management.doctype.portion.portion import (
+		create_default_portions,
+	)
+
+	create_default_portions()
 	frappe.db.commit()
 
 

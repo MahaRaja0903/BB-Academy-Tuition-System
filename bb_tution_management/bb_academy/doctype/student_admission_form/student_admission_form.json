@@ -46,6 +46,9 @@
   "referred_by",
   "fees_due_date",
   "informed_parents_that_fee_is_non_refundable",
+  "edit_fee_amount",
+  "reason_for_discounting_starting_amount",
+  "reason_for_discounting_monthly_fees",
   "fees_details_section",
   "fees__invoice_details",
   "is_yearly_payment",
@@ -405,13 +408,31 @@
    "fieldtype": "Select",
    "label": "Preferred Mobile Number",
    "options": "\nFather\nMother"
+  },
+  {
+   "default": "0",
+   "fieldname": "edit_fee_amount",
+   "fieldtype": "Check",
+   "label": "Edit Fee Amount"
+  },
+  {
+   "fieldname": "reason_for_discounting_starting_amount",
+   "fieldtype": "Small Text",
+   "label": "Reason For Discounting Starting Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason_for_discounting_monthly_fees",
+   "fieldtype": "Small Text",
+   "label": "Reason for Discounting Monthly Fees",
+   "read_only": 1
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-10 13:21:01.896464",
+ "modified": "2026-09-13 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

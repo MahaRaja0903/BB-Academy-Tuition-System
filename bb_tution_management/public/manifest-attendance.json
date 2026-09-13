@@ -1,7 +1,7 @@
 {
-  "name": "BB Attendance Manager",
-  "short_name": "Attendance",
-  "description": "Black Building Academy - Attendance Manager, Dashboard, Late Permission & Reports",
+  "name": "BB Student Manager",
+  "short_name": "Student Manager",
+  "description": "Black Building Academy - Attendance, Performance, Dashboard, Late Permission & Reports",
   "start_url": "/attendance_manager",
   "scope": "/attendance_manager/",
   "display": "standalone",

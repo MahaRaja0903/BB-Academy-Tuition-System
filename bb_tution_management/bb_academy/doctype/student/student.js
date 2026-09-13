@@ -6,19 +6,6 @@ const MONTH_NAMES = [
 	"July", "August", "September", "October", "November", "December"
 ];
 
-// Fees that can be changed by hand from the "Edit Fees Amount" button.
-// Labels are translated where they are used, not here -- this runs at load time.
-const EDITABLE_FEES = {
-	starting_payment: {
-		label: "Starting Amount",
-		reason_field: "reason_for_discounting_starting_amount",
-	},
-	monthly_fee: {
-		label: "Monthly Fees",
-		reason_field: "reason_for_discounting_monthly_fees",
-	},
-};
-
 frappe.ui.form.on("Student", {
 	refresh(frm) {
 		if (frm.is_new()) return;
@@ -224,111 +211,27 @@ frappe.ui.form.on("Student", {
 	}
 });
 
+// The dialog itself is shared with the Student Admission Form; here it writes
+// straight to the saved Student record.
 function show_edit_fees_dialog(frm) {
-	const dialog = new frappe.ui.Dialog({
-		title: __("Edit Fees Amount"),
-		fields: [
-			{
-				fieldname: "fee_type",
-				fieldtype: "Select",
-				label: __("Which fee do you want to edit?"),
-				reqd: 1,
-				options: [
-					{ value: "", label: "" },
-					...Object.keys(EDITABLE_FEES).map((fee_type) => ({
-						value: fee_type,
-						label: __(EDITABLE_FEES[fee_type].label),
-					})),
-				],
-				onchange: () => on_fee_type_selected(frm, dialog),
+	bb_academy.show_edit_fees_dialog(frm, ({ dialog, fee_type, config, new_amount, reason }) => {
+		frappe.call({
+			method: "bb_tution_management.bb_academy.doctype.student.student.update_fee_amount",
+			args: {
+				student: frm.doc.name,
+				fee_type: fee_type,
+				new_amount: new_amount,
+				reason: reason,
 			},
-			{
-				fieldname: "current_amount",
-				fieldtype: "Currency",
-				label: __("Current Amount"),
-				read_only: 1,
-				depends_on: "fee_type",
+			freeze: true,
+			freeze_message: __("Updating fees..."),
+			callback: (r) => {
+				if (!r.message) return;
+
+				dialog.hide();
+				frm.reload_doc();
+				bb_academy.show_fee_change_alert(config, r.message.old_amount, r.message.new_amount);
 			},
-			{
-				fieldname: "new_amount",
-				fieldtype: "Currency",
-				label: __("New Amount"),
-				depends_on: "fee_type",
-			},
-			{ fieldtype: "Section Break", depends_on: "fee_type" },
-			{
-				fieldname: "reason",
-				fieldtype: "Small Text",
-				label: __("Reason"),
-				depends_on: "fee_type",
-				description: __("Recorded against the student along with the new amount."),
-			},
-		],
-		primary_action_label: __("Update"),
-		primary_action: (values) => submit_fee_change(frm, dialog, values),
-	});
-
-	dialog.show();
-}
-
-// Show what the selected fee is currently set to, and pre-fill the reason
-// already recorded against it (if any) so it can be reviewed or reworded.
-function on_fee_type_selected(frm, dialog) {
-	const fee_type = dialog.get_value("fee_type");
-	if (!fee_type) {
-		dialog.set_value("current_amount", 0);
-		dialog.set_value("new_amount", 0);
-		dialog.set_value("reason", "");
-		return;
-	}
-
-	const config = EDITABLE_FEES[fee_type];
-	const current_amount = frm.doc[fee_type] || 0;
-
-	dialog.set_value("current_amount", current_amount);
-	dialog.set_value("new_amount", current_amount);
-	dialog.set_value("reason", frm.doc[config.reason_field] || "");
-	dialog.set_df_property("new_amount", "label", __("New {0}", [__(config.label)]));
-}
-
-function submit_fee_change(frm, dialog, values) {
-	const config = EDITABLE_FEES[values.fee_type];
-
-	const new_amount = flt(values.new_amount);
-	if (new_amount < 0) {
-		frappe.msgprint(__("Fees amount cannot be negative."));
-		return;
-	}
-
-	const reason = (values.reason || "").trim();
-	if (!reason) {
-		frappe.msgprint(__("Please enter a reason for changing the {0}.", [__(config.label)]));
-		return;
-	}
-
-	frappe.call({
-		method: "bb_tution_management.bb_academy.doctype.student.student.update_fee_amount",
-		args: {
-			student: frm.doc.name,
-			fee_type: values.fee_type,
-			new_amount: new_amount,
-			reason: reason,
-		},
-		freeze: true,
-		freeze_message: __("Updating fees..."),
-		callback: (r) => {
-			if (!r.message) return;
-
-			dialog.hide();
-			frm.reload_doc();
-			frappe.show_alert({
-				message: __("{0} updated from {1} to {2}", [
-					__(config.label),
-					format_currency(r.message.old_amount, frappe.defaults.get_default("currency")),
-					format_currency(r.message.new_amount, frappe.defaults.get_default("currency")),
-				]),
-				indicator: "green",
-			});
-		},
+		});
 	});
 }

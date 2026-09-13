@@ -69,8 +69,8 @@ class AttendanceDashboard {
 
     load_standards() {
         frappe.call({
-            method: 'frappe.client.get_list',
-            args: { doctype: 'Standard', fields: ['name'], limit_page_length: 0 },
+            method: 'bb_tution_management.bb_academy.lookups.get_options',
+            args: { doctype: 'Standard' },
             callback: (r) => {
                 if(r.message) {
                     let html = '<option value="">All Standards</option>';
@@ -87,8 +87,8 @@ class AttendanceDashboard {
             return;
         }
         frappe.call({
-            method: 'frappe.client.get_list',
-            args: { doctype: 'Batch', fields: ['name'],  limit_page_length: 0 },
+            method: 'bb_tution_management.bb_academy.lookups.get_options',
+            args: { doctype: 'Batch' },
             callback: (r) => {
                 let html = '<option value="">All Batches</option>';
                 if(r.message) {

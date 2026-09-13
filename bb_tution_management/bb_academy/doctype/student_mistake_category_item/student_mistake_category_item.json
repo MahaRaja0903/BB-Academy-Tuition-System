@@ -1,0 +1,73 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-13 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "category",
+  "mistake_count",
+  "reviewed",
+  "what_happened",
+  "action_taken"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Category",
+   "options": "Test\nStudy\nBehaviour",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "description": "Mistakes this student made in this category during the month.",
+   "fieldname": "mistake_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Mistakes",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "default": "0",
+   "fieldname": "reviewed",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Reviewed"
+  },
+  {
+   "columns": 3,
+   "fieldname": "what_happened",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "What Happened"
+  },
+  {
+   "columns": 3,
+   "fieldname": "action_taken",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Action Taken"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-13 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "Student Mistake Category Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

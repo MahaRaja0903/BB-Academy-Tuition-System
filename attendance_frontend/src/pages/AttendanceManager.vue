@@ -47,7 +47,7 @@
       </div>
 
       <div class="att-panel-actions">
-        <button class="att-holiday-btn" @click="openHolidayModal">
+        <button class="att-holiday-btn" @click="openHolidayModal()">
           <i class="fa fa-calendar-plus-o"></i> <span>Assign Holiday</span>
         </button>
         <div
@@ -70,6 +70,41 @@
     <div v-else-if="saveError" class="att-alert att-alert-error">
       <i class="fa fa-exclamation-circle"></i> {{ saveError }}
       <button type="button" @click="saveError = ''"><i class="fa fa-times"></i></button>
+    </div>
+
+    <!-- Previous working day still open: marking is locked until it is closed -->
+    <div v-if="previousDayOpen" class="att-alert att-alert-block">
+      <div class="att-block-head">
+        <i class="fa fa-lock"></i>
+        <div class="att-block-text">
+          <strong>Previous day attendance is still pending</strong>
+          <p>
+            <b>{{ previousPending.pending_count }}</b> of
+            <b>{{ previousPending.total }}</b> students are unmarked on
+            <b>{{ previousPending.date }}</b> for Standard
+            <b>{{ previousPending.standard }}</b> / Batch
+            <b>{{ previousPending.batch }}</b>. Complete that day — or mark it a holiday —
+            before taking the first attendance for {{ date }}.
+            <em v-if="secondRound">The second attendance is not affected.</em>
+          </p>
+        </div>
+      </div>
+      <ul class="att-block-students">
+        <li v-for="s in previousPending.students.slice(0, PENDING_PREVIEW)" :key="s.student_id">
+          {{ s.student_name }} <span>{{ s.student_id }}</span>
+        </li>
+        <li v-if="previousPending.students.length > PENDING_PREVIEW" class="att-block-more">
+          +{{ previousPending.students.length - PENDING_PREVIEW }} more
+        </li>
+      </ul>
+      <div class="att-block-actions">
+        <button class="att-btn att-btn-primary" @click="goToPendingDate">
+          <i class="fa fa-arrow-left"></i> Complete {{ previousPending.date }}
+        </button>
+        <button class="att-btn att-btn-secondary" @click="openHolidayModal(previousPending.date)">
+          <i class="fa fa-calendar-plus-o"></i> Mark that day a Holiday
+        </button>
+      </div>
     </div>
 
     <!-- KPI cards -->
@@ -123,7 +158,31 @@
           <input id="att-show-completed" type="checkbox" v-model="showCompleted" />
           <label for="att-show-completed">Show Completed</label>
         </div>
+        <div
+          class="att-switch att-second-round-switch"
+          :class="{ 'is-locked': !firstRoundComplete, 'is-on': secondRound }"
+          :title="
+            firstRoundComplete
+              ? 'Take the second attendance for this batch'
+              : 'Finish the first attendance for every student to unlock this'
+          "
+        >
+          <input
+            id="att-second-round"
+            type="checkbox"
+            v-model="secondRound"
+            :disabled="!firstRoundComplete"
+          />
+          <label for="att-second-round">Second Attendance</label>
+        </div>
       </div>
+    </div>
+
+    <!-- Second-round banner -->
+    <div v-if="secondRound" class="att-alert att-alert-second">
+      <i class="fa fa-repeat"></i>
+      <strong>Second Attendance</strong> — marks are saved onto the same record as the
+      first attendance for {{ date }}.
     </div>
 
     <!-- Bulk selection action bar -->
@@ -132,17 +191,38 @@
         <i class="fa fa-check-square-o"></i> <span>{{ selected.size }}</span> Students Selected
       </span>
       <div class="att-bulk-actions">
-        <button class="att-bulk-btn att-bulk-present" @click="bulkMark('Present')">
+        <button
+          class="att-bulk-btn att-bulk-present"
+          :disabled="attendanceLocked"
+          @click="bulkMark('Present')"
+        >
           <i class="fa fa-check"></i> Present
         </button>
-        <button class="att-bulk-btn att-bulk-absent" @click="bulkMark('Absent')">
+        <button
+          class="att-bulk-btn att-bulk-absent"
+          :disabled="attendanceLocked"
+          @click="bulkMark('Absent')"
+        >
           <i class="fa fa-times"></i> Absent
         </button>
-        <button class="att-bulk-btn att-bulk-late" @click="bulkMark('Late')">
+        <button
+          class="att-bulk-btn att-bulk-late"
+          :disabled="attendanceLocked"
+          @click="bulkMark('Late')"
+        >
           <i class="fa fa-clock-o"></i> Late
         </button>
         <button class="att-bulk-btn att-bulk-clear" @click="selected.clear()">Clear</button>
       </div>
+    </div>
+
+    <!-- Class was conducted on a holiday: the day works normally from here on -->
+    <div v-if="specialClass" class="att-alert att-alert-ok">
+      <i class="fa fa-check-circle"></i>
+      This date is a holiday, but class was conducted
+      <strong v-if="specialClass.scope !== 'Entire School'">for this {{ specialClass.scope }}</strong>
+      — <em>{{ specialClass.reason }}</em>. Mark attendance as usual.
+      <button type="button" class="att-alert-link" @click="undoSpecialClass">Undo</button>
     </div>
 
     <!-- Holiday card -->
@@ -153,6 +233,48 @@
         <p><span class="att-holiday-key">Type</span><span>{{ holiday.holiday_type }}</span></p>
         <p><span class="att-holiday-key">Reason</span><span>{{ holiday.reason }}</span></p>
         <p class="att-holiday-note">Attendance is not required for this date.</p>
+        <button type="button" class="att-btn att-btn-secondary att-holiday-action" @click="openSpecialModal">
+          <i class="fa fa-check-circle"></i> Class was conducted — mark attendance anyway
+        </button>
+      </div>
+    </div>
+
+    <!-- "Class was conducted" modal -->
+    <div v-if="specialModal.open" class="att-modal-backdrop" @click.self="specialModal.open = false">
+      <div class="att-modal">
+        <h3>Class Conducted on a Holiday</h3>
+        <p class="att-modal-sub">
+          {{ date }} is a holiday, but a class was taken. Recording that re-opens the day for
+          attendance and performance — for the scope you pick and nobody else.
+        </p>
+
+        <label class="att-modal-label">Who sat the class <span class="att-req">*</span></label>
+        <select class="form-control" v-model="specialModal.scope">
+          <option value="Standard + Batch">Only {{ standard }} — Batch {{ batch }}</option>
+          <option value="Standard">All batches of {{ standard }}</option>
+          <option value="Entire School">The entire school</option>
+        </select>
+
+        <label class="att-modal-label">Reason <span class="att-req">*</span></label>
+        <textarea
+          class="form-control att-textarea"
+          rows="2"
+          placeholder="Why was class held on a holiday?"
+          v-model="specialModal.reason"
+        ></textarea>
+
+        <p v-if="specialModal.error" class="att-modal-error">{{ specialModal.error }}</p>
+
+        <div class="att-modal-actions">
+          <button class="att-btn att-btn-secondary" @click="specialModal.open = false">Cancel</button>
+          <button
+            class="att-btn att-btn-primary"
+            :disabled="!specialModal.reason.trim() || specialModal.saving"
+            @click="confirmSpecialClass"
+          >
+            {{ specialModal.saving ? 'Saving…' : 'Class Was Conducted' }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -165,8 +287,10 @@
               <th class="att-col-select"></th>
               <th class="att-col-name">Student Name</th>
               <th class="att-col-id">Student ID &amp; Stats</th>
-              <th class="att-col-prev">Previous Day</th>
-              <th class="att-col-actions">Today's Attendance</th>
+              <th class="att-col-prev">{{ secondRound ? 'First Attendance' : 'Previous Day' }}</th>
+              <th class="att-col-actions">
+                {{ secondRound ? "Second Attendance" : "Today's Attendance" }}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -195,7 +319,7 @@
               v-for="s in (loading || emptyState ? [] : visibleStudents)"
               :key="s.student_id"
               class="att-student-row"
-              :data-current-status="s.today_status || ''"
+              :data-current-status="statusOf(s) || ''"
             >
               <td class="att-td-select">
                 <input
@@ -263,46 +387,56 @@
                 </div>
               </td>
               <td class="att-td-prev">
-                <span class="att-prev-label">Previous</span>
-                <span class="att-prev-badge" :data-status="s.previous_status">
-                  {{ s.previous_status }}
+                <span class="att-prev-label">{{ secondRound ? 'First' : 'Previous' }}</span>
+                <span
+                  class="att-prev-badge"
+                  :data-status="secondRound ? s.today_status : s.previous_status"
+                >
+                  {{ (secondRound ? s.today_status : s.previous_status) || 'N/A' }}
                 </span>
               </td>
               <td class="att-td-actions">
                 <div class="att-status-group">
-                  <!-- The handler lives on the radio's change, NOT on the
-                       label's click: a label wrapping an input fires click
-                       twice (once itself, once for the click it forwards to
-                       the input), which sent two concurrent save requests. -->
-                  <label
+                  <!-- Plain buttons, not hidden radios. A radio carries its own
+                       checked state in the DOM, and the browser sets it before
+                       @change fires; every tap we refuse (Present/Absent under a
+                       late permission) or defer to the reason modal then left the
+                       DOM checked while the model said otherwise. Vue will not
+                       patch :checked back when the bound value has not changed,
+                       so the next tap on that button fired no event at all and the
+                       row went dead -- fatal for a student with a permission,
+                       whose only enabled button is Late. A button has no such
+                       state: every tap is a click. -->
+                  <button
                     v-for="opt in STATUS_OPTIONS"
                     :key="opt.value"
+                    type="button"
                     class="att-status-btn"
                     :class="[
                       `att-status-${opt.value.toLowerCase()}`,
-                      { active: s.today_status === opt.value },
+                      { active: statusOf(s) === opt.value },
                       // desk locks Present/Absent once a late permission exists
-                      s.has_late_permission && opt.value !== 'Late' ? 'disabled' : '',
+                      lockedForLatePermission(s, opt.value) || attendanceLocked ? 'disabled' : '',
                       { 'is-saving': savingStudent === s.student_id },
                     ]"
+                    :disabled="
+                      attendanceLocked ||
+                      lockedForLatePermission(s, opt.value) ||
+                      savingStudent === s.student_id
+                    "
+                    @click="onStatusClick(s, opt.value)"
                   >
-                    <input
-                      type="radio"
-                      :name="`att_${s.student_id}`"
-                      :value="opt.value"
-                      :checked="s.today_status === opt.value"
-                      :disabled="
-                        (s.has_late_permission && opt.value !== 'Late') ||
-                        savingStudent === s.student_id
-                      "
-                      @change="onStatusClick(s, opt.value)"
-                    />
                     <i class="fa" :class="opt.icon"></i><span>{{ opt.value }}</span>
-                  </label>
+                  </button>
                 </div>
-                <div v-if="s.has_late_permission" class="att-lp-msg">
-                  <i class="fa fa-info-circle"></i> Parents informed for late reason:
-                  {{ s.late_reason }}
+                <div
+                  v-if="s.has_late_permission && !secondRound"
+                  class="att-lp-msg"
+                  :class="s.parents_informed ? 'att-lp-informed' : 'att-lp-not-informed'"
+                >
+                  <i class="fa" :class="s.parents_informed ? 'fa-info-circle' : 'fa-exclamation-triangle'"></i>
+                  {{ s.parents_informed ? 'Parents informed' : 'Parents NOT informed' }}
+                  for late reason: {{ s.late_reason }}
                 </div>
               </td>
             </tr>
@@ -315,6 +449,18 @@
     <div v-if="lateModal.open" class="att-modal-backdrop" @click.self="closeLateModal">
       <div class="att-modal">
         <h3>{{ lateModal.bulk ? `Mark ${selected.size} students Late` : 'Mark Late' }}</h3>
+        <p
+          v-if="!lateModal.bulk && lateModal.student && lateModal.student.has_late_permission"
+          class="att-lp-msg"
+          :class="lateModal.student.parents_informed ? 'att-lp-informed' : 'att-lp-not-informed'"
+        >
+          <i
+            class="fa"
+            :class="lateModal.student.parents_informed ? 'fa-info-circle' : 'fa-exclamation-triangle'"
+          ></i>
+          {{ lateModal.student.parents_informed ? 'Parents informed' : 'Parents NOT informed' }}
+          for late reason
+        </p>
         <label class="att-modal-label">Late Reason <span class="att-req">*</span></label>
         <select class="form-control" v-model="lateModal.reason">
           <option value="">Select a reason</option>
@@ -440,16 +586,47 @@ const savingStudent = ref(null)
 const bulkSaving = ref(false)
 
 const students = ref([])
-const summary = reactive({ present: 0, absent: 0, late: 0, pending: 0 })
+const summary = reactive({
+  present: 0,
+  absent: 0,
+  late: 0,
+  pending: 0,
+  second_present: 0,
+  second_absent: 0,
+  second_late: 0,
+  second_pending: 0,
+})
 const holiday = ref(null)
 const loading = ref(false)
+
+// Set by the server when the last working day before `date` still has unmarked
+// students. While it is set, nothing on this screen may be saved: attendance
+// has to be taken in order, so that a day is never silently skipped.
+const previousPending = ref(null)
+// How many pending names the banner lists before collapsing into a count.
+const PENDING_PREVIEW = 12
 
 const search = ref('')
 const statusFilter = ref(null)
 // Desk ships this checkbox unchecked: only unmarked students are listed until
 // the user opts in to seeing completed ones.
 const showCompleted = ref(false)
+// Second round of the day. Unlocked only once every listed student has a
+// first-round status, because it writes onto the row the first round created.
+const secondRound = ref(false)
 const selected = reactive(new Set())
+
+// Set when this date is a holiday that a class was taken on anyway. The server
+// then treats the day as an ordinary working day, so `holiday` comes back null
+// and this is what tells the screen to explain why the students are listed.
+const specialClass = ref(null)
+const specialModal = reactive({
+  open: false,
+  scope: 'Standard + Batch',
+  reason: '',
+  saving: false,
+  error: '',
+})
 
 const lateEntryReasons = ref([])
 const lateModal = reactive({ open: false, student: null, reason: '', bulk: false, saving: false, error: '' })
@@ -466,9 +643,9 @@ const holidayModal = reactive({
 })
 const birthdayModalOpen = ref(false)
 
-const standardsResource = createResource({ url: 'frappe.client.get_list' })
-const batchesResource = createResource({ url: 'frappe.client.get_list' })
-const lateEntryReasonsResource = createResource({ url: 'frappe.client.get_list' })
+const standardsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const batchesResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const lateEntryReasonsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
 const studentsResource = createResource({
   url: 'bb_tution_management.bb_academy.attendance.get_attendance_students',
 })
@@ -481,17 +658,54 @@ const saveBulkResource = createResource({
 const assignHolidayResource = createResource({
   url: 'bb_tution_management.bb_academy.attendance.assign_holiday',
 })
+const specialClassResource = createResource({
+  url: 'bb_tution_management.bb_academy.attendance.assign_special_class_day',
+})
+const removeSpecialClassResource = createResource({
+  url: 'bb_tution_management.bb_academy.attendance.remove_special_class_day',
+})
 
 const birthdayStudents = computed(() => students.value.filter((s) => s.is_birthday))
 const birthdayCount = computed(() => birthdayStudents.value.length)
 
-const kpis = computed(() => [
-  { key: 'total', filter: 'Total', label: 'Total Students', icon: 'fa-users', value: students.value.length, title: 'Show all students' },
-  { key: 'present', filter: 'Present', label: 'Present', icon: 'fa-check-circle', value: summary.present, title: 'Show present students' },
-  { key: 'absent', filter: 'Absent', label: 'Absent', icon: 'fa-times-circle', value: summary.absent, title: 'Show absent students' },
-  { key: 'late', filter: 'Late', label: 'Late', icon: 'fa-clock-o', value: summary.late, title: 'Show late students' },
-  { key: 'pending', filter: 'Pending', label: 'Pending', icon: 'fa-hourglass-half', value: summary.pending, title: 'Show pending students' },
-])
+// The status the screen is currently marking — first round, or second when the
+// Second Attendance toggle is on. Every read of a student's mark goes through
+// here so the table, KPIs and filters all follow the active round.
+function statusOf(s) {
+  return (secondRound.value ? s.second_status : s.today_status) || null
+}
+
+// A late permission pins a student to "Late" for the first round only; the
+// second reading of the day is unconstrained.
+function lockedForLatePermission(s, status) {
+  return !secondRound.value && s.has_late_permission && status !== 'Late'
+}
+
+// A holiday screen has nothing to mark anyway, so the banner would only be noise.
+const previousDayOpen = computed(() => !!previousPending.value && !holiday.value)
+
+// Only the first round is blocked. The second round is optional and writes onto
+// a row the first round already created, so the day it belongs to was validated
+// when that row was saved.
+const attendanceLocked = computed(() => previousDayOpen.value && !secondRound.value)
+
+const PREV_PENDING_MSG =
+  'Previous day attendance is still pending. Complete it for this standard and batch first.'
+
+const firstRoundComplete = computed(
+  () => students.value.length > 0 && students.value.every((s) => s.today_status)
+)
+
+const kpis = computed(() => {
+  const r2 = secondRound.value
+  return [
+    { key: 'total', filter: 'Total', label: 'Total Students', icon: 'fa-users', value: students.value.length, title: 'Show all students' },
+    { key: 'present', filter: 'Present', label: 'Present', icon: 'fa-check-circle', value: r2 ? summary.second_present : summary.present, title: 'Show present students' },
+    { key: 'absent', filter: 'Absent', label: 'Absent', icon: 'fa-times-circle', value: r2 ? summary.second_absent : summary.absent, title: 'Show absent students' },
+    { key: 'late', filter: 'Late', label: 'Late', icon: 'fa-clock-o', value: r2 ? summary.second_late : summary.late, title: 'Show late students' },
+    { key: 'pending', filter: 'Pending', label: 'Pending', icon: 'fa-hourglass-half', value: r2 ? summary.second_pending : summary.pending, title: 'Show pending students' },
+  ]
+})
 
 // Mirrors the desk's student_visible_for_status(): an explicit KPI filter wins,
 // otherwise "Show Completed" decides whether marked students are listed.
@@ -502,7 +716,7 @@ function visibleForStatus(status) {
   return showCompleted.value ? true : !status
 }
 
-const statusFiltered = computed(() => students.value.filter((s) => visibleForStatus(s.today_status)))
+const statusFiltered = computed(() => students.value.filter((s) => visibleForStatus(statusOf(s))))
 
 const visibleStudents = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -538,7 +752,9 @@ const emptyState = computed(() => {
     return {
       icon: 'fa-check-circle',
       title: 'All Done!',
-      text: 'Awesome! All attendance has been marked for this date.',
+      text: secondRound.value
+        ? 'Awesome! The second attendance has been marked for this date.'
+        : 'Awesome! All attendance has been marked for this date.',
       cls: 'is-success',
     }
   }
@@ -587,36 +803,45 @@ function stepDate(delta) {
   date.value = next
 }
 
+// Takes the user straight to the day they have to finish, keeping the standard
+// and batch they were already on.
+function goToPendingDate() {
+  if (!previousPending.value) return
+  saveError.value = ''
+  date.value = previousPending.value.date
+}
+
 function showBirthdays() {
   birthdayModalOpen.value = true
 }
 
 async function loadStandards() {
   standards.value =
-    (await standardsResource.submit({ doctype: 'Standard', fields: ['name'], limit_page_length: 0 })) || []
+    (await standardsResource.submit({ doctype: 'Standard' })) || []
 }
 async function loadBatches() {
   batches.value =
-    (await batchesResource.submit({ doctype: 'Batch', fields: ['name'], limit_page_length: 0 })) || []
+    (await batchesResource.submit({ doctype: 'Batch' })) || []
 }
 async function loadLateEntryReasons() {
   lateEntryReasons.value =
-    (await lateEntryReasonsResource.submit({
-      doctype: 'Late Entry Reason',
-      fields: ['name'],
-      limit_page_length: 0,
-    })) || []
+    (await lateEntryReasonsResource.submit({ doctype: 'Late Entry Reason' })) || []
 }
 
 async function loadStudents() {
   if (!standard.value || !batch.value || !date.value) {
     students.value = []
     holiday.value = null
+    specialClass.value = null
+    previousPending.value = null
     return
   }
   loading.value = true
   selected.clear()
   statusFilter.value = null
+  // A new batch/date starts at round one; the toggle re-opens once its own
+  // first round is complete.
+  secondRound.value = false
   try {
     const res = await studentsResource.submit({
       standard: standard.value,
@@ -625,59 +850,86 @@ async function loadStudents() {
       attendance_date: date.value,
     })
     holiday.value = res.holiday || null
+    specialClass.value = res.special_class || null
+    previousPending.value = res.previous_day_pending || null
     students.value = res.students || []
-    Object.assign(summary, res.summary || { present: 0, absent: 0, late: 0, pending: 0 })
+    Object.assign(summary, res.summary || {})
+    recomputeSummary()
   } finally {
     loading.value = false
   }
 }
 
 function recomputeSummary() {
-  const s = { present: 0, absent: 0, late: 0, pending: 0 }
+  const s = {
+    present: 0, absent: 0, late: 0, pending: 0,
+    second_present: 0, second_absent: 0, second_late: 0, second_pending: 0,
+  }
   students.value.forEach((st) => {
     if (st.today_status === 'Present') s.present++
     else if (st.today_status === 'Absent') s.absent++
     else if (st.today_status === 'Late') s.late++
     else s.pending++
+
+    if (st.second_status === 'Present') s.second_present++
+    else if (st.second_status === 'Absent') s.second_absent++
+    else if (st.second_status === 'Late') s.second_late++
+    else s.second_pending++
   })
   Object.assign(summary, s)
 }
 
 function onStatusClick(student, status) {
-  if (student.has_late_permission && status !== 'Late') return
+  if (attendanceLocked.value) {
+    saveError.value = PREV_PENDING_MSG
+    return
+  }
+  if (lockedForLatePermission(student, status)) return
   if (savingStudent.value === student.student_id) return
-  if (student.today_status === status) return
+  if (statusOf(student) === status) return
+  if (secondRound.value && !student.today_status) {
+    saveError.value = 'Mark the first attendance for this student before the second one.'
+    return
+  }
   if (isFutureDate.value) {
     saveError.value = 'Cannot mark attendance for future dates.'
     return
   }
-  if (status === 'Late') {
+  if (status === 'Late' && !secondRound.value) {
     lateModal.open = true
     lateModal.bulk = false
     lateModal.student = student
-    lateModal.reason = ''
+    // Carry the granted Late Permission reason forward, as the desk dialog
+    // does. It is pinned to the student whether or not the parents were
+    // informed -- "not informed" is a warning to show, not grounds for making
+    // the teacher pick the same reason again.
+    lateModal.reason = student.has_late_permission ? student.late_reason || '' : ''
     lateModal.error = ''
     return
   }
   applyAttendance(student, status).catch((e) => {
     saveError.value = e?.messages?.[0] || e?.message || 'Failed to save attendance'
-    // re-render so the hidden radio snaps back to the stored status
-    students.value = [...students.value]
   })
 }
 
 async function applyAttendance(student, status, lateReason) {
   saveError.value = ''
   savingStudent.value = student.student_id
+  const round = secondRound.value ? 2 : 1
   try {
     const res = await saveAttendanceResource.submit({
       student: student.student_id,
       attendance_date: date.value,
       status,
       late_reason: lateReason || undefined,
+      attendance_round: round,
     })
-    student.today_status = status
-    if (status === 'Late' && lateReason) student.late_reason = lateReason
+    if (round === 2) {
+      student.second_status = status
+    } else {
+      student.today_status = status
+      if (status === 'Late' && lateReason) student.late_reason = lateReason
+    }
     if (res) {
       student.monthly_absent = res.monthly_absent
       student.monthly_late = res.monthly_late
@@ -696,6 +948,10 @@ function closeLateModal() {
 }
 
 async function confirmLate() {
+  if (attendanceLocked.value) {
+    lateModal.error = PREV_PENDING_MSG
+    return
+  }
   lateModal.saving = true
   lateModal.error = ''
   try {
@@ -707,9 +963,12 @@ async function confirmLate() {
         attendance_date: date.value,
         status: 'Late',
         late_reason: lateModal.reason,
+        attendance_round: secondRound.value ? 2 : 1,
       })
       students.value.forEach((s) => {
-        if (selected.has(s.student_id)) s.today_status = 'Late'
+        if (!selected.has(s.student_id)) return
+        if (secondRound.value) s.second_status = 'Late'
+        else s.today_status = 'Late'
       })
       selected.clear()
       recomputeSummary()
@@ -728,13 +987,18 @@ async function bulkMark(status) {
   if (selected.size === 0) return
   if (bulkSaving.value) return
   saveError.value = ''
+  if (attendanceLocked.value) {
+    saveError.value = PREV_PENDING_MSG
+    return
+  }
   if (isFutureDate.value) {
     saveError.value = 'Cannot mark attendance for future dates.'
     return
   }
-  if (status === 'Late') {
+  if (status === 'Late' && !secondRound.value) {
     lateModal.open = true
     lateModal.bulk = true
+    lateModal.student = null
     lateModal.reason = ''
     lateModal.error = ''
     return
@@ -747,9 +1011,12 @@ async function bulkMark(status) {
       batch: batch.value,
       attendance_date: date.value,
       status,
+      attendance_round: secondRound.value ? 2 : 1,
     })
     students.value.forEach((s) => {
-      if (selected.has(s.student_id)) s.today_status = status
+      if (!selected.has(s.student_id)) return
+      if (secondRound.value) s.second_status = status
+      else s.today_status = status
     })
     selected.clear()
     recomputeSummary()
@@ -760,12 +1027,61 @@ async function bulkMark(status) {
   }
 }
 
-function openHolidayModal() {
+function openSpecialModal() {
+  specialModal.open = true
+  // Default to the narrowest scope: one batch working through a holiday must
+  // not re-open the day for the whole school by accident.
+  specialModal.scope = 'Standard + Batch'
+  specialModal.reason = ''
+  specialModal.error = ''
+  specialModal.saving = false
+}
+
+async function confirmSpecialClass() {
+  const reason = specialModal.reason.trim()
+  if (!reason) return
+  specialModal.saving = true
+  specialModal.error = ''
+  try {
+    await specialClassResource.submit({
+      date: date.value,
+      reason,
+      scope: specialModal.scope,
+      standard: specialModal.scope !== 'Entire School' ? standard.value : undefined,
+      batch: specialModal.scope === 'Standard + Batch' ? batch.value : undefined,
+    })
+    specialModal.open = false
+    await loadStudents()
+  } catch (e) {
+    specialModal.error = e?.messages?.[0] || e?.message || 'Failed to save'
+  } finally {
+    specialModal.saving = false
+  }
+}
+
+async function undoSpecialClass() {
+  try {
+    await removeSpecialClassResource.submit({
+      date: date.value,
+      standard: standard.value,
+      batch: batch.value,
+    })
+    await loadStudents()
+  } catch (e) {
+    // Anything already marked stays; only the "it was a working day" flag goes.
+    window.alert(e?.messages?.[0] || e?.message || 'Failed to undo')
+  }
+}
+
+function openHolidayModal(forDate) {
+  const target = typeof forDate === 'string' ? forDate : date.value
   holidayModal.open = true
-  holidayModal.date = date.value
+  holidayModal.date = target
   holidayModal.holiday_type = ''
   holidayModal.reason = ''
-  holidayModal.scope = 'Entire School'
+  // Opened from the pending banner: default to the narrowest scope that clears
+  // the guard, so closing one batch's gap does not declare a school holiday.
+  holidayModal.scope = target === date.value ? 'Entire School' : 'Standard + Batch'
   holidayModal.standard = standard.value
   holidayModal.batch = batch.value
   holidayModal.error = ''
@@ -797,7 +1113,9 @@ async function confirmHoliday() {
       batch: holidayModal.scope === 'Standard + Batch' ? holidayModal.batch : undefined,
     })
     holidayModal.open = false
-    if (holidayModal.date === date.value) loadStudents()
+    // Reloads unconditionally: a holiday assigned to an earlier day is exactly
+    // what releases the previous-day lock on the date currently on screen.
+    loadStudents()
   } catch (e) {
     holidayModal.error = e?.messages?.[0] || e?.message || 'Failed to assign holiday'
   } finally {
@@ -815,8 +1133,18 @@ onMounted(async () => {
 })
 
 watch([standard, batch, gender, date], loadStudents)
+// Round one becoming incomplete again (an edit, a reload) must not leave the
+// screen stuck in a round it can no longer save.
+watch(firstRoundComplete, (ok) => {
+  if (!ok) secondRound.value = false
+})
+watch(secondRound, () => {
+  statusFilter.value = null
+  selected.clear()
+  saveError.value = ''
+})
 // Selections must not survive a filter change that hides the rows.
-watch([statusFilter, showCompleted, search], () => {
+watch([statusFilter, showCompleted, search, secondRound], () => {
   const visible = new Set(visibleStudents.value.map((s) => s.student_id))
   ;[...selected].forEach((id) => {
     if (!visible.has(id)) selected.delete(id)
@@ -963,6 +1291,33 @@ watch([statusFilter, showCompleted, search], () => {
   color: var(--text-on-red);
 }
 
+.attendance-manager .att-alert-ok {
+  background: var(--bg-green);
+  border: 1px solid var(--green-200);
+  color: var(--text-on-green);
+}
+
+/* The alert's generic rule pushes a lone button to the right; this one is part
+   of the sentence, so it stays inline. */
+.attendance-manager .att-alert .att-alert-link {
+  margin-left: 6px;
+  padding: 0;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.attendance-manager .att-holiday-action {
+  margin-top: 12px;
+  white-space: normal;
+  text-align: left;
+}
+
+.attendance-manager .att-alert-second {
+  background: var(--bg-purple, #f6f0fb);
+  border: 1px solid var(--purple-200, #d8bdf0);
+  color: var(--text-on-purple, #6b21a8);
+}
+
 .attendance-manager .att-alert button {
   margin-left: auto;
   border: none;
@@ -970,6 +1325,84 @@ watch([statusFilter, showCompleted, search], () => {
   color: inherit;
   cursor: pointer;
   font-size: 12px;
+}
+
+/* ---- previous-day lock banner ---- */
+.attendance-manager .att-alert-block {
+  display: block;
+  background: var(--bg-red);
+  border: 1px solid var(--red-300, var(--red-200));
+  color: var(--text-on-red);
+}
+
+.attendance-manager .att-block-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.attendance-manager .att-block-head > .fa {
+  margin-top: 2px;
+  font-size: 14px;
+}
+
+.attendance-manager .att-block-text strong {
+  display: block;
+  font-size: 13.5px;
+  margin-bottom: 3px;
+}
+
+.attendance-manager .att-block-text p {
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.attendance-manager .att-block-text em {
+  font-style: normal;
+  font-weight: 600;
+}
+
+.attendance-manager .att-block-students {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.attendance-manager .att-block-students li {
+  background: var(--card-bg);
+  border: 1px solid var(--red-200);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.attendance-manager .att-block-students li span {
+  opacity: 0.6;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.attendance-manager .att-block-students .att-block-more {
+  background: transparent;
+  border-style: dashed;
+}
+
+.attendance-manager .att-block-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* .att-alert button pushes a lone button to the right; these are a real
+   action row, so keep them next to the message they belong to. */
+.attendance-manager .att-block-actions .att-btn {
+  margin-left: 0;
 }
 .attendance-manager .att-date-nav-btn:active {
   background: var(--gray-300);
@@ -1215,6 +1648,26 @@ watch([statusFilter, showCompleted, search], () => {
   accent-color: var(--blue-500);
 }
 
+/* The second round is a distinct mode, so its toggle reads as one — muted and
+   plainly un-clickable until the first round is complete, tinted once on. */
+.attendance-manager .att-second-round-switch.is-locked {
+  opacity: 0.45;
+}
+
+.attendance-manager .att-second-round-switch.is-locked label,
+.attendance-manager .att-second-round-switch.is-locked input {
+  cursor: not-allowed;
+}
+
+.attendance-manager .att-second-round-switch.is-on label {
+  color: var(--text-on-purple, #6b21a8);
+  font-weight: 600;
+}
+
+.attendance-manager .att-second-round-switch input[type='checkbox'] {
+  accent-color: var(--purple-500, #8b5cf6);
+}
+
 /* ---- bulk bar ---- */
 .attendance-manager .att-bulk-bar {
   display: flex;
@@ -1264,6 +1717,15 @@ watch([statusFilter, showCompleted, search], () => {
   color: var(--text-color);
   border-color: var(--border-color);
   transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.attendance-manager .att-bulk-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.attendance-manager .att-bulk-btn:disabled:hover {
+  background: var(--card-bg);
+  color: inherit;
 }
 
 .attendance-manager .att-bulk-present { color: var(--green-600); border-color: var(--green-200, var(--border-color)); }
@@ -1562,21 +2024,21 @@ watch([statusFilter, showCompleted, search], () => {
   gap: 6px;
   margin: 0;
   padding: 7px 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: inherit;
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 1.2;
   text-align: center;
   border: 1px solid var(--border-color);
   border-radius: var(--att-radius-sm);
   background: var(--card-bg);
   color: var(--text-muted);
   cursor: pointer;
+  /* Stops iOS from firing the 300ms double-tap-zoom delay on these. */
+  touch-action: manipulation;
   transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-}
-
-.attendance-manager .att-status-btn input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
 }
 
 .attendance-manager .att-status-btn:hover { border-color: var(--gray-400); }
@@ -1610,6 +2072,14 @@ watch([statusFilter, showCompleted, search], () => {
   padding: 2px 5px;
   border-radius: 3px;
   margin-top: 5px;
+}
+
+/* Parents not yet informed is the state that needs chasing, so it reads louder
+   than the settled one. */
+.attendance-manager .att-lp-msg.att-lp-not-informed {
+  color: #842029;
+  background: #f8d7da;
+  font-weight: 600;
 }
 
 /* ---- modals (desk uses frappe.ui.Dialog) ---- */
@@ -1648,6 +2118,13 @@ watch([statusFilter, showCompleted, search], () => {
   font-weight: 600;
   color: var(--text-muted);
   margin: 12px 0 4px;
+}
+
+.attendance-manager .att-modal-sub {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 
 .attendance-manager .att-req { color: var(--red-600); }
@@ -1767,15 +2244,21 @@ watch([statusFilter, showCompleted, search], () => {
     margin-bottom: 12px;
   }
 
+  /* Media-object card. The photo owns a fixed column of its own that spans the
+     three identity rows, so it can be large without stealing width from the
+     name, the stats, or the Present/Absent/Late buttons -- those keep their own
+     full-width row underneath. The select box moves to a narrow leading gutter,
+     the usual place for it in a selectable list, which frees the top-right
+     corner the avatar used to fight the name for. */
   .attendance-manager .att-table tbody tr.att-student-row {
     position: relative;
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) 104px;
     grid-template-areas:
-      'name   select'
-      'id     id'
-      'prev   prev'
-      'actions actions';
+      'select  name    avatar'
+      'select  id      avatar'
+      'select  prev    avatar'
+      'actions actions actions';
     row-gap: 10px;
     column-gap: 10px;
     border-left: 4px solid var(--gray-300);
@@ -1794,14 +2277,27 @@ watch([statusFilter, showCompleted, search], () => {
     border-bottom: none;
   }
 
-  .attendance-manager .att-td-select { grid-area: select; align-self: start; text-align: right; }
-  .attendance-manager .att-td-id { grid-area: id; }
+  .attendance-manager .att-td-select { grid-area: select; align-self: start; text-align: center; }
+  .attendance-manager .att-td-id { grid-area: id; align-self: center; }
 
-  .attendance-manager .att-td-name {
-    grid-area: name;
-    padding-top: 10px !important;
-    border-top: 1px solid var(--border-color);
+  /* The name cell and its flex wrapper dissolve so that the name block and the
+     photo inside them become grid items of the card itself -- that is what lets
+     the photo span rows it is not nested in. */
+  .attendance-manager .att-td-name,
+  .attendance-manager .att-student-profile {
+    /* !important because the blanket `tr.att-student-row td { display: block }`
+       rule above is more specific and would otherwise win, leaving the photo
+       stacked underneath the name inside this cell. */
+    display: contents !important;
   }
+
+  .attendance-manager .att-student-name-wrap {
+    grid-area: name;
+    min-width: 0;
+    align-self: center;
+  }
+
+  .attendance-manager .att-student-name { overflow-wrap: anywhere; }
 
   .attendance-manager .att-td-prev {
     grid-area: prev;
@@ -1832,18 +2328,45 @@ watch([statusFilter, showCompleted, search], () => {
 
   .attendance-manager .att-status-btn i { font-size: 15px; }
 
-  /* Let the avatar flow naturally in the flex container so it never overlaps anything */
+  /* Fill the whole three-row span rather than sitting at the top of it: the
+     text rows beside the photo are usually taller than a square, and anything
+     left over would otherwise show as dead space under the photo. */
   .attendance-manager .att-avatar {
+    grid-area: avatar;
+    align-self: stretch;
+    justify-self: end;
     position: static !important;
-    margin: 0 0 0 auto !important; /* Push to the right */
-    z-index: 2;
+    margin: 0 !important;
+    width: 104px !important;
+    height: auto !important;
+    min-width: 104px;
+    min-height: 104px;
+    object-fit: cover;
   }
+
+  .attendance-manager .att-avatar-fallback { font-size: 28px; }
 }
 
 @media (max-width: 480px) {
   .attendance-manager .att-kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .attendance-manager .att-kpi-value { font-size: 19px; }
   .attendance-manager .att-row-select { width: 22px; height: 22px; }
+}
+
+/* Narrowest phones: give the name column back some room. */
+@media (max-width: 380px) {
+  .attendance-manager .att-table tbody tr.att-student-row {
+    grid-template-columns: auto minmax(0, 1fr) 84px;
+    column-gap: 8px;
+  }
+
+  .attendance-manager .att-avatar {
+    width: 84px !important;
+    min-width: 84px;
+    min-height: 84px;
+  }
+
+  .attendance-manager .att-avatar-fallback { font-size: 24px; }
 }
 
 @media (max-width: 360px) {
