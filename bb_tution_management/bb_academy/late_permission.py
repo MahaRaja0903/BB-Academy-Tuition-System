@@ -139,6 +139,10 @@ def grant_late_permission(student, date, late_reason, parents_informed=0, time=N
             "parents_informed": parents_informed,
             "time": time
         })
+        # Frappe stamps nowtime() onto every blank Time field during insert;
+        # the controller's before_insert undoes that unless this flag says a
+        # time was genuinely supplied. See LatePermission.before_insert.
+        doc.flags.time_given = bool(time)
         doc.insert()
 
     return "success"

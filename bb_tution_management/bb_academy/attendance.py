@@ -364,9 +364,10 @@ def _update_attendance_row(student, attendance_date, status, late_reason=None):
       cannot see a row another transaction committed after our snapshot began.
       An UPDATE performs a "current read" and always sees the latest row.
 
-    Safe for this doctype specifically: Student Attendance has no controller
-    logic and no doc_events, so nothing is bypassed. `modified` always changes,
-    so a matched row is always reported as affected.
+    Safe for this doctype specifically: Student Attendance has no doc_events,
+    and its only controller hook is `before_insert`, which an UPDATE is not
+    meant to run. `modified` always changes, so a matched row is always
+    reported as affected.
     """
     values = {
         "status": status,
