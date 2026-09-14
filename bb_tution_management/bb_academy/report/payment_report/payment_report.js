@@ -73,11 +73,14 @@ frappe.query_reports["Payment Report"] = {
 			}
 			// The staff can edit a student's Starting Payment or Monthly Fee
 			// with a reason; showing it here answers "why is this amount low?"
-			// without opening the Student.
+			// without opening the Student. The name is coloured with it so the
+			// students on an edited fee can be picked out at a glance -- a colour
+			// of its own, not the orange of a Split Up or the blue of a starting
+			// payment, both of which can land on the same row.
 			if (column.fieldname === "student_name" && data.fee_reason) {
 				const reason = frappe.utils.escape_html(data.fee_reason);
-				value = `<div style="line-height: 1.2;">${value}</div>
-					<div title="${reason}" style="color: var(--text-muted, #8d99a6); font-size: 10px; line-height: 1.2; margin-top: 2px; overflow: hidden; text-overflow: ellipsis;">${reason}</div>`;
+				value = `<div title="${reason}" style="color: var(--purple-500, #9c45e3); font-weight: 600; line-height: 1.2;">${value}</div>
+					<div title="${reason}" style="color: var(--purple-500, #9c45e3); font-size: 10px; line-height: 1.2; margin-top: 2px; overflow: hidden; text-overflow: ellipsis;">${reason}</div>`;
 			}
 		}
 
