@@ -10,6 +10,20 @@ html, body {
   overscroll-behavior-y: none;
 }
 
+/* Reserve the scrollbar's width whether or not the page is long enough to need
+   one. Every page centres its content (`margin: 0 auto` under a max-width), so
+   a page that collapses to a skeleton mid-load loses the scrollbar, gains the
+   width back, and the whole layout jumps sideways — then jumps back when the
+   rows arrive. That double jump is the shake you see on opening Mistakes and
+   on every filter change. */
+html {
+  scrollbar-gutter: stable;
+}
+
+@supports not (scrollbar-gutter: stable) {
+  html { overflow-y: scroll; }
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   /* Matches the desk page background rather than Tailwind's gray-50 */

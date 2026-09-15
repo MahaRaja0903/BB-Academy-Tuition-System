@@ -83,6 +83,12 @@ class StudentMistakeRecord(Document):
 	def guard_closure(self):
 		"""Closing takes the record off the staff's list, so it may only happen
 		once every action this level demands has actually been recorded."""
+		# A batch move closes the record from `bb_academy.mistakes` with the
+		# count already back at zero: there is no outstanding action to demand,
+		# and the level the guard would check against no longer applies.
+		if getattr(self.flags, "ignore_closure_guard", False):
+			return
+
 		missing = []
 
 		if self.call_required and not self.call_done:

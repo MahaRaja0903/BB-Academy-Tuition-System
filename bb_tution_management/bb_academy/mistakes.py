@@ -67,22 +67,59 @@ def month_label(month_start):
 	return getdate(month_start).strftime("%B %Y")
 
 
+def last_batch_change(student, first_day, last_day):
+	"""The date this student moved batch within the given month, if they did.
+
+	A batch move is the end of a follow-up, not a footnote to it: the teacher
+	speaks to the parents and moves the student precisely so they can start
+	again. Counting the old batch's mistakes against them in the new one would
+	make that fresh start impossible -- the record would reopen on history.
+
+	Cancelled transitions are ignored; drafts are not, because the Student form
+	records a batch change as a draft transition *after* already moving the
+	student, so waiting for a submit would miss the commonest case.
+	"""
+	row = frappe.db.sql(
+		"""
+		SELECT effective_date, previous_batch, new_batch
+		FROM `tabStudent Batch Transition`
+		WHERE student = %(student)s
+			AND docstatus < 2
+			AND effective_date BETWEEN %(first_day)s AND %(last_day)s
+			AND IFNULL(new_batch, '') != ''
+		ORDER BY effective_date DESC, modified DESC
+		LIMIT 1
+		""",
+		{"student": student, "first_day": first_day, "last_day": last_day},
+		as_dict=True,
+	)
+	return row[0] if row else None
+
+
 def count_mistakes(student, date=None):
-	"""This month's mistakes for one student, split by review bucket."""
+	"""This month's mistakes for one student, split by review bucket.
+
+	The window is the calendar month, unless the student changed batch inside
+	it -- then it starts on the day of the move, so the new batch begins at
+	zero.
+	"""
 	first_day, last_day = month_bounds(date)
+
+	move = last_batch_change(student, first_day, last_day)
+	count_from = getdate(move.effective_date) if move else first_day
 
 	rows = frappe.db.sql(
 		"""
 		SELECT category, COUNT(name) AS entries, MAX(date) AS last_date
 		FROM `tabStudent Performance Tracker`
 		WHERE student = %(student)s
-			AND date BETWEEN %(first_day)s AND %(last_day)s
+			AND date BETWEEN %(count_from)s AND %(last_day)s
 			AND result IN %(low_results)s
 		GROUP BY category
 		""",
 		{
 			"student": student,
-			"first_day": first_day,
+			"count_from": count_from,
 			"last_day": last_day,
 			"low_results": tuple(LOW_RESULTS),
 		},
@@ -107,6 +144,10 @@ def count_mistakes(student, date=None):
 		"total": sum(counts.values()),
 		"last_mistake_on": last_mistake_on,
 		"month_start": first_day,
+		"count_from": count_from,
+		"batch_changed_on": getdate(move.effective_date) if move else None,
+		"moved_from_batch": move.previous_batch if move else None,
+		"moved_to_batch": move.new_batch if move else None,
 	}
 
 
@@ -174,8 +215,9 @@ def sync_student_month(student, date=None):
 	exists = frappe.db.exists(DOCTYPE, name)
 
 	if total < THRESHOLD_CALL:
-		# Dropped back under the first threshold -- usually a mis-grade that was
-		# corrected. Drop the record only if no one has acted on it yet.
+		# Dropped back under the first threshold -- a mis-grade that was
+		# corrected, or a batch move that restarted the count. Drop the record
+		# only if no one has acted on it yet.
 		if exists:
 			doc = frappe.get_doc(DOCTYPE, name)
 			if _is_untouched(doc):
@@ -183,6 +225,14 @@ def sync_student_month(student, date=None):
 				return None
 			doc.mistake_count = total
 			_write_tally(doc, tally)
+			# The move *is* the outcome of the follow-up that prompted it, so
+			# the record has nothing left to chase. Left open it would sit on
+			# the staff's list for the rest of the month reading "0 mistakes".
+			# The call and meeting already recorded stay on it as the history.
+			if doc.status == "Open" and tally["batch_changed_on"]:
+				doc.status = "Closed"
+				doc.closure_notes = _batch_move_note(tally, doc.closure_notes)
+				doc.flags.ignore_closure_guard = True
 			doc.save(ignore_permissions=True)
 			return doc.name
 		return None
@@ -223,12 +273,28 @@ def sync_student_month(student, date=None):
 	return doc.name
 
 
+def _batch_move_note(tally, existing=None):
+	"""Why a record with a completed follow-up is being closed at zero."""
+	moved = " to Batch {0}".format(tally["moved_to_batch"]) if tally["moved_to_batch"] else ""
+	note = frappe._(
+		"Closed automatically: the student moved{0} on {1}, so the mistake count "
+		"restarts from that date. The follow-up recorded above stands as the history."
+	).format(moved, frappe.format_value(tally["batch_changed_on"], {"fieldtype": "Date"}))
+
+	existing = (existing or "").strip()
+	return f"{existing}\n\n{note}" if existing else note
+
+
 def _write_tally(doc, tally):
 	counts = tally["counts"]
 	doc.test_count = counts.get("Test", 0)
 	doc.study_count = counts.get("Study", 0)
 	doc.behaviour_count = counts.get("Behaviour", 0)
 	doc.last_mistake_on = tally["last_mistake_on"]
+	# What window the count covers. Stored rather than re-derived so the screen
+	# can say why a student who clearly had a bad month reads as 1 mistake.
+	doc.count_from = tally["count_from"]
+	doc.batch_changed_on = tally["batch_changed_on"]
 
 
 def sync_from_tracker(doc, method=None):
@@ -352,6 +418,7 @@ def get_mistake_students(
 		SELECT r.name, r.student, r.student_name, r.standard, r.batch, r.gender,
 			r.month_start, r.month_label, r.mistake_count, r.action_level, r.status,
 			r.test_count, r.study_count, r.behaviour_count, r.last_mistake_on,
+			r.count_from, r.batch_changed_on,
 			r.call_required, r.call_done, r.spoken_to, r.spoken_to_name,
 			r.called_on, r.called_by, r.call_notes,
 			r.meeting_required, r.parents_informed, r.parents_informed_on,

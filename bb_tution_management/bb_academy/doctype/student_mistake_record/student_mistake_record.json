@@ -25,6 +25,8 @@
   "column_break_tally",
   "behaviour_count",
   "last_mistake_on",
+  "count_from",
+  "batch_changed_on",
   "section_break_call",
   "call_required",
   "call_done",
@@ -176,6 +178,20 @@
    "fieldname": "last_mistake_on",
    "fieldtype": "Date",
    "label": "Last Mistake On",
+   "read_only": 1
+  },
+  {
+   "description": "The month start normally; the day the student changed batch when they did, because the count restarts from the new batch.",
+   "fieldname": "count_from",
+   "fieldtype": "Date",
+   "label": "Counting From",
+   "read_only": 1
+  },
+  {
+   "description": "Set when a Student Batch Transition falls inside this month. The mistakes before it belong to the old batch.",
+   "fieldname": "batch_changed_on",
+   "fieldtype": "Date",
+   "label": "Batch Changed On",
    "read_only": 1
   },
   {
@@ -365,7 +381,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-13 10:00:00.000000",
+ "modified": "2026-09-15 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Mistake Record",

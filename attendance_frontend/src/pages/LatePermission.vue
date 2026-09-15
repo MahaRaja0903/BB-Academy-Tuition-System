@@ -242,8 +242,31 @@
             <option value="">Select a reason</option>
             <option v-for="r in earlyExitReasons" :key="r.name" :value="r.name">{{ r.name }}</option>
           </select>
-          <p v-if="!earlyExitReasons.length" class="lp-modal-warn">
-            No "Early Exit Reason" records exist yet — create them in the desk first.
+
+          <!-- A reason nobody listed months ago still has to be recordable now:
+               typing one here adds it to the master and picks it in one go. -->
+          <div class="lp-inline-add">
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Not on the list? Type a new reason"
+              v-model="newReason"
+              :disabled="addingReason"
+              @keyup.enter.prevent="addEarlyOutReason"
+            />
+            <button
+              type="button"
+              class="lp-now-btn"
+              :disabled="!newReason.trim() || addingReason"
+              @click="addEarlyOutReason"
+            >
+              <i class="fa" :class="addingReason ? 'fa-spinner fa-spin' : 'fa-plus'"></i> Add
+            </button>
+          </div>
+
+          <p v-if="reasonError" class="lp-modal-error">{{ reasonError }}</p>
+          <p v-else-if="!earlyExitReasons.length" class="lp-modal-warn">
+            No "Early Exit Reason" records exist yet — type the first one above and add it.
           </p>
         </template>
 
@@ -282,6 +305,10 @@ const students = ref([])
 const loading = ref(false)
 const lateEntryReasons = ref([])
 const earlyExitReasons = ref([])
+// The "add a reason" box inside the Early Out modal.
+const newReason = ref('')
+const addingReason = ref(false)
+const reasonError = ref('')
 const savingParents = ref(null)
 
 const modal = reactive({
@@ -334,6 +361,7 @@ const standardsResource = createResource({ url: 'bb_tution_management.bb_academy
 const batchesResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
 const lateEntryReasonsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
 const earlyExitReasonsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
+const addReasonResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.add_option' })
 const listResource = createResource({
   url: 'bb_tution_management.bb_academy.late_permission.get_students_for_late_permission',
 })
@@ -455,6 +483,31 @@ function openGrantModal(student) {
   modal.parentsInformed = student.has_permission ? !!student.parents_informed : false
   modal.error = ''
   modal.saving = false
+  newReason.value = ''
+  reasonError.value = ''
+}
+
+async function addEarlyOutReason() {
+  const reason = newReason.value.trim()
+  if (!reason || addingReason.value) return
+  addingReason.value = true
+  reasonError.value = ''
+  try {
+    // The server hands back the existing row when the reason is already in the
+    // master, so typing one that exists picks it rather than duplicating it.
+    const res = await addReasonResource.submit({
+      doctype: 'Early Exit Reason',
+      value: reason,
+    })
+    earlyExitReasons.value =
+      (await earlyExitReasonsResource.submit({ doctype: 'Early Exit Reason' })) || []
+    if (res?.name) modal.reason = res.name
+    newReason.value = ''
+  } catch (e) {
+    reasonError.value = e?.messages?.[0] || e?.message || 'Failed to add the reason'
+  } finally {
+    addingReason.value = false
+  }
 }
 
 async function confirmGrant() {
@@ -897,7 +950,13 @@ watch([standard, batch, date, type, gender], loadStudents)
   cursor: pointer;
 }
 
-.lp-manager .lp-now-btn:hover { background: var(--bg-blue); color: var(--text-on-blue); border-color: var(--blue-200); }
+.lp-manager .lp-now-btn:hover:not(:disabled) { background: var(--bg-blue); color: var(--text-on-blue); border-color: var(--blue-200); }
+.lp-manager .lp-now-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Sits directly under the reason picker it feeds, so it reads as part of the
+   same field rather than a second question. */
+.lp-manager .lp-inline-add { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.lp-manager .lp-inline-add .form-control { flex: 1 1 auto; min-width: 0; }
 .lp-manager .lp-clear-btn:hover { background: var(--bg-red); color: var(--text-on-red); border-color: var(--red-200); }
 
 .lp-manager .lp-time-chip {

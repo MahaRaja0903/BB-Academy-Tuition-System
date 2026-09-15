@@ -51,24 +51,22 @@
       </div>
     </div>
 
-    <!-- Level summary -->
+    <!-- Level summary — how many students sit in each mistake band, and a tap
+         on any of them narrows the list below to exactly those students. -->
     <div class="smr-kpi-grid">
-      <div class="smr-kpi smr-kpi-total">
-        <span class="smr-kpi-label">Students</span>
-        <span class="smr-kpi-value">{{ records.length }}</span>
-      </div>
-      <div class="smr-kpi smr-kpi-call">
-        <span class="smr-kpi-label">Call</span>
-        <span class="smr-kpi-value">{{ levelCounts['Call'] }}</span>
-      </div>
-      <div class="smr-kpi smr-kpi-meeting">
-        <span class="smr-kpi-label">Parent Meeting</span>
-        <span class="smr-kpi-value">{{ levelCounts['Parent Meeting'] }}</span>
-      </div>
-      <div class="smr-kpi smr-kpi-review">
-        <span class="smr-kpi-label">Category Review</span>
-        <span class="smr-kpi-value">{{ levelCounts['Category Review'] }}</span>
-      </div>
+      <button
+        v-for="k in kpis"
+        :key="k.key"
+        type="button"
+        class="smr-kpi"
+        :class="[k.cls, { 'is-active': levelFilter === k.level }]"
+        :title="k.title"
+        @click="toggleLevel(k.level)"
+      >
+        <span class="smr-kpi-label">{{ k.label }}</span>
+        <span class="smr-kpi-value">{{ k.value }}</span>
+        <span class="smr-kpi-sub">{{ k.sub }}</span>
+      </button>
     </div>
 
     <!-- Toolbar -->
@@ -82,6 +80,12 @@
           v-model="search"
         />
       </div>
+      <span v-if="levelFilter" class="smr-filter-chip">
+        <span>Showing <strong>{{ levelLabel(levelFilter) }}</strong></span>
+        <button type="button" title="Clear filter" @click="levelFilter = null">
+          <i class="fa fa-times"></i>
+        </button>
+      </span>
       <button type="button" class="smr-refresh-btn" :disabled="loading" @click="load">
         <i class="fa" :class="loading ? 'fa-spinner fa-spin' : 'fa-refresh'"></i>
         <span>Refresh</span>
@@ -151,8 +155,13 @@
           </div>
 
           <div class="smr-badges">
-            <span class="smr-count-badge" :title="`${r.mistake_count} mistakes in ${r.month_label}`">
+            <span class="smr-count-badge" :title="countTitle(r)">
               <i class="fa fa-exclamation-triangle"></i> {{ r.mistake_count }} mistakes
+            </span>
+            <!-- Without this the count reads as a data error: a student everyone
+                 remembers having a bad month shows 1. -->
+            <span v-if="r.batch_changed_on" class="smr-reset-badge" :title="countTitle(r)">
+              <i class="fa fa-exchange"></i> Counting from {{ prettyDate(r.batch_changed_on) }}
             </span>
             <span class="smr-level-badge" :data-level="r.action_level">{{ r.action_level }}</span>
             <span v-if="r.status === 'Closed'" class="smr-closed-badge">
@@ -496,6 +505,27 @@ import { serverToday, loadServerToday } from '@/data/serverDate'
 
 const SPOKEN_TO = ['Father', 'Mother', 'Guardian', 'Student', 'Other']
 
+// The three thresholds, exactly as bb_academy/mistakes.py applies them. The
+// levels are cumulative, so the bands are what a student is *currently* in:
+// a student on 6 is one Parent Meeting student, not one of each.
+const LEVELS = [
+  { level: 'Call', label: '3 Mistakes', sub: 'Call home', band: '3–4', cls: 'smr-kpi-call' },
+  {
+    level: 'Parent Meeting',
+    label: '5 Mistakes',
+    sub: 'Parent meeting',
+    band: '5–9',
+    cls: 'smr-kpi-meeting',
+  },
+  {
+    level: 'Category Review',
+    label: '10 Mistakes',
+    sub: 'Category review',
+    band: '10 or more',
+    cls: 'smr-kpi-review',
+  },
+]
+
 const standards = ref([])
 const batches = ref([])
 const staffList = ref([])
@@ -506,6 +536,8 @@ const gender = ref('')
 const month = ref((serverToday.value || '').slice(0, 7))
 const status = ref('Open')
 const search = ref('')
+// Which threshold band the list is narrowed to, or null for all of them.
+const levelFilter = ref(null)
 
 const records = ref([])
 const loading = ref(false)
@@ -542,7 +574,10 @@ const meetModal = reactive({
 const reviewModal = reactive({ open: false, record: null, rows: [], saving: false, error: '' })
 const closeModal = reactive({ open: false, record: null, notes: '', saving: false, error: '' })
 
-const visibleRecords = computed(() => {
+// Searched but not yet narrowed by band — the KPI counts are taken from this,
+// so they keep reading as "how many students are at each threshold" while a
+// band is selected, instead of collapsing to the one that is showing.
+const searchedRecords = computed(() => {
   if (!search.value.trim()) return records.value
   const q = search.value.trim().toLowerCase()
   return records.value.filter(
@@ -552,15 +587,75 @@ const visibleRecords = computed(() => {
   )
 })
 
+const visibleRecords = computed(() => {
+  if (!levelFilter.value) return searchedRecords.value
+  return searchedRecords.value.filter((r) => r.action_level === levelFilter.value)
+})
+
 const levelCounts = computed(() => {
   const counts = { Call: 0, 'Parent Meeting': 0, 'Category Review': 0 }
-  for (const r of visibleRecords.value) {
+  for (const r of searchedRecords.value) {
     if (counts[r.action_level] !== undefined) counts[r.action_level] += 1
   }
   return counts
 })
 
+const kpis = computed(() => [
+  {
+    key: 'total',
+    level: null,
+    label: 'Students',
+    sub: 'On follow-up',
+    cls: 'smr-kpi-total',
+    value: searchedRecords.value.length,
+    title: 'Show every student on the follow-up list',
+  },
+  ...LEVELS.map((l) => ({
+    key: l.level,
+    level: l.level,
+    label: l.label,
+    sub: l.sub,
+    cls: l.cls,
+    value: levelCounts.value[l.level],
+    title: `Show only students with ${l.band} mistakes this month (${l.sub})`,
+  })),
+])
+
+function levelLabel(level) {
+  const hit = LEVELS.find((l) => l.level === level)
+  return hit ? `${hit.label} · ${hit.sub}` : level
+}
+
+// The Students card clears the filter; any band toggles it.
+function toggleLevel(level) {
+  levelFilter.value = !level || levelFilter.value === level ? null : level
+}
+
+function prettyDate(value) {
+  if (!value) return ''
+  const d = new Date(`${String(value).slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' })
+}
+
+// A record whose count restarted mid-month has to say so, or the number looks
+// like a bug to whoever remembers the student's actual month.
+function countTitle(r) {
+  if (!r.batch_changed_on) return `${r.mistake_count} mistakes in ${r.month_label}`
+  return (
+    `${r.mistake_count} mistakes since the batch changed on ${prettyDate(r.batch_changed_on)}. ` +
+    `Anything before that belongs to the old batch.`
+  )
+}
+
 const emptyState = computed(() => {
+  if (levelFilter.value && searchedRecords.value.length) {
+    return {
+      icon: 'fa-info-circle',
+      title: `No student at ${levelLabel(levelFilter.value)}`,
+      text: 'No student is in that mistake band this month with these filters.',
+    }
+  }
   if (status.value === 'Closed') {
     return {
       icon: 'fa-folder-open-o',
@@ -684,6 +779,8 @@ async function load() {
       status: status.value,
     })
     records.value = res?.records || []
+    // A band selected for the old filter set would silently hide everything.
+    levelFilter.value = null
     // A record that is no longer listed should not keep a stale expansion open.
     const live = new Set(records.value.map((r) => r.name))
     expanded.value = new Set([...expanded.value].filter((n) => live.has(n)))
@@ -1030,6 +1127,8 @@ onMounted(async () => {
 .smr-kpi {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
   gap: 2px;
   padding: 12px 14px;
   background: var(--card-bg);
@@ -1037,6 +1136,24 @@ onMounted(async () => {
   border-left: 4px solid var(--gray-400);
   border-radius: var(--smr-radius);
   box-shadow: var(--card-shadow, var(--shadow-sm));
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.smr-kpi:hover { border-color: var(--gray-400); }
+
+/* The selected band: the card the list below is currently narrowed to. */
+.smr-kpi.is-active {
+  border-color: var(--gray-600, var(--text-color));
+  box-shadow: 0 0 0 1px var(--gray-600, var(--text-color)) inset;
+}
+
+.smr-kpi-sub {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.2;
 }
 
 .smr-kpi-label {
@@ -1058,6 +1175,45 @@ onMounted(async () => {
 .smr-kpi-call { border-left-color: var(--blue-500); }
 .smr-kpi-meeting { border-left-color: var(--orange-500); }
 .smr-kpi-review { border-left-color: var(--red-500); }
+
+/* ---- band filter chip ---- */
+.smr-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 10px;
+  font-size: 12px;
+  color: var(--text-color);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.smr-filter-chip button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.smr-filter-chip button:hover { color: var(--red-600); }
+
+/* Says the count restarted mid-month, so the number is not read as a bug. */
+.smr-reset-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-on-blue, var(--blue-600));
+  background: var(--bg-blue, var(--blue-50));
+  border: 1px solid var(--blue-200, var(--border-color));
+}
 
 /* ---- toolbar ---- */
 .smr-toolbar {

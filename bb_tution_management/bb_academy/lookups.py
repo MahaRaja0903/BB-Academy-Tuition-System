@@ -24,6 +24,57 @@ LOOKUPS = {
 }
 
 
+# Masters a screen may add to on the spot. Each is a bare list whose docname is
+# the value itself, so one Data field is the whole record.
+#
+# `requires` is the permission that actually governs the add, and it is
+# deliberately not a DocPerm on the master itself. These masters are
+# administered by System Manager, so an Attendance Manager granting an early
+# out holds no create right on Early Exit Reason and would be refused -- the
+# same mismatch get_options above exists to work around. Naming a reason is
+# part of recording the attendance, so the attendance permission is what is
+# checked, and the row is inserted with that authority.
+ADDABLE = {
+    "Early Exit Reason": {"fieldname": "reason", "requires": ("Student Attendance", "write")},
+}
+
+
+@frappe.whitelist()
+def add_option(doctype, value):
+    """Add one row to a lookup master, straight from the screen using it.
+
+    Why a student left early is not always on a list somebody drew up months
+    ago. Without this the receptionist has to abandon a half-filled form, open
+    the desk, create the master and start again.
+    """
+    spec = ADDABLE.get(doctype)
+    if not spec:
+        # Anything outside the allowlist has to go through the
+        # permission-checked APIs, not this one.
+        frappe.throw(
+            frappe._("{0} cannot be added to from here").format(doctype),
+            frappe.PermissionError,
+        )
+
+    required_doctype, required_perm = spec["requires"]
+    if not frappe.has_permission(required_doctype, required_perm):
+        frappe.throw(frappe._("No permission to add a {0}").format(doctype))
+
+    value = (value or "").strip()
+    if not value:
+        frappe.throw(frappe._("{0} cannot be blank").format(doctype))
+
+    # The master names itself after the value, so an existing one is simply
+    # handed back -- typing a reason that is already on the list picks it
+    # rather than failing on a duplicate.
+    if frappe.db.exists(doctype, value):
+        return {"name": value}
+
+    doc = frappe.get_doc({"doctype": doctype, spec["fieldname"]: value})
+    doc.insert(ignore_permissions=True)
+    return {"name": doc.name}
+
+
 @frappe.whitelist()
 def get_options(doctype):
     """Rows of one lookup master, without a DocPerm check.
