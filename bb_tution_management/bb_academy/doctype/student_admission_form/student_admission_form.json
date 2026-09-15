@@ -31,9 +31,11 @@
   "father_name",
   "father_mobile_number",
   "preferred_mobile_number",
+  "father_occupation",
   "column_break_4",
   "mother_name",
   "mother_mobile_number",
+  "mother_occupation",
   "academic_allocation_section",
   "standard",
   "group",
@@ -426,13 +428,23 @@
    "fieldtype": "Small Text",
    "label": "Reason for Discounting Monthly Fees",
    "read_only": 1
+  },
+  {
+   "fieldname": "father_occupation",
+   "fieldtype": "Data",
+   "label": "Father occupation"
+  },
+  {
+   "fieldname": "mother_occupation",
+   "fieldtype": "Data",
+   "label": "Mother occupation"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-13 14:00:00.000000",
+ "modified": "2026-09-14 00:13:55.898707",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",
