@@ -52,15 +52,28 @@
         </div>
       </div>
 
-      <div class="perf-panel-actions">
-        <button type="button" class="perf-holiday-btn" @click="openHolidayModal">
-          <i class="fa fa-calendar-plus-o"></i> <span>Assign Holiday</span>
+      <div v-if="config.usesSkip" class="perf-panel-actions">
+        <!-- "No Study" / "No Test" / "No Maths Test" — the day management
+             planned nothing for this batch. Reads back as the same button,
+             pressed, so one control both sets and undoes it. -->
+        <button
+          type="button"
+          class="perf-noclass-btn"
+          :class="{ 'is-active': noSession }"
+          :disabled="!standard || !batch || isFutureDate || !!holiday"
+          :title="noSession
+            ? `${noSessionLabel} is set for this date — click to undo it`
+            : `Management planned no ${category} for this batch on this date`"
+          @click="noSession ? undoNoSession() : openNoSessionModal()"
+        >
+          <i class="fa" :class="noSession ? 'fa-check-square-o' : 'fa-ban'"></i>
+          <span>{{ noSessionLabel }}</span>
         </button>
       </div>
     </div>
 
     <!-- Batch setup: entered once, inherited by every student graded after it -->
-    <div v-if="config.usesSyllabus && standard && batch" class="perf-setup-card">
+    <div v-if="config.usesSyllabus && standard && batch && !noSession" class="perf-setup-card">
       <button type="button" class="perf-setup-head" @click="setupOpen = !setupOpen">
         <span class="perf-setup-title">
           <i class="fa fa-sliders"></i> {{ category }} Setup for the whole batch
@@ -320,6 +333,33 @@
       </div>
     </div>
 
+    <!-- No Study / No Test card — nothing was planned, so nothing is graded -->
+    <div v-else-if="noSession" class="perf-holiday-card perf-noclass-card">
+      <div class="perf-holiday-icon"><i class="fa fa-ban"></i></div>
+      <div class="perf-holiday-content">
+        <h4>{{ noSessionLabel }}</h4>
+        <p>
+          <span class="perf-holiday-key">Batch</span>
+          <span>{{ standard }} — {{ batch }} on {{ date }}</span>
+        </p>
+        <p v-if="session?.no_session_reason">
+          <span class="perf-holiday-key">Reason</span><span>{{ session.no_session_reason }}</span>
+        </p>
+        <p class="perf-holiday-note">
+          Management planned no {{ category }} for this batch on this date, so no student is
+          graded for it. Attendance and the other categories are unaffected.
+        </p>
+        <button
+          type="button"
+          class="perf-btn perf-btn-secondary perf-holiday-action"
+          :disabled="noSessionModal.saving"
+          @click="undoNoSession"
+        >
+          <i class="fa fa-undo"></i> {{ category }} was held after all — undo
+        </button>
+      </div>
+    </div>
+
     <!-- Student table / cards -->
     <div v-else class="perf-table-card">
       <div class="perf-table-scroll">
@@ -563,49 +603,39 @@
       </div>
     </div>
 
-    <!-- Assign holiday modal -->
-    <div v-if="holidayModal.open" class="perf-modal-backdrop" @click.self="holidayModal.open = false">
+    <!-- No Study / No Test modal -->
+    <div v-if="noSessionModal.open" class="perf-modal-backdrop" @click.self="noSessionModal.open = false">
       <div class="perf-modal">
-        <h3>Assign Holiday</h3>
+        <h3>{{ noSessionLabel }}</h3>
+        <p class="perf-modal-sub">
+          Records that management planned no {{ category }} for
+          <strong>{{ standard }} — {{ batch }}</strong> on <strong>{{ date }}</strong>.
+          The day is left ungraded for this category; attendance and the other categories
+          carry on as usual.
+        </p>
 
-        <label class="perf-modal-label">Date <span class="perf-required">*</span></label>
-        <input type="date" class="form-control" v-model="holidayModal.date" :max="serverToday" />
+        <label class="perf-modal-label">Reason</label>
+        <textarea
+          class="form-control perf-textarea"
+          rows="2"
+          :placeholder="`Why was no ${category} planned?`"
+          v-model="noSessionModal.reason"
+        ></textarea>
 
-        <label class="perf-modal-label">Holiday Type <span class="perf-required">*</span></label>
-        <select class="form-control" v-model="holidayModal.holiday_type">
-          <option value="">Select type</option>
-          <option v-for="t in HOLIDAY_TYPES" :key="t" :value="t">{{ t }}</option>
-        </select>
-
-        <label class="perf-modal-label">Reason <span class="perf-required">*</span></label>
-        <textarea class="form-control perf-textarea" rows="2" v-model="holidayModal.reason"></textarea>
-
-        <label class="perf-modal-label">Scope <span class="perf-required">*</span></label>
-        <select class="form-control" v-model="holidayModal.scope">
-          <option v-for="sc in HOLIDAY_SCOPES" :key="sc" :value="sc">{{ sc }}</option>
-        </select>
-
-        <template v-if="holidayModal.scope !== 'Entire School'">
-          <label class="perf-modal-label">Standard</label>
-          <select class="form-control" v-model="holidayModal.standard">
-            <option value="">Select Standard</option>
-            <option v-for="st in standards" :key="st.name" :value="st.name">{{ st.name }}</option>
-          </select>
-        </template>
-        <template v-if="holidayModal.scope === 'Standard + Batch'">
-          <label class="perf-modal-label">Batch</label>
-          <select class="form-control" v-model="holidayModal.batch">
-            <option value="">Select Batch</option>
-            <option v-for="b in batches" :key="b.name" :value="b.name">{{ b.name }}</option>
-          </select>
-        </template>
-
-        <p v-if="holidayModal.error" class="perf-modal-error">{{ holidayModal.error }}</p>
+        <p v-if="gradedCount" class="perf-modal-warn">
+          {{ gradedCount }} student(s) already have a {{ category }} result for this date. Clear
+          those first — a day with no {{ category }} cannot hold results.
+        </p>
+        <p v-if="noSessionModal.error" class="perf-modal-error">{{ noSessionModal.error }}</p>
 
         <div class="perf-modal-actions">
-          <button class="perf-btn perf-btn-secondary" @click="holidayModal.open = false">Cancel</button>
-          <button class="perf-btn perf-btn-primary" :disabled="holidayModal.saving" @click="confirmHoliday">
-            {{ holidayModal.saving ? 'Saving…' : 'Assign Holiday' }}
+          <button class="perf-btn perf-btn-secondary" @click="noSessionModal.open = false">Cancel</button>
+          <button
+            class="perf-btn perf-btn-primary"
+            :disabled="noSessionModal.saving"
+            @click="confirmNoSession"
+          >
+            {{ noSessionModal.saving ? 'Saving…' : noSessionLabel }}
           </button>
         </div>
       </div>
@@ -651,7 +681,8 @@
       </div>
     </div>
 
-    <!-- Skip Test / Study modal — a skip is only ever recorded with a reason -->
+    <!-- Skip Test / Study modal — a skip is only ever recorded with a reason,
+         and with what this student did instead of the planned session -->
     <div v-if="skipModal.open" class="perf-modal-backdrop" @click.self="closeSkipModal">
       <div class="perf-modal">
         <h3>{{ config.skipLabel }} — {{ skipModal.student?.student_name }}</h3>
@@ -659,6 +690,76 @@
           The student is excused from today's {{ category }}. It counts as neither a pass nor a
           fail, and is left out of the monthly percentage.
         </p>
+
+        <template v-if="config.usesSyllabus">
+          <p class="perf-modal-sub perf-modal-sub-tight">
+            <i class="fa fa-book"></i>
+            This starts from what the batch was set up to cover. Change it to what
+            <strong>{{ skipModal.student?.student_name }}</strong> actually studied instead — it is
+            saved on this student's row only.
+          </p>
+
+          <label class="perf-modal-label">Subject</label>
+          <select class="form-control" v-model="skipModal.subject">
+            <option value="">Select Subject</option>
+            <option v-for="sub in subjectOptions(skipModal.subject)" :key="sub" :value="sub">
+              {{ sub }}
+            </option>
+          </select>
+
+          <label class="perf-modal-label">Lesson</label>
+          <small v-if="!skipModal.subject" class="perf-field-hint">
+            Pick a Subject first — a lesson belongs to one subject of one standard.
+          </small>
+          <div v-else class="perf-picker">
+            <div class="perf-tag-row">
+              <span v-for="name in skipModal.lessons" :key="name" class="perf-tag">
+                {{ lessonTitle(name, skipLessons) }}
+                <button
+                  type="button"
+                  class="perf-tag-x"
+                  :title="`Remove ${lessonTitle(name, skipLessons)}`"
+                  @click="removeLesson(skipModal.lessons, name)"
+                >
+                  <i class="fa fa-times"></i>
+                </button>
+              </span>
+              <small v-if="!skipModal.lessons.length" class="perf-field-hint">
+                No lesson picked yet.
+              </small>
+            </div>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Search a lesson"
+              v-model="skipLessonSearch"
+            />
+            <ul class="perf-option-list">
+              <li v-for="l in skipLessonPicks" :key="l.name">
+                <button type="button" @click="pickLesson(skipModal.lessons, l.name)">
+                  <i class="fa fa-plus-circle"></i> {{ l.lesson_name }}
+                </button>
+              </li>
+              <li v-if="!skipLessonPicks.length" class="perf-option-empty">
+                {{ lessonEmptyText(skipLessons, skipModal.lessons, skipLessonSearch) }}
+              </li>
+            </ul>
+          </div>
+
+          <label class="perf-modal-label">Portion</label>
+          <div class="perf-chip-picker">
+            <button
+              v-for="pt in portionOptions"
+              :key="pt.name"
+              type="button"
+              class="perf-chip"
+              :class="{ active: skipModal.portions.includes(pt.name) }"
+              @click="togglePortion(skipModal.portions, pt.name)"
+            >
+              {{ pt.portion_name }}
+            </button>
+          </div>
+        </template>
 
         <label class="perf-modal-label">Remarks <span class="perf-required">*</span></label>
         <textarea
@@ -885,18 +986,6 @@ const SHARED_CATEGORIES = ['Study', 'Test']
 const SUBJECT_TESTS = ['Maths Test', 'Accounts Test']
 const DEFAULT_SUBJECT_TEST = 'Maths Test'
 
-// Mirrors the Select options on the Attendance Holiday doctype.
-const HOLIDAY_TYPES = [
-  'Rain',
-  'Government Holiday',
-  'School Holiday',
-  'Emergency',
-  'Sunday',
-  'KPI Meeting',
-  'Other',
-]
-const HOLIDAY_SCOPES = ['Entire School', 'Standard', 'Standard + Batch']
-
 // Half the paper passes — the same rule bb_academy/performance_config.py applies.
 function halfOf(total) {
   return total ? Math.round((total / 2) * 2) / 2 : 0
@@ -913,6 +1002,9 @@ const subjects = ref([])
 const lessons = ref([])
 // The same list for the per-student modal, which can be on another subject.
 const detailLessons = ref([])
+// And again for the skip modal, where the subject is whatever the student did
+// instead of the planned session.
+const skipLessons = ref([])
 // Portion master — the same 1M / 2M / 5M list for every standard.
 const portionOptions = ref([])
 // Which subject test this standard sits. Server-decided, so the two never drift.
@@ -925,6 +1017,9 @@ const date = ref(serverToday.value)
 
 const students = ref([])
 const summary = ref({})
+// The batch setup row for the loaded date/category. It also carries the
+// "No Study / No Test" flag, so the screen reads both off one object.
+const session = ref(null)
 const holiday = ref(null)
 // Set when this date is a holiday a class was taken on anyway. The server then
 // treats the day as ordinary, so `holiday` comes back null and this is what
@@ -958,6 +1053,7 @@ const setup = reactive({
 // Add button pushes into the Lesson master.
 const lessonSearch = ref('')
 const detailLessonSearch = ref('')
+const skipLessonSearch = ref('')
 const addingLesson = ref(false)
 const lessonError = ref('')
 
@@ -992,14 +1088,9 @@ const reasonModal = reactive({
   error: '',
 })
 
-const holidayModal = reactive({
+const noSessionModal = reactive({
   open: false,
-  date: '',
-  holiday_type: '',
   reason: '',
-  scope: 'Entire School',
-  standard: '',
-  batch: '',
   saving: false,
   error: '',
 })
@@ -1015,6 +1106,9 @@ const specialModal = reactive({
 const skipModal = reactive({
   open: false,
   student: null,
+  subject: '',
+  lessons: [],
+  portions: [],
   remarks: '',
   saving: false,
   error: '',
@@ -1067,6 +1161,9 @@ const lessonsResource = createResource({
 const detailLessonsResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.get_lessons',
 })
+const skipLessonsResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.get_lessons',
+})
 const portionsResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.get_portions',
 })
@@ -1076,8 +1173,8 @@ const addLessonResource = createResource({
 const clearResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.clear_student_performance',
 })
-const assignHolidayResource = createResource({
-  url: 'bb_tution_management.bb_academy.attendance.assign_holiday',
+const noSessionResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.set_no_session',
 })
 const specialClassResource = createResource({
   url: 'bb_tution_management.bb_academy.attendance.assign_special_class_day',
@@ -1087,6 +1184,11 @@ const removeSpecialClassResource = createResource({
 })
 
 const config = computed(() => CATEGORY_CONFIG[category.value] || CATEGORY_CONFIG.Study)
+
+// "No Study" / "No Test" / "No Maths Test" / "No Accounts Test" — the button
+// is named after whichever category is on screen.
+const noSessionLabel = computed(() => `No ${category.value}`)
+const noSession = computed(() => !!session.value?.no_session)
 const columnCount = computed(() => (config.value.usesMarks ? 5 : 4))
 
 // The standard sits exactly one subject test, so only that one is offered.
@@ -1110,7 +1212,7 @@ const gradedCount = computed(() => students.value.filter((s) => s.result).length
 function lessonTitle(name, pool) {
   // The setup card and the per-student modal each load their own list and can
   // sit on different subjects, so a name is looked up in both before giving up.
-  const hit = [pool, lessons.value, detailLessons.value]
+  const hit = [pool, lessons.value, detailLessons.value, skipLessons.value]
     .filter(Boolean)
     .map((p) => p.find((l) => l.name === name))
     .find(Boolean)
@@ -1141,6 +1243,10 @@ const setupLessonPicks = computed(() =>
 
 const detailLessonPicks = computed(() =>
   lessonPicks(detailLessons.value, detailModal.lessons, detailLessonSearch.value)
+)
+
+const skipLessonPicks = computed(() =>
+  lessonPicks(skipLessons.value, skipModal.lessons, skipLessonSearch.value)
 )
 
 function portionTitle(name) {
@@ -1413,6 +1519,19 @@ async function loadDetailLessons(subject, include) {
     })) || []
 }
 
+async function loadSkipLessons(subject, include) {
+  if (!standard.value || !subject) {
+    skipLessons.value = []
+    return
+  }
+  skipLessons.value =
+    (await skipLessonsResource.submit({
+      standard: standard.value,
+      subject,
+      include: include?.length ? JSON.stringify(include) : undefined,
+    })) || []
+}
+
 async function loadPortions() {
   portionOptions.value = (await portionsResource.submit()) || []
 }
@@ -1454,6 +1573,7 @@ async function loadBehaviourReasons() {
 async function loadStudents() {
   if (!standard.value || !batch.value || !category.value || !date.value) {
     students.value = []
+    session.value = null
     holiday.value = null
     specialClass.value = null
     totalStudents.value = 0
@@ -1472,6 +1592,7 @@ async function loadStudents() {
       gender: gender.value || undefined,
     })
     holiday.value = res.holiday || null
+    session.value = res.session || null
     specialClass.value = res.special_class || null
     students.value = res.students || []
     summary.value = res.summary || {}
@@ -1516,50 +1637,46 @@ function recomputeSummary() {
   summary.value = next
 }
 
-function openHolidayModal() {
-  holidayModal.open = true
-  holidayModal.date = date.value
-  holidayModal.holiday_type = ''
-  holidayModal.reason = ''
-  holidayModal.scope = 'Entire School'
-  holidayModal.standard = standard.value
-  holidayModal.batch = batch.value
-  holidayModal.error = ''
-  holidayModal.saving = false
+function openNoSessionModal() {
+  noSessionModal.open = true
+  noSessionModal.reason = session.value?.no_session_reason || ''
+  noSessionModal.error = ''
+  noSessionModal.saving = false
 }
 
-async function confirmHoliday() {
-  holidayModal.error = ''
-  if (!holidayModal.date || !holidayModal.holiday_type || !holidayModal.reason.trim()) {
-    holidayModal.error = 'Date, Holiday Type and Reason are required.'
-    return
-  }
-  if (holidayModal.scope !== 'Entire School' && !holidayModal.standard) {
-    holidayModal.error = 'Standard is required for this scope.'
-    return
-  }
-  if (holidayModal.scope === 'Standard + Batch' && !holidayModal.batch) {
-    holidayModal.error = 'Batch is required for this scope.'
-    return
-  }
-
-  holidayModal.saving = true
+async function setNoSession(flag, reason) {
+  noSessionModal.saving = true
+  noSessionModal.error = ''
+  saveError.value = ''
   try {
-    await assignHolidayResource.submit({
-      date: holidayModal.date,
-      holiday_type: holidayModal.holiday_type,
-      reason: holidayModal.reason,
-      scope: holidayModal.scope,
-      standard: holidayModal.scope !== 'Entire School' ? holidayModal.standard : undefined,
-      batch: holidayModal.scope === 'Standard + Batch' ? holidayModal.batch : undefined,
+    const res = await noSessionResource.submit({
+      standard: standard.value,
+      batch: batch.value,
+      category: category.value,
+      performance_date: date.value,
+      no_session: flag ? 1 : 0,
+      reason: reason || undefined,
     })
-    holidayModal.open = false
+    session.value = res?.session || null
+    noSessionModal.open = false
+    // The roster and the setup card both read differently either side of this,
+    // so the day is reloaded rather than patched.
     await loadStudents()
   } catch (e) {
-    holidayModal.error = errorText(e, 'Failed to assign holiday')
+    const message = errorText(e, `Failed to save ${noSessionLabel.value}`)
+    if (noSessionModal.open) noSessionModal.error = message
+    else saveError.value = message
   } finally {
-    holidayModal.saving = false
+    noSessionModal.saving = false
   }
+}
+
+function confirmNoSession() {
+  return setNoSession(true, noSessionModal.reason.trim())
+}
+
+function undoNoSession() {
+  return setNoSession(false)
 }
 
 function openSpecialModal() {
@@ -1748,8 +1865,17 @@ function onSkipToggle(student, checked) {
   if (checked) {
     skipModal.open = true
     skipModal.student = student
+    // Opens on what the batch was planned to cover, which is what the teacher
+    // edits down to whatever this student did instead.
+    syncSyllabus(() => {
+      skipModal.subject = student.subject || setup.subject || ''
+      skipModal.lessons = [...(student.lessons?.length ? student.lessons : setup.lessons)]
+    })
+    skipModal.portions = [...(student.portions?.length ? student.portions : setup.portions)]
+    skipLessonSearch.value = ''
     skipModal.remarks = student.remarks || ''
     skipModal.error = ''
+    loadSkipLessons(skipModal.subject, skipModal.lessons)
     return
   }
 
@@ -1763,8 +1889,12 @@ function onSkipToggle(student, checked) {
 function closeSkipModal() {
   skipModal.open = false
   skipModal.student = null
+  skipModal.subject = ''
+  skipModal.lessons = []
+  skipModal.portions = []
   skipModal.remarks = ''
   skipModal.error = ''
+  skipLessonSearch.value = ''
   // The checkbox has already flipped; re-render to snap it back to what is saved.
   students.value = [...students.value]
 }
@@ -1777,10 +1907,23 @@ async function confirmSkip() {
   skipModal.saving = true
   skipModal.error = ''
   try {
-    await applyResult(student, { result: SKIP_RESULT, skipped: 1, remarks })
+    // The syllabus goes with the skip: a skipped student still did something,
+    // and this row is the only record of what.
+    await applyResult(student, {
+      result: SKIP_RESULT,
+      skipped: 1,
+      remarks,
+      subject: config.value.usesSyllabus ? skipModal.subject : undefined,
+      lessons: config.value.usesSyllabus ? skipModal.lessons : undefined,
+      portions: config.value.usesSyllabus ? skipModal.portions : undefined,
+    })
     skipModal.open = false
     skipModal.student = null
+    skipModal.subject = ''
+    skipModal.lessons = []
+    skipModal.portions = []
     skipModal.remarks = ''
+    skipLessonSearch.value = ''
   } catch (e) {
     skipModal.error = errorText(e, 'Failed to save')
   } finally {
@@ -2027,6 +2170,18 @@ watch(
       detailLessonSearch.value = ''
     }
     loadDetailLessons(subject, detailModal.lessons)
+  }
+)
+
+watch(
+  () => skipModal.subject,
+  (subject, previous) => {
+    if (!skipModal.open) return
+    if (!syncingSyllabus && previous !== undefined && subject !== previous) {
+      skipModal.lessons = []
+      skipLessonSearch.value = ''
+    }
+    loadSkipLessons(subject, skipModal.lessons)
   }
 )
 
@@ -2565,7 +2720,7 @@ watch([resultFilter, showCompleted, search], () => {
   gap: 10px;
 }
 
-.perf-manager .perf-holiday-btn {
+.perf-manager .perf-noclass-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2580,7 +2735,30 @@ watch([resultFilter, showCompleted, search], () => {
   white-space: nowrap;
 }
 
-.perf-manager .perf-holiday-btn:hover { border-color: var(--gray-400); }
+.perf-manager .perf-noclass-btn:hover:not(:disabled) { border-color: var(--gray-400); }
+.perf-manager .perf-noclass-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Pressed: the day is already marked "no session", and the same button undoes it. */
+.perf-manager .perf-noclass-btn.is-active {
+  color: var(--red-600);
+  border-color: var(--red-300, var(--red-600));
+  background: var(--red-50, var(--bg-red, var(--card-bg)));
+}
+
+.perf-manager .perf-noclass-card {
+  background: var(--alert-bg-warning, var(--bg-orange, var(--card-bg)));
+  border-color: var(--orange-200, var(--border-color));
+}
+
+.perf-manager .perf-noclass-card .perf-holiday-icon { color: var(--orange-600, var(--red-600)); }
+
+/* The skip modal's "what they did instead" lead-in sits tight under the main
+   explanation rather than reading as a second paragraph of it. */
+.perf-manager .perf-modal-sub-tight {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
 
 /* ---- empty / skeleton ---- */
 .perf-manager .perf-empty-state { text-align: center; padding: 48px 20px; color: var(--text-muted); }
@@ -3209,19 +3387,23 @@ watch([resultFilter, showCompleted, search], () => {
     margin-bottom: 12px;
   }
 
+  /* Media-object card, matching the attendance screen. The photo owns a fixed
+     column of its own spanning the three identity rows, so it can be large
+     without taking width from the name or from the result buttons, which keep
+     their own full-width row. The select box moves into a leading gutter,
+     freeing the top-right corner the photo used to be pinned into.
+     The reserved marks-row height is gone with the absolute positioning that
+     needed it: the photo now sizes the top block itself, so a Study or
+     Behaviour card with no marks cell still matches a Test card. */
   .perf-manager .perf-table tbody tr.perf-student-row {
     position: relative;
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) 104px;
     grid-template-areas:
-      'name    select'
-      'id      id'
-      'marks   marks'
-      'actions actions';
-    /* Study and Behaviour render no marks cell, which would collapse that row
-       and leave the photo below with nowhere to hang. Reserve the height so
-       every category's card keeps the same top block. */
-    grid-template-rows: auto auto minmax(21px, auto) auto;
+      'select  name    avatar'
+      'select  id      avatar'
+      'select  marks   avatar'
+      'actions actions actions';
     row-gap: 10px;
     column-gap: 10px;
     border-left: 4px solid var(--gray-300);
@@ -3240,14 +3422,25 @@ watch([resultFilter, showCompleted, search], () => {
     border-bottom: none;
   }
 
-  .perf-manager .perf-td-select { grid-area: select; align-self: start; text-align: right; }
-  .perf-manager .perf-td-id { grid-area: id; }
+  .perf-manager .perf-td-select { grid-area: select; align-self: start; text-align: center; }
+  .perf-manager .perf-td-id { grid-area: id; align-self: center; }
 
-  .perf-manager .perf-td-name {
-    grid-area: name;
-    padding-top: 10px !important;
-    border-top: 1px solid var(--border-color);
+  /* The name cell and its flex wrapper dissolve so the name block and the photo
+     become grid items of the card itself -- that is what lets the photo span
+     rows it is not nested in. !important because the blanket
+     `tr.perf-student-row td { display: block }` rule above is more specific. */
+  .perf-manager .perf-td-name,
+  .perf-manager .perf-student-profile {
+    display: contents !important;
   }
+
+  .perf-manager .perf-student-name-wrap {
+    grid-area: name;
+    min-width: 0;
+    align-self: center;
+  }
+
+  .perf-manager .perf-student-name { overflow-wrap: anywhere; }
 
   .perf-manager .perf-td-marks {
     grid-area: marks;
@@ -3279,19 +3472,41 @@ watch([resultFilter, showCompleted, search], () => {
 
   .perf-manager .perf-status-btn i { font-size: 15px; }
 
-  /* Pin the photo to the card's top block, exactly where the attendance card
-     puts it. Anchoring to the bottom instead let the action cell's variable
-     height (result labels, the syllabus/Details meta row, behaviour reason
-     notes) push the photo onto the result buttons. */
+  /* In the flow now, not pinned over it: the photo is a grid item in its own
+     column, so the action cell's variable height (result labels, the
+     syllabus/Details meta row, behaviour reason notes) can no longer push
+     anything onto it. It fills the three-row span rather than sitting at the
+     top of it, leaving no dead space beneath. */
   .perf-manager .perf-avatar {
-    position: absolute !important;
-    right: 5px !important;
-    top: 34px !important;
+    grid-area: avatar;
+    align-self: stretch;
+    justify-self: end;
+    position: static !important;
     margin: 0 !important;
-    bottom: auto !important;
-    left: auto !important;
-    z-index: 2;
+    width: 104px !important;
+    height: auto !important;
+    min-width: 104px;
+    min-height: 104px;
+    object-fit: cover;
   }
+
+  .perf-manager .perf-avatar-fallback { font-size: 28px; }
+}
+
+/* Narrowest phones: give the name column back some room. */
+@media (max-width: 380px) {
+  .perf-manager .perf-table tbody tr.perf-student-row {
+    grid-template-columns: auto minmax(0, 1fr) 84px;
+    column-gap: 8px;
+  }
+
+  .perf-manager .perf-avatar {
+    width: 84px !important;
+    min-width: 84px;
+    min-height: 84px;
+  }
+
+  .perf-manager .perf-avatar-fallback { font-size: 24px; }
 }
 
 @media (max-width: 480px) {

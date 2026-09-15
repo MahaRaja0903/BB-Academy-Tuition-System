@@ -47,6 +47,8 @@ SESSION_FIELDS = (
 	"total_questions",
 	"total_marks",
 	"pass_marks",
+	"no_session",
+	"no_session_reason",
 )
 
 LESSON_PARENTFIELD = "lessons"
@@ -233,6 +235,34 @@ def _get_session(performance_date, standard, batch, category):
 	session["lessons"] = _lessons_of("Student Performance Session", [name]).get(name, [])
 	session["portions"] = _portions_of("Student Performance Session", [name]).get(name, [])
 	return session
+
+
+def _session_payload(doc):
+	"""The session as the PWA reads it back, child tables flattened to names."""
+	return {
+		"name": doc.name,
+		"date": doc.date,
+		"standard": doc.standard,
+		"batch": doc.batch,
+		"category": doc.category,
+		**{field: doc.get(field) for field in SESSION_FIELDS},
+		"lessons": [row.lesson for row in (doc.lessons or [])],
+		"portions": [row.portion for row in (doc.portions or [])],
+	}
+
+
+def _guard_session_planned(session, category, performance_date):
+	"""Refuse to grade a day management planned nothing for.
+
+	"No Test" is a statement about the whole batch, so a single grade slipping in
+	afterwards would contradict the card the screen is showing everyone else.
+	"""
+	if session and cint(session.get("no_session")):
+		frappe.throw(
+			f"No {category} was planned for this batch on {getdate(performance_date)}. "
+			f"Undo \"No {category}\" first if one was held after all.",
+			title=f"No {category} Planned",
+		)
 
 
 def _guard_writable(performance_date, standard, batch):
@@ -650,6 +680,9 @@ def save_performance_session(
 		doc.category = category
 
 	doc.update(values)
+	# Entering a setup is the teacher saying the session did happen, so it
+	# cancels an earlier "No Study / No Test" for the day.
+	doc.no_session = 0
 	_set_lessons(doc, lesson_names)
 	_set_portions(doc, portion_names)
 	doc.save()
@@ -660,12 +693,7 @@ def save_performance_session(
 
 	return {
 		"status": "success",
-		"session": {
-			"name": doc.name,
-			**{field: doc.get(field) for field in SESSION_FIELDS},
-			"lessons": [row.lesson for row in (doc.lessons or [])],
-			"portions": [row.portion for row in (doc.portions or [])],
-		},
+		"session": _session_payload(doc),
 		"updated_students": updated,
 	}
 
@@ -719,6 +747,58 @@ def _apply_session_to_students(session):
 		doc.save()
 
 	return len(names)
+
+
+@frappe.whitelist()
+def set_no_session(standard, batch, category, performance_date, no_session=1, reason=None):
+	"""Record that management planned no Study / Test for this batch on this date.
+
+	It is the counterpart of the per-student skip: one student being excused is a
+	skip, the whole batch never sitting it is a day that was never planned. The
+	flag lives on the same session row the setup does, so the day carries one
+	record either way.
+	"""
+	if not frappe.has_permission("Student Performance Session", "create"):
+		frappe.throw("No permission to change the performance setup")
+
+	_validate_category(category)
+	if not category_config(category)["uses_skip"]:
+		frappe.throw(f"{category} cannot be marked as not planned.", title="Cannot Skip")
+
+	_guard_writable(performance_date, standard, batch)
+
+	date_obj = getdate(performance_date)
+	flag = cint(no_session)
+
+	if flag:
+		# Results and "nothing was planned" cannot both be true for the day.
+		# Refusing is safer than deleting grades somebody already recorded.
+		graded = frappe.db.count(
+			"Student Performance Tracker",
+			{"date": date_obj, "category": category, "standard": standard, "batch": batch},
+		)
+		if graded:
+			frappe.throw(
+				f"{graded} student(s) already have a {category} result on {date_obj}. "
+				"Clear those first.",
+				title=f"No {category} Not Set",
+			)
+
+	name = _session_name(date_obj, standard, batch, category)
+	if frappe.db.exists("Student Performance Session", name):
+		doc = frappe.get_doc("Student Performance Session", name)
+	else:
+		doc = frappe.new_doc("Student Performance Session")
+		doc.date = date_obj
+		doc.standard = standard
+		doc.batch = batch
+		doc.category = category
+
+	doc.no_session = flag
+	doc.no_session_reason = (reason or "").strip() if flag else None
+	doc.save()
+
+	return {"status": "success", "session": _session_payload(doc)}
 
 
 @frappe.whitelist()
@@ -919,6 +999,7 @@ def save_student_performance(
 		)
 
 	session = _get_session(performance_date, standard, batch, category)
+	_guard_session_planned(session, category, performance_date)
 	cfg = category_config(category)
 
 	# Numbers arrive over HTTP as strings; a cleared input arrives as "".
@@ -1081,6 +1162,7 @@ def save_bulk_performance(
 	)
 
 	session = _get_session(date_obj, standard, batch, category)
+	_guard_session_planned(session, category, date_obj)
 	values = {
 		"result": result,
 		"marks_obtained": marks_obtained,
