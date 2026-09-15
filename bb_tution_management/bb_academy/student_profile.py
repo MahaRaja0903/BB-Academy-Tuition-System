@@ -107,7 +107,7 @@ def _student_batch(student):
 
 
 @frappe.whitelist()
-def search_students(query=None, standard=None, batch=None, limit=25):
+def search_students(query=None, standard=None, batch=None, gender=None, limit=25):
 	"""Type-ahead for the profile picker: name or ID, optionally narrowed."""
 	if not frappe.has_permission("Student", "read"):
 		frappe.throw("No permission to read students")
@@ -129,6 +129,9 @@ def search_students(query=None, standard=None, batch=None, limit=25):
 			)"""
 		)
 		params["batch"] = batch
+	if gender:
+		conditions.append("s.gender = %(gender)s")
+		params["gender"] = gender
 
 	return frappe.db.sql(
 		f"""

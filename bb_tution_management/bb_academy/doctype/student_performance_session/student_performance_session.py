@@ -31,6 +31,13 @@ class StudentPerformanceSession(Document):
 
 		cfg = category_config(self.category)
 
+		# "Not planned for this day" is the management saying no Study/Test was
+		# scheduled at all. Behaviour is always observed, so it cannot be one.
+		if self.no_session and not cfg["uses_skip"]:
+			frappe.throw(f"{self.category} cannot be marked as not planned.")
+		if not self.no_session:
+			self.no_session_reason = None
+
 		# Clear the fields the category does not use, so a category switch in the
 		# desk cannot leave a stale "Total Marks" hanging off a Study session.
 		if not cfg["uses_questions"]:

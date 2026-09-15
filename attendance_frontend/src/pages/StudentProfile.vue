@@ -17,6 +17,14 @@
             <option v-for="b in batches" :key="b.name" :value="b.name">{{ b.name }}</option>
           </select>
         </div>
+        <div class="prof-field">
+          <label for="prof-gender"><i class="fa fa-venus-mars"></i> Gender</label>
+          <select id="prof-gender" class="form-control" v-model="gender">
+            <option value="">All</option>
+            <option value="Boys">Boys</option>
+            <option value="Girls">Girls</option>
+          </select>
+        </div>
         <div class="prof-field prof-field-search">
           <label for="prof-search"><i class="fa fa-search"></i> Find Student</label>
           <input
@@ -403,6 +411,7 @@ const standards = ref([])
 const batches = ref([])
 const standard = ref('')
 const batch = ref('')
+const gender = ref('')
 const query = ref('')
 const matches = ref([])
 const searching = ref(false)
@@ -574,6 +583,7 @@ async function runSearch() {
         query: query.value || undefined,
         standard: standard.value || undefined,
         batch: batch.value || undefined,
+        gender: gender.value || undefined,
         limit: 25,
       })) || []
   } catch (e) {
@@ -648,7 +658,7 @@ watch(
 )
 
 watch(query, scheduleSearch)
-watch([standard, batch], () => {
+watch([standard, batch, gender], () => {
   pickerOpen.value = true
   runSearch()
 })
