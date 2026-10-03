@@ -30,7 +30,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Applies To",
-   "options": "Both\nBad\nWorst",
+   "options": "Both\nCritical\nDiscipline",
    "reqd": 1
   },
   {

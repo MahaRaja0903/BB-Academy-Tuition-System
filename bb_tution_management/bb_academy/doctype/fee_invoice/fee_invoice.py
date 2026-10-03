@@ -25,8 +25,11 @@ SPLIT_UP = "Split Up"
 PAID_BY_STARTING_PAYMENT = "Paid By Starting Payment"
 RESERVED = "Reserved"
 
+# A month whose money was given back through a Fee Refund.
+REFUNDED = "Refunded"
+
 # Statuses that mean the month is settled -- nothing left to bill or chase.
-SETTLED_STATUSES = ("Paid", PAID_BY_STARTING_PAYMENT, "Not Joined")
+SETTLED_STATUSES = ("Paid", PAID_BY_STARTING_PAYMENT, "Not Joined", REFUNDED)
 
 # A student who joins on or before this day of the month is billed for the whole
 # month; joining later is billed only for the days that are left in the month.
@@ -79,17 +82,17 @@ def get_payment_row(student_doc, month, from_end=False, is_submit=None):
 	# Handle duplicate months (e.g. April 2026 and April 2027)
 	if is_submit is True:
 		for r in matches:
-			if r.status not in ["Paid", "Paid By Starting Payment", "Not Joined"]:
+			if r.status not in SETTLED_STATUSES:
 				return r
 		return matches[0]
 	elif is_submit is False:
 		for r in reversed(matches):
-			if r.status in ["Paid", "Paid By Starting Payment"] or r.amount_paid > 0:
+			if r.status in ["Paid", "Paid By Starting Payment", REFUNDED] or r.amount_paid > 0:
 				return r
 		return matches[-1]
 	else:
 		for r in matches:
-			if r.status not in ["Paid", "Paid By Starting Payment", "Not Joined"]:
+			if r.status not in SETTLED_STATUSES:
 				return r
 		return matches[-1]
 
@@ -102,6 +105,11 @@ def is_prorated_month(student_doc, month):
 	"""
 	if month == STARTING_PAYMENT:
 		return False
+
+	if getattr(student_doc, "rejoined_date", None):
+		rj_date = getdate(student_doc.rejoined_date)
+		if rj_date.day > PRORATA_CUTOFF_DAY and month == MONTH_NAMES[rj_date.month - 1]:
+			return True
 
 	join_date = get_join_date(student_doc)
 	return (
@@ -126,6 +134,11 @@ def get_month_amount(student_doc, month):
 
 	monthly_fee = flt(student_doc.monthly_fee or 0)
 	if is_prorated_month(student_doc, month):
+		if getattr(student_doc, "rejoined_date", None):
+			rj_date = getdate(student_doc.rejoined_date)
+			if rj_date.day > PRORATA_CUTOFF_DAY and month == MONTH_NAMES[rj_date.month - 1]:
+				return round(get_prorated_amount(monthly_fee, rj_date))
+		
 		return round(get_prorated_amount(monthly_fee, get_join_date(student_doc)))
 
 	return round(monthly_fee)
@@ -209,6 +222,32 @@ def is_coupon_available(row, today=None):
 	return True
 
 
+def get_coupon_referrals(codes):
+	"""The student each referral coupon was earned for, keyed by coupon code."""
+	if not codes:
+		return {}
+
+	return {
+		c.name: c
+		for c in frappe.get_all(
+			"Referral Coupon Code",
+			filters={"name": ["in", codes]},
+			fields=["name", "referred_for_student", "referred_for_student_name"],
+		)
+	}
+
+
+def format_coupon_referral(code, referral):
+	if not referral or not referral.referred_for_student:
+		return _("{0}: referred student not recorded").format(code)
+
+	return "{0}: {1} ({2})".format(
+		code,
+		referral.referred_for_student_name or referral.referred_for_student,
+		referral.referred_for_student,
+	)
+
+
 @frappe.whitelist()
 def get_available_coupons(student):
 	"""Referral coupons on a student that can still be redeemed, for the
@@ -217,16 +256,22 @@ def get_available_coupons(student):
 	student_doc.check_permission("read")
 
 	today = getdate(nowdate())
+	rows = [row for row in student_doc.get("coupon_code_details", []) if is_coupon_available(row, today)]
+	referrals = get_coupon_referrals([row.referral_coupon_code for row in rows])
 
-	return [
-		{
+	coupons = []
+	for row in rows:
+		referral = referrals.get(row.referral_coupon_code) or frappe._dict()
+		coupons.append({
 			"coupon_code": row.referral_coupon_code,
 			"amount": flt(row.amount),
 			"valid_till": str(row.valid_till) if row.valid_till else None,
-		}
-		for row in student_doc.get("coupon_code_details", [])
-		if is_coupon_available(row, today)
-	]
+			"referred_for_student": referral.referred_for_student,
+			"referred_for_student_name": referral.referred_for_student_name,
+			"referred_for": format_coupon_referral(row.referral_coupon_code, referral),
+		})
+
+	return coupons
 
 
 @frappe.whitelist()
@@ -330,14 +375,24 @@ def get_invoice_prefill(student):
 		})
 
 		if is_prorated_month(student_doc, current_month):
-			join_date = get_join_date(student_doc)
-			days_in_month = monthrange(join_date.year, join_date.month)[1]
+			actual_join_date = get_join_date(student_doc)
+			is_rejoin = False
+			if getattr(student_doc, "rejoined_date", None):
+				rj_date = getdate(student_doc.rejoined_date)
+				if rj_date.day > PRORATA_CUTOFF_DAY and current_month == MONTH_NAMES[rj_date.month - 1]:
+					actual_join_date = rj_date
+					is_rejoin = True
+			
+			days_in_month = monthrange(actual_join_date.year, actual_join_date.month)[1]
+			
+			date_label = "rejoined date" if is_rejoin else "admission date"
 			notes.append(
-				_("{0} is billed for {1} of {2} days, from the admission date {3}.").format(
+				_("{0} is billed for {1} of {2} days, from the {3} {4}.").format(
 					current_month,
-					days_in_month - join_date.day + 1,
+					days_in_month - actual_join_date.day + 1,
 					days_in_month,
-					frappe.format_value(join_date, {"fieldtype": "Date"}),
+					date_label,
+					frappe.format_value(actual_join_date, {"fieldtype": "Date"}),
 				)
 			)
 
@@ -433,6 +488,7 @@ class FeeInvoice(Document):
 		if not codes:
 			self.coupon__code = None
 			self.coupon_amount = 0
+			self.coupon_referred_for = None
 			return
 
 		if not self.student:
@@ -491,6 +547,11 @@ class FeeInvoice(Document):
 		# Stored without spaces so find_in_set() above can match a single code.
 		self.coupon__code = ",".join(seen)
 		self.coupon_amount = total
+
+		referrals = get_coupon_referrals(seen)
+		self.coupon_referred_for = "\n".join(
+			format_coupon_referral(code, referrals.get(code)) for code in seen
+		)
 
 	def set_row_amounts(self):
 		"""Fill in what each row is billed for, so the grid never relies on the
@@ -666,6 +727,9 @@ class FeeInvoice(Document):
 				was_part_paid = had_prior_payment and flt(row.pending) > 0
 
 				row.amount_paid = max(0.0, flt(row.amount_paid) + sign * (detail_paid + coupon_applied_to_row))
+				# The coupon share is already inside amount_paid; this records how
+				# much of it came from a coupon rather than cash.
+				row.coupon_amount = max(0.0, flt(row.coupon_amount) + sign * coupon_applied_to_row)
 				row.date = frappe.utils.today() if is_submit else None
 				
 				if self.add_discount and is_submit:
@@ -685,7 +749,7 @@ class FeeInvoice(Document):
 				else:
 					row.amount_need_to_pay = flt(row.amount_need_to_pay) or get_month_amount(student, month)
 
-				row.pending = max(0.0, flt(row.amount_need_to_pay) - flt(row.amount_paid))
+				row.pending = max(0.0, flt(row.amount_need_to_pay) - flt(row.amount_paid) - flt(row.discount_amount))
 				row.status = get_row_status(row)
 
 				# Stamp when the balance left by an earlier invoice was cleared.
@@ -795,15 +859,16 @@ def update_student_totals(student):
 		if row.status == "Not Joined":
 			continue
 
-		total_paid += flt(row.amount_paid)
+		# Money handed back through a Fee Refund no longer counts as paid.
+		total_paid += flt(row.amount_paid) - flt(row.refunded_amount)
 
 		# A month settled by the starting payment is already paid for, by the
-		# money sitting on the starting payment row.
-		if row.status in ("Paid", PAID_BY_STARTING_PAYMENT):
+		# money sitting on the starting payment row. A refunded month is closed.
+		if row.status in ("Paid", PAID_BY_STARTING_PAYMENT, REFUNDED):
 			continue
 
 		billable = flt(row.amount_need_to_pay) or get_month_amount(student, row.month)
-		total_pending += max(0.0, billable - flt(row.amount_paid))
+		total_pending += max(0.0, billable - flt(row.amount_paid) - flt(row.discount_amount))
 
 	student.total_paid_amount = total_paid
 	student.total_pending_amount = total_pending

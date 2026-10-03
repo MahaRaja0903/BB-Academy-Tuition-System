@@ -29,19 +29,11 @@ frappe.ui.form.on("Student Enquiry Form", {
 		});
 	},
 	refresh(frm) {
-		if (!frm.is_new() && frm.doc.status !== "Converted") {
+		if (!frm.is_new() && frm.doc.status !== "Lost") {
 			frm.add_custom_button(__("Create Admission Form"), () => {
-				frappe.call({
+				frappe.model.open_mapped_doc({
 					method: "bb_tution_management.bb_academy.doctype.student_enquiry_form.student_enquiry_form.make_admission_form",
-					args: {
-						source_name: frm.doc.name
-					},
-					callback(r) {
-						if (r.message) {
-							const doc = frappe.model.sync(r.message)[0];
-							frappe.set_route("Form", doc.doctype, doc.name);
-						}
-					}
+					frm: frm
 				});
 			}, __("Create"));
 		}
@@ -50,13 +42,15 @@ frappe.ui.form.on("Student Enquiry Form", {
 			frm.add_custom_button(__("Generate Admission URL"), () => {
 				let base_url = frappe.urllib.get_base_url() + "/admission/new";
 				let final_url = base_url + "?student_enquiry=" + encodeURIComponent(frm.doc.name);
-				let whatsapp_message = encodeURIComponent(`Hello ${frm.doc.applicant_name || ''}, please complete your admission form for BB Academy here: \n${final_url}`);
+				let message_text = `Hello ${frm.doc.applicant_name || ''}, please complete your admission form for BB Academy here: \n${final_url}`;
+				let whatsapp_message = encodeURIComponent(message_text);
 
-				let show_dialog = (phone) => {
-					let phone_param = phone ? `&phone=${phone.replace(/[^0-9]/g, '')}` : '';
+				let show_dialog = (phone, recipient_type, recipient_name) => {
+					let digits = phone ? phone.replace(/[^0-9]/g, '') : '';
+					let phone_param = digits ? `&phone=${digits}` : '';
 					let whatsapp_link = `https://api.whatsapp.com/send?text=${whatsapp_message}${phone_param}`;
-					
-					frappe.msgprint({
+
+					let msg_dialog = frappe.msgprint({
 						title: __('Admission URL Generated'),
 						message: `
 							<p>${__('Share this link with the student to fill their admission form:')}</p>
@@ -65,12 +59,28 @@ frappe.ui.form.on("Student Enquiry Form", {
 								<button class="btn btn-default btn-sm" onclick="frappe.utils.copy_to_clipboard('${final_url}')">
 									${__('Copy to Clipboard')}
 								</button>
-								<a href="${whatsapp_link}" target="_blank" class="btn btn-success btn-sm ml-2 text-white" style="background-color: #25D366; border-color: #25D366;">
+								<a href="${whatsapp_link}" target="_blank" class="btn btn-success btn-sm ml-2 text-white wa-share-link" style="background-color: #25D366; border-color: #25D366;">
 									<i class="fa fa-whatsapp"></i> ${__('Share via WhatsApp')}
 								</a>
 							</div>
 						`,
 						indicator: 'green'
+					});
+
+					// Keep a record of what went to whom -- see WhatsApp Message Log.
+					msg_dialog.$wrapper.find('.wa-share-link').on('click', () => {
+						frappe.call({
+							method: "bb_tution_management.bb_academy.doctype.whatsapp_message_log.whatsapp_message_log.log_whatsapp_message",
+							args: {
+								reference_doctype: frm.doctype,
+								reference_name: frm.doc.name,
+								message: message_text,
+								mobile_number: digits,
+								message_type: "Admission Link",
+								recipient_type: recipient_type,
+								recipient_name: recipient_name
+							}
+						});
 					});
 				};
 
@@ -91,16 +101,20 @@ frappe.ui.form.on("Student Enquiry Form", {
 						],
 						primary_action_label: 'Generate Link',
 						primary_action: (values) => {
-							let selected_phone = values.mobile_number.includes('Father') ? father_num : mother_num;
+							let is_father = values.mobile_number.includes('Father');
 							d.hide();
-							show_dialog(selected_phone);
+							show_dialog(
+								is_father ? father_num : mother_num,
+								is_father ? "Father" : "Mother",
+								is_father ? frm.doc.father_name : frm.doc.mother_name
+							);
 						}
 					});
 					d.show();
 				} else if (father_num) {
-					show_dialog(father_num);
+					show_dialog(father_num, "Father", frm.doc.father_name);
 				} else if (mother_num) {
-					show_dialog(mother_num);
+					show_dialog(mother_num, "Mother", frm.doc.mother_name);
 				} else {
 					show_dialog(null);
 				}

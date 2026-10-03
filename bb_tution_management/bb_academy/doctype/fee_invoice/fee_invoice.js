@@ -181,6 +181,7 @@ frappe.ui.form.on("Fee Invoice", {
 		if (frm.doc.docstatus === 0 && frm.doc.coupon__code) {
 			frm.set_value("coupon__code", "");
 			frm.set_value("coupon_amount", 0);
+			frm.set_value("coupon_referred_for", "");
 		}
 
 		if (!frm.doc.student) {
@@ -366,6 +367,9 @@ frappe.ui.form.on("Fees Invoice Details", {
 	},
 	paid_amount: function(frm, cdt, cdn) {
 		update_monthly_fee_from_details(frm);
+	},
+	discount_amount: function(frm, cdt, cdn) {
+		update_monthly_fee_from_details(frm);
 	}
 });
 
@@ -405,7 +409,10 @@ function show_coupon_dialog(frm, coupons) {
 				sort_options: false,
 				options: coupons.map(c => ({
 					label: `<b>${c.coupon_code}</b> &nbsp;&mdash;&nbsp; ${format_currency(c.amount)}`
-						+ (c.valid_till ? ` <span class="text-muted">(${__("valid till")} ${frappe.datetime.str_to_user(c.valid_till)})</span>` : ""),
+						+ (c.valid_till ? ` <span class="text-muted">(${__("valid till")} ${frappe.datetime.str_to_user(c.valid_till)})</span>` : "")
+						+ `<br><span class="text-muted">${c.referred_for_student
+							? __("Referred for {0} ({1})", [frappe.utils.escape_html(c.referred_for_student_name || c.referred_for_student), c.referred_for_student])
+							: __("Referred student not recorded")}</span>`,
 					value: c.coupon_code,
 					checked: already_applied.includes(c.coupon_code)
 				})),
@@ -433,6 +440,7 @@ function show_coupon_dialog(frm, coupons) {
 			// this list with find_in_set().
 			frm.set_value("coupon__code", picked.join(","));
 			frm.set_value("coupon_amount", total);
+			frm.set_value("coupon_referred_for", picked.map(code => (by_code[code] || {}).referred_for).join("\n"));
 			dialog.hide();
 
 			if (picked.length) {
@@ -473,6 +481,7 @@ function build_collection_summary_html(frm) {
 	let rows = (frm.doc.fees_details || []).filter(row => row.month);
 	let billed = 0;
 	let paid = 0;
+	let total_discount_applied = 0;
 	let partial_months = [];
 
 	let student_name = frm.doc.student_name || frm.doc.student || "N/A";
@@ -499,26 +508,38 @@ function build_collection_summary_html(frm) {
 	let row_html = rows.map(row => {
 		let need = row.amount_need_to_pay || 0;
 		let got = row.paid_amount || 0;
+		let discount = (frm.doc.add_discount && row.discount_amount) ? row.discount_amount : 0;
 		billed += need;
 		paid += got;
+		total_discount_applied += discount;
 
 		let short = need - got;
+		let real_short = short - discount;
 		let note = "";
-		if (short > 0) {
-			if (coupon_remaining >= short) {
-				note = `<span style="color:#5b21b6;">${__("Coupon")} ${format_currency(short)}</span>`;
-				coupon_remaining -= short;
+
+		if (real_short > 0) {
+			if (coupon_remaining >= real_short) {
+				note = `<span style="color:#5b21b6;">${__("Coupon")} ${format_currency(real_short)}</span>`;
+				coupon_remaining -= real_short;
 			} else if (coupon_remaining > 0) {
-				let actual_short = short - coupon_remaining;
+				let actual_short = real_short - coupon_remaining;
 				note = `<span style="color:#5b21b6;">${__("Coupon")} ${format_currency(coupon_remaining)}</span>, <span style="color:#b91c1c;">${__("Short by")} ${format_currency(actual_short)}</span>`;
 				partial_months.push(row.month);
 				coupon_remaining = 0;
 			} else {
 				partial_months.push(row.month);
-				note = `<span style="color:#b91c1c;">${__("Short by")} ${format_currency(short)}</span>`;
+				note = `<span style="color:#b91c1c;">${__("Short by")} ${format_currency(real_short)}</span>`;
+			}
+			
+			if (discount > 0) {
+				note = `<span style="color:#059669;">${__("Discount")} ${format_currency(discount)}</span>, ` + note;
 			}
 		} else {
-			note = `<span style="color:#065f46;">${__("Full")}</span>`;
+			if (discount > 0) {
+				note = `<span style="color:#059669;">${__("Discount")} ${format_currency(discount)}</span>`;
+			} else {
+				note = `<span style="color:#065f46;">${__("Full")}</span>`;
+			}
 		}
 
 		return `<tr>
@@ -543,6 +564,9 @@ function build_collection_summary_html(frm) {
 			${__("Coupon")} <b>${coupon_codes.join(", ")}</b>
 			${__("covers")} <b>${format_currency(total_coupon)}</b> ${__("of the remaining balance")}
 			&mdash; ${__("these coupons will be marked used and cannot be applied again.")}
+			${frm.doc.coupon_referred_for
+				? `<div style="margin-top:6px;">${__("Referred for")}:<br>${frappe.utils.escape_html(frm.doc.coupon_referred_for).replace(/\n/g, "<br>")}</div>`
+				: ""}
 		</div>`;
 	}
 
@@ -554,7 +578,7 @@ function build_collection_summary_html(frm) {
 		</div>`;
 	} else if (partial_months.length) {
 		warnings += `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:#fef3c7;color:#92400e;">
-			${__("Part payment for {0}. The remaining {1} stays pending on the student.", [partial_months.join(", "), format_currency(billed - paid - total_coupon)])}
+			${__("Part payment for {0}. The remaining {1} stays pending on the student.", [partial_months.join(", "), format_currency(billed - paid - total_coupon - total_discount_applied)])}
 		</div>`;
 	}
 
@@ -632,15 +656,20 @@ function build_collection_summary_html(frm) {
 function update_monthly_fee_from_details(frm) {
 	let total_fee = 0;
 	let total_paid = 0;
+	let total_discount = 0;
 
 	(frm.doc.fees_details || []).forEach(row => {
 		if (!row.month) return;
 		total_fee += (row.amount_need_to_pay || 0);
 		total_paid += (row.paid_amount || 0);
+		total_discount += (row.discount_amount || 0);
 	});
 
 	frm.set_value("monthly_fee", total_fee);
 	frm.set_value("paid_amount", total_paid);
+	if (frm.doc.add_discount) {
+		frm.set_value("discount_amount", total_discount);
+	}
 
 	// Editing the rows down can leave the coupon worth more than the payment it
 	// is meant to credit -- say so here rather than at submit.
@@ -1414,6 +1443,21 @@ function show_whatsapp_bill_dialog(frm, bill) {
 
 			dialog.hide();
 			window.open(`https://wa.me/${number}?text=${encodeURIComponent(values.message)}`, "_blank");
+
+			// Keep a record of what went to whom -- see WhatsApp Message Log.
+			let typed_in = !!(values.custom_number || "").trim();
+			frappe.call({
+				method: "bb_tution_management.bb_academy.doctype.whatsapp_message_log.whatsapp_message_log.log_whatsapp_message",
+				args: {
+					reference_doctype: frm.doctype,
+					reference_name: frm.doc.name,
+					message: values.message,
+					mobile_number: number,
+					message_type: "Fee Bill",
+					recipient_type: typed_in ? "Other" : picked.parent,
+					recipient_name: typed_in ? "" : picked.name
+				}
+			});
 		},
 		secondary_action_label: __("Cancel")
 	});

@@ -1498,12 +1498,12 @@ onMounted(async () => {
 }
 
 .smr-result-badge[data-result='Fail'],
-.smr-result-badge[data-result='Worst'] {
+.smr-result-badge[data-result='Critical'] {
   background: var(--bg-red, #fee2e2);
   color: var(--text-on-red, #b91c1c);
 }
 
-.smr-result-badge[data-result='Bad'],
+.smr-result-badge[data-result='Discipline'],
 .smr-result-badge[data-result='Incomplete'] {
   background: var(--bg-orange, #ffedd5);
   color: var(--text-on-orange, #c2410c);

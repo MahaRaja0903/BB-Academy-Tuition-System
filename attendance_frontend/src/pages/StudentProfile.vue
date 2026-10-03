@@ -267,7 +267,7 @@
         <h3 class="prof-card-title"><i class="fa fa-star"></i> Performance</h3>
 
         <p v-if="!performance.total_entries" class="prof-muted">
-          Nothing was recorded for Study, Test, Maths Test or Behaviour in this period.
+          Nothing was recorded for Study, Class, Test, Maths Test or Behaviour in this period.
         </p>
 
         <div v-else class="prof-perf-grid">
@@ -396,12 +396,13 @@ const RESULT_TONES = {
   Excellent: 'good',
   Completed: 'mid',
   Incomplete: 'bad',
+  Attended: 'good',
   'Full Mark': 'good',
   'Pass Mark': 'mid',
   Fail: 'bad',
   Good: 'good',
-  Bad: 'mid',
-  Worst: 'bad',
+  Discipline: 'mid',
+  Critical: 'bad',
 }
 
 const route = useRoute()
@@ -1317,7 +1318,7 @@ watch([fromDate, toDate], () => {
   color: var(--text-on-orange);
 }
 
-.student-profile .prof-pill[data-result='Worst'] { background: var(--bg-red); color: var(--text-on-red); }
+.student-profile .prof-pill[data-result='Critical'] { background: var(--bg-red); color: var(--text-on-red); }
 
 /* ---- timeline ---- */
 .student-profile .prof-timeline { list-style: none; margin: 0; padding: 0; }

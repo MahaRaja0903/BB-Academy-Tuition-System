@@ -120,7 +120,7 @@
    "read_only": 1
   },
   {
-   "description": "Incomplete / Fail / Bad / Worst entries on the Student Performance Tracker this month. Kept in step automatically as performance is graded.",
+   "description": "Incomplete / Fail / Discipline / Critical entries on the Student Performance Tracker this month. Kept in step automatically as performance is graded.",
    "fieldname": "mistake_count",
    "fieldtype": "Int",
    "in_list_view": 1,

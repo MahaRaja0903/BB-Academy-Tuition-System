@@ -1,0 +1,263 @@
+/* Fee Payment Summary dashboard: styles.
+
+   Surfaces and ink come from the desk theme variables, so the page follows
+   light and dark mode. Each band × gender row has its own tone, as in the
+   reference design: 6th–9th Boys green, 6th–9th Girls red, 10th–12th Boys navy,
+   10th–12th Girls pink. */
+
+.fps-root {
+	--fps-surface: var(--card-bg, #fff);
+	--fps-line: var(--border-color, #e2e2e2);
+	--fps-ink: var(--text-color, #1f272e);
+	--fps-ink-2: var(--text-muted, #6c7680);
+	--fps-good: #2e7d32;
+}
+
+.fps-tone-6-9-boys { --fps-tone: #1f7a34; --fps-tint: #eef7f0; }
+.fps-tone-6-9-girls { --fps-tone: #a3211f; --fps-tint: #fbeeee; }
+.fps-tone-10-12-boys { --fps-tone: #1d3a8a; --fps-tint: #eef1fa; }
+.fps-tone-10-12-girls { --fps-tone: #c2185b; --fps-tint: #fcedf3; }
+
+[data-theme="dark"] .fps-tone-6-9-boys { --fps-tone: #5cc177; --fps-tint: rgba(92, 193, 119, 0.12); }
+[data-theme="dark"] .fps-tone-6-9-girls { --fps-tone: #f07470; --fps-tint: rgba(240, 116, 112, 0.12); }
+[data-theme="dark"] .fps-tone-10-12-boys { --fps-tone: #7f9df0; --fps-tint: rgba(127, 157, 240, 0.12); }
+[data-theme="dark"] .fps-tone-10-12-girls { --fps-tone: #f06ba3; --fps-tint: rgba(240, 107, 163, 0.12); }
+[data-theme="dark"] .fps-root { --fps-good: #5cc177; }
+
+.fps-root.fps-loading .fps-canvas {
+	opacity: 0.55;
+	pointer-events: none;
+	transition: opacity 0.15s;
+}
+
+.fps-canvas {
+	color: var(--fps-ink);
+	margin-bottom: 24px;
+}
+
+.fps-head {
+	text-align: center;
+	margin: 8px 0 20px;
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--fps-line);
+}
+
+.fps-title {
+	font-size: clamp(20px, 3vw, 30px);
+	font-weight: 800;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	font-style: italic;
+	margin: 0 0 4px;
+}
+
+.fps-sub {
+	color: var(--fps-ink-2);
+	font-size: 14px;
+}
+
+/* ── overall strip ───────────────────────────────────────────── */
+
+.fps-overall {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12px;
+	margin-bottom: 20px;
+}
+
+.fps-stat {
+	background: var(--fps-surface);
+	border: 1px solid var(--fps-line);
+	border-radius: 12px;
+	padding: 12px 16px;
+}
+
+.fps-stat__label {
+	color: var(--fps-ink-2);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.fps-stat__value {
+	font-size: 22px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	margin: 2px 0;
+}
+
+.fps-stat__sub {
+	color: var(--fps-ink-2);
+	font-size: 12px;
+}
+
+.fps-meter {
+	height: 6px;
+	border-radius: 3px;
+	background: var(--fps-line);
+	overflow: hidden;
+	margin-top: 8px;
+}
+
+.fps-meter span {
+	display: block;
+	height: 100%;
+	background: var(--fps-good);
+}
+
+/* ── cards ───────────────────────────────────────────────────── */
+
+.fps-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 18px 22px;
+}
+
+.fps-card {
+	background: var(--fps-surface);
+	border: 2px solid var(--fps-tone);
+	border-radius: 10px;
+	overflow: hidden;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+	color: var(--fps-tone);
+}
+
+.fps-card.is-clickable {
+	cursor: pointer;
+	transition: transform 0.12s, box-shadow 0.12s;
+}
+
+.fps-card.is-clickable:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
+}
+
+.fps-card__title {
+	background: var(--fps-tint);
+	border-bottom: 1px solid var(--fps-line);
+	padding: 8px 14px;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.fps-card__title .fa {
+	margin-right: 6px;
+}
+
+.fps-line {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 6px 14px;
+}
+
+.fps-line:last-child {
+	padding-bottom: 12px;
+}
+
+.fps-glyph {
+	flex: none;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: var(--fps-tone);
+	color: var(--fps-surface);
+	font-size: 11px;
+	font-weight: 700;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	align-self: center;
+}
+
+.fps-line__label {
+	color: var(--fps-ink);
+	font-size: 14px;
+}
+
+.fps-line__value {
+	margin-left: auto;
+	font-size: 18px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.fps-line__value.is-big {
+	font-size: 22px;
+}
+
+.fps-view {
+	padding: 0 14px 10px;
+	text-align: right;
+	font-size: 13px;
+	font-weight: 600;
+	text-decoration: underline;
+}
+
+.fps-line:has(+ .fps-view) {
+	padding-bottom: 6px;
+}
+
+/* ── misc ────────────────────────────────────────────────────── */
+
+.fps-empty {
+	padding: 48px 16px;
+	text-align: center;
+	color: var(--fps-ink-2);
+	background: var(--fps-surface);
+	border: 1px solid var(--fps-line);
+	border-radius: 12px;
+}
+
+.fps-note {
+	margin-top: 14px;
+	color: var(--fps-ink-2);
+	font-size: 12px;
+}
+
+.fps-foot {
+	display: flex;
+	justify-content: space-between;
+	margin-top: 24px;
+	padding-top: 10px;
+	border-top: 1px solid var(--fps-line);
+	color: var(--fps-ink-2);
+	font-size: 13px;
+}
+
+.fps-table-wrap {
+	max-height: 60vh;
+	overflow: auto;
+}
+
+.fps-table td,
+.fps-table th {
+	font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 991px) {
+	.fps-overall {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.fps-grid {
+		grid-template-columns: 1fr;
+		gap: 10px;
+	}
+	/* One band × gender per group of three cards, with space between groups. */
+	.fps-grid > .fps-card:nth-child(3n + 1):not(:first-child) {
+		margin-top: 14px;
+	}
+}
+
+@media print {
+	.fps-view {
+		display: none;
+	}
+	.fps-card.is-clickable:hover {
+		transform: none;
+		box-shadow: none;
+	}
+	.fps-card {
+		break-inside: avoid;
+	}
+}

@@ -29,7 +29,7 @@ frappe.query_reports["Monthly Performance Report"] = {
 			fieldname: "category",
 			label: "Category",
 			fieldtype: "Select",
-			options: "\nStudy\nTest\nMaths Test\nAccounts Test\nBehaviour",
+			options: "\nStudy\nClass\nTest\nMaths Test\nAccounts Test\nBehaviour",
 			// Blank shows every category side by side.
 		},
 		{ fieldname: "student", label: "Student", fieldtype: "Link", options: "Student" },
@@ -50,7 +50,7 @@ frappe.query_reports["Monthly Performance Report"] = {
 			}
 		}
 		if (
-			["study_skipped", "test_skipped", "maths_skipped", "accounts_skipped"].includes(
+			["study_skipped", "class_skipped", "test_skipped", "maths_skipped", "accounts_skipped"].includes(
 				column.fieldname
 			)
 		) {

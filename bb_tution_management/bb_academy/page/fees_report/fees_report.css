@@ -1,0 +1,207 @@
+/* Starting Payment & Monthly Fees report: styles.
+
+   Follows the approved mock-up (Starting_Payment_Monthly_Fees_Report_Updated.pdf):
+   dark navy header, blue Total / green Paid / red Pending cards. The canvas keeps
+   its own light palette in both desk themes so it matches the printed version. */
+
+.fr-root {
+	--fr-plane: #f8fafc;
+	--fr-ink: #334155;
+	--fr-navy-1: #0f172a;
+	--fr-navy-2: #334155;
+
+	--fr-blue: #2563eb;
+	--fr-blue-2: #1d4ed8;
+	--fr-blue-line: #93c5fd;
+	--fr-blue-box: #eff6ff;
+	--fr-blue-box-line: #bfdbfe;
+
+	--fr-green: #16a34a;
+	--fr-green-2: #15803d;
+	--fr-green-line: #86efac;
+	--fr-green-box: #f0fdf4;
+	--fr-green-box-line: #bbf7d0;
+
+	--fr-red: #dc2626;
+	--fr-red-2: #b91c1c;
+	--fr-red-line: #fca5a5;
+	--fr-red-box: #fef2f2;
+	--fr-red-box-line: #fecaca;
+
+	background: var(--fr-plane);
+	color: var(--fr-ink);
+	padding: 20px;
+	border-radius: 12px;
+	transition: opacity 0.15s;
+}
+
+.fr-root.fr-loading {
+	opacity: 0.55;
+	pointer-events: none;
+}
+
+.fr-header {
+	background: linear-gradient(90deg, var(--fr-navy-1), var(--fr-navy-2));
+	color: #fff;
+	text-align: center;
+	border-radius: 12px;
+	padding: 18px 16px 14px;
+	margin-bottom: 20px;
+}
+
+.fr-title {
+	font-size: 26px;
+	font-weight: 800;
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+}
+
+.fr-subtitle {
+	color: #94a3b8;
+	font-size: 13px;
+	margin-top: 4px;
+}
+
+.fr-period {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 1px 10px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.12);
+	color: #e2e8f0;
+	font-weight: 600;
+}
+
+.fr-section {
+	margin-bottom: 18px;
+}
+
+.fr-section-title {
+	display: inline-block;
+	background: #e2e8f0;
+	border-left: 4px solid #64748b;
+	border-radius: 6px;
+	padding: 3px 16px 3px 12px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.6px;
+	color: #334155;
+	margin-bottom: 8px;
+}
+
+.fr-section-note {
+	margin-left: 8px;
+	padding: 0 8px;
+	border-radius: 999px;
+	background: #fff;
+	color: #64748b;
+	font-weight: 600;
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+.fr-cards {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 18px;
+}
+
+.fr-card {
+	display: block;
+	width: 100%;
+	padding: 0;
+	text-align: left;
+	background: #fff;
+	border: 2px solid;
+	border-radius: 10px;
+	overflow: hidden;
+	cursor: pointer;
+	transition: transform 0.12s, box-shadow 0.12s;
+}
+
+.fr-card:hover,
+.fr-card:focus-visible {
+	transform: translateY(-2px);
+	box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+	outline: none;
+}
+
+.fr-card-head {
+	color: #fff;
+	text-align: center;
+	font-weight: 700;
+	font-size: 14px;
+	letter-spacing: 0.4px;
+	padding: 11px 8px;
+}
+
+.fr-card-body {
+	padding: 4px 18px;
+}
+
+.fr-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 0;
+}
+
+.fr-row + .fr-row {
+	border-top: 1px dashed #e2e8f0;
+}
+
+.fr-label {
+	font-weight: 700;
+	font-size: 13px;
+	text-transform: uppercase;
+	color: var(--fr-ink);
+}
+
+.fr-value {
+	min-width: 120px;
+	text-align: center;
+	font-weight: 700;
+	font-size: 15px;
+	padding: 7px 10px;
+	border: 1.5px solid;
+	border-radius: 7px;
+	color: #0f172a;
+	white-space: nowrap;
+}
+
+.fr-total { border-color: var(--fr-blue-line); }
+.fr-total .fr-card-head { background: linear-gradient(90deg, var(--fr-blue-2), var(--fr-blue)); }
+.fr-total .fr-value { background: var(--fr-blue-box); border-color: var(--fr-blue-box-line); }
+
+.fr-paid { border-color: var(--fr-green-line); }
+.fr-paid .fr-card-head { background: linear-gradient(90deg, var(--fr-green-2), var(--fr-green)); }
+.fr-paid .fr-value { background: var(--fr-green-box); border-color: var(--fr-green-box-line); }
+
+.fr-pending { border-color: var(--fr-red-line); }
+.fr-pending .fr-card-head { background: linear-gradient(90deg, var(--fr-red-2), var(--fr-red)); }
+.fr-pending .fr-value { background: var(--fr-red-box); border-color: var(--fr-red-box-line); }
+
+.fr-table td,
+.fr-table th {
+	font-size: 12px;
+	vertical-align: middle;
+}
+
+@media (max-width: 991px) {
+	.fr-cards {
+		grid-template-columns: 1fr;
+	}
+	.fr-title {
+		font-size: 20px;
+	}
+}
+
+@media (max-width: 480px) {
+	.fr-root {
+		padding: 12px;
+	}
+	.fr-value {
+		min-width: 90px;
+	}
+}

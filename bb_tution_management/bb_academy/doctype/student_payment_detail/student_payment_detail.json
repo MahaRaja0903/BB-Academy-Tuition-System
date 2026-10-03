@@ -14,7 +14,9 @@
   "status",
   "amount_paid",
   "pending_amount_paid_date",
-  "discount_amount"
+  "discount_amount",
+  "coupon_amount",
+  "refunded_amount"
  ],
  "fields": [
   {
@@ -39,7 +41,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "\nNot Paid\nPaid\nPaid By Starting Payment\nPartial\nNo Fees\nReserved\nNot Joined"
+   "options": "\nNot Paid\nPaid\nPaid By Starting Payment\nPartial\nNo Fees\nReserved\nNot Joined\nRefunded"
   },
   {
    "columns": 2,
@@ -77,13 +79,24 @@
   {
    "fieldname": "column_break_etyn",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "coupon_amount",
+   "fieldtype": "Currency",
+   "label": "Coupon Amount"
+  },
+  {
+   "fieldname": "refunded_amount",
+   "fieldtype": "Currency",
+   "label": "Refunded Amount",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-06 22:56:19.887640",
+ "modified": "2026-09-27 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Payment Detail",

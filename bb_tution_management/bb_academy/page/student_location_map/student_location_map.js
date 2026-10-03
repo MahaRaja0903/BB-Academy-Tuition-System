@@ -101,6 +101,13 @@ class StudentLocationMap {
 		// Marker instances, parallel to `this.located` and built once.
 		this.markers = [];
 
+		// Fixed reference points: the tuition centre (BB Academy Settings) and
+		// the schools that have coordinates. `schools_by_name` lets a student's
+		// popup find their school's position without a request.
+		this.tuition = null;
+		this.schools = [];
+		this.schools_by_name = {};
+
 		this.filters = { search: "", gender: "", standard: "", batch: "", area: "" };
 		this.destroyed = false;
 
@@ -224,8 +231,19 @@ class StudentLocationMap {
 			return;
 		}
 
+		// Places are an extra, not the point of the page: if they fail, the
+		// students still show and only the distance line is missing.
+		try {
+			await this.load_places();
+		} catch (e) {
+			// eslint-disable-next-line no-console
+			console.error("Student Location Map: failed to load tuition / schools", e);
+			frappe.show_alert({ message: __("Could not load the tuition and school locations."), indicator: "orange" });
+		}
+
 		this.build_filter_options();
 		this.build_markers();
+		this.build_place_markers();
 		this.apply_filters({ fit: true });
 	}
 
@@ -274,6 +292,24 @@ class StudentLocationMap {
 		});
 
 		this.map.addLayer(this.cluster);
+
+		// Schools and the tuition centre sit outside the cluster so they never
+		// fold into a student count, and each can be switched off on its own.
+		this.school_layer = L.layerGroup().addTo(this.map);
+		this.tuition_layer = L.layerGroup().addTo(this.map);
+		// The dashed student → tuition line, shown while a student popup is open.
+		this.distance_layer = L.layerGroup().addTo(this.map);
+
+		L.control
+			.layers(null, {
+				[__("Students")]: this.cluster,
+				[__("Schools")]: this.school_layer,
+				[__("BB Academy")]: this.tuition_layer,
+			}, { collapsed: false, position: "bottomleft" })
+			.addTo(this.map);
+
+		this.map.on("popupclose", () => this.distance_layer.clearLayers());
+
 		this.refresh_size();
 	}
 
@@ -316,6 +352,19 @@ class StudentLocationMap {
 		});
 	}
 
+	async load_places() {
+		this.tuition = null;
+		this.schools = [];
+		this.schools_by_name = {};
+
+		const r = await frappe.call({ method: `${SLM_API}.get_places` });
+		const data = (r && r.message) || {};
+
+		this.tuition = data.tuition || null;
+		this.schools = data.schools || [];
+		this.schools.forEach((school) => (this.schools_by_name[school.name] = school));
+	}
+
 	build_filter_options() {
 		const all = [...this.located, ...this.unlocated];
 
@@ -353,6 +402,67 @@ class StudentLocationMap {
 		this.visible_signature = null;
 	}
 
+	build_place_markers() {
+		this.school_layer.clearLayers();
+		this.tuition_layer.clearLayers();
+
+		this.schools.forEach((school) => {
+			const marker = L.marker([school.latitude, school.longitude], {
+				icon: slm_place_icon("school"),
+				title: school.school_name,
+				zIndexOffset: 500,
+			});
+			marker.bindPopup(() => slm_school_popup_html(school, this), {
+				className: "slm-popup",
+				minWidth: 268,
+				maxWidth: 300,
+				autoPanPadding: [24, 24],
+			});
+			marker.bindTooltip(school.school_name, { direction: "top", offset: [0, -30] });
+			this.school_layer.addLayer(marker);
+		});
+
+		if (this.tuition) {
+			const marker = L.marker([this.tuition.latitude, this.tuition.longitude], {
+				icon: slm_place_icon("tuition"),
+				title: this.tuition.name,
+				// Always on top — it is the point every distance is measured from.
+				zIndexOffset: 1000,
+			});
+			marker.bindPopup(() => slm_tuition_popup_html(this.tuition, this), {
+				className: "slm-popup",
+				minWidth: 268,
+				maxWidth: 300,
+				autoPanPadding: [24, 24],
+			});
+			marker.bindTooltip(this.tuition.name, { direction: "top", offset: [0, -34] });
+			this.tuition_layer.addLayer(marker);
+		}
+	}
+
+	/** Dashed line from the student to the tuition centre, labelled with the distance. */
+	show_distance_line(student) {
+		this.distance_layer.clearLayers();
+		if (!this.tuition) return;
+
+		const from = [student.latitude, student.longitude];
+		const to = [this.tuition.latitude, this.tuition.longitude];
+
+		L.polyline([from, to], {
+			color: "#e2504d",
+			weight: 3,
+			opacity: 0.85,
+			dashArray: "8 8",
+			interactive: false,
+		})
+			.bindTooltip(slm_format_distance(slm_distance_km(from, to)), {
+				permanent: true,
+				direction: "center",
+				className: "slm-distance-label",
+			})
+			.addTo(this.distance_layer);
+	}
+
 	create_marker(student) {
 		const color = slm_pin_color(student.name || student.student_name || "");
 		const initials = slm_initials(student.student_name || student.name);
@@ -382,7 +492,7 @@ class StudentLocationMap {
 		});
 
 		// Lazy: the card is only built the first time this marker is opened.
-		marker.bindPopup(() => slm_popup_html(student), {
+		marker.bindPopup(() => slm_popup_html(student, this), {
 			className: "slm-popup",
 			minWidth: 268,
 			maxWidth: 300,
@@ -398,6 +508,8 @@ class StudentLocationMap {
 			opacity: 1,
 			sticky: false,
 		});
+
+		marker.on("popupopen", () => this.show_distance_line(student));
 
 		marker.slm_student = student;
 		return marker;
@@ -657,16 +769,138 @@ function slm_pin_color(key) {
 	return SLM_PIN_COLORS[hash % SLM_PIN_COLORS.length];
 }
 
-/** OpenStreetMap directions — free, no key, works on desktop and mobile. */
-function slm_directions_url(lat, lng) {
+/**
+ * OpenStreetMap directions — free, no key, works on desktop and mobile.
+ * With `from` set (the tuition centre) the route is drawn from there;
+ * otherwise OSM asks for a starting point.
+ */
+function slm_directions_url(lat, lng, from) {
 	const to = `${lat},${lng}`;
+	const start = from ? `${from.latitude},${from.longitude}` : "";
 	return (
 		"https://www.openstreetmap.org/directions?engine=fossgis_osrm_car" +
-		`&route=${encodeURIComponent(";" + to)}#map=16/${lat}/${lng}`
+		`&route=${encodeURIComponent(start + ";" + to)}#map=16/${lat}/${lng}`
 	);
 }
 
-function slm_popup_html(student) {
+/**
+ * Straight-line (great-circle) distance in km between two [lat, lng] pairs.
+ * Computed locally with the haversine formula — no routing service involved,
+ * so it is "as the crow flies", not the road distance.
+ */
+function slm_distance_km(a, b) {
+	const rad = (deg) => (deg * Math.PI) / 180;
+	const d_lat = rad(b[0] - a[0]);
+	const d_lng = rad(b[1] - a[1]);
+	const h =
+		Math.sin(d_lat / 2) ** 2 +
+		Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(d_lng / 2) ** 2;
+	return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function slm_format_distance(km) {
+	if (km < 1) return __("{0} m", [Math.round(km * 1000)]);
+	return __("{0} km", [km < 10 ? km.toFixed(2) : km.toFixed(1)]);
+}
+
+/** Distance between two objects that carry latitude / longitude, or null. */
+function slm_distance_between(a, b) {
+	if (!a || !b) return null;
+	return slm_distance_km([a.latitude, a.longitude], [b.latitude, b.longitude]);
+}
+
+function slm_place_icon(kind) {
+	const tuition = kind === "tuition";
+	const size = tuition ? 48 : 38;
+	return L.divIcon({
+		className: `slm-place slm-place-${kind}`,
+		iconSize: [size, size + 8],
+		iconAnchor: [size / 2, size + 8],
+		popupAnchor: [0, -(size + 2)],
+		html: `
+			<div class="slm-place-tail"></div>
+			<div class="slm-place-pin">
+				<i class="fa ${tuition ? "fa-graduation-cap" : "fa-university"}"></i>
+			</div>`,
+	});
+}
+
+function slm_place_popup_html({ kind, title, subtitle, rows, lat, lng, from }) {
+	const esc = frappe.utils.escape_html;
+	const body = rows
+		.filter(([, val]) => val !== null && val !== undefined && val !== "")
+		.map(
+			([label, val]) => `
+				<div class="slm-popup-row">
+					<div class="slm-popup-key">${esc(label)}</div>
+					<div class="slm-popup-val">${esc(String(val))}</div>
+				</div>`
+		)
+		.join("");
+
+	return `
+		<div class="slm-card-popup">
+			<div class="slm-popup-head slm-popup-head-${kind}">
+				<div class="slm-popup-avatar">
+					<i class="fa ${kind === "tuition" ? "fa-graduation-cap" : "fa-university"}"></i>
+				</div>
+				<div>
+					<div class="slm-popup-name">${esc(title)}</div>
+					${subtitle ? `<div class="slm-popup-id">${esc(subtitle)}</div>` : ""}
+				</div>
+			</div>
+			<div class="slm-popup-body">${body}</div>
+			<div class="slm-popup-actions">
+				<a class="slm-popup-btn slm-popup-btn-directions"
+					href="${slm_directions_url(lat, lng, from)}"
+					target="_blank" rel="noopener noreferrer">
+					<i class="fa fa-location-arrow"></i> ${esc(__("Get Directions"))}
+				</a>
+			</div>
+		</div>`;
+}
+
+function slm_school_popup_html(school, page) {
+	const students = page.located.filter((s) => s.school === school.name).length;
+	const distance = slm_distance_between(school, page.tuition);
+
+	return slm_place_popup_html({
+		kind: "school",
+		title: school.school_name,
+		subtitle: school.board,
+		rows: [
+			[__("Students"), slm_number(students)],
+			[__("From Tuition"), distance === null ? null : slm_format_distance(distance)],
+			[__("Address"), school.address],
+		],
+		lat: school.latitude,
+		lng: school.longitude,
+		from: page.tuition,
+	});
+}
+
+function slm_tuition_popup_html(tuition, page) {
+	const distances = page.located.map((s) => slm_distance_between(s, tuition));
+	const average = distances.length
+		? distances.reduce((sum, d) => sum + d, 0) / distances.length
+		: null;
+	const farthest = distances.length ? Math.max(...distances) : null;
+
+	return slm_place_popup_html({
+		kind: "tuition",
+		title: tuition.name,
+		subtitle: __("Tuition Centre"),
+		rows: [
+			[__("Students"), slm_number(page.located.length)],
+			[__("Avg. Distance"), average === null ? null : slm_format_distance(average)],
+			[__("Farthest"), farthest === null ? null : slm_format_distance(farthest)],
+		],
+		lat: tuition.latitude,
+		lng: tuition.longitude,
+	});
+}
+
+function slm_popup_html(student, page) {
 	const esc = frappe.utils.escape_html;
 	const dash = `<span class="slm-popup-muted">${esc(__("Not set"))}</span>`;
 	const value = (v) => (v ? esc(String(v)) : dash);
@@ -676,7 +910,30 @@ function slm_popup_html(student) {
 		? `<img src="${esc(student.image)}" alt="" onerror="this.style.display='none'">`
 		: "";
 
+	const tuition_km = slm_distance_between(student, page.tuition);
+	const school = student.school && page.schools_by_name[student.school];
+	const school_km = slm_distance_between(student, school);
+
+	// Distance to the tuition centre leads the card: it is what the popup is
+	// most often opened for. Straight-line, so labelled as such.
+	const distance_html =
+		tuition_km === null
+			? `<div class="slm-popup-distance slm-popup-distance-unset">
+					<i class="fa fa-info-circle"></i>
+					${esc(__("Set Tuition Latitude and Longitude in BB Academy Settings to see the distance."))}
+				</div>`
+			: `<div class="slm-popup-distance">
+					<div class="slm-popup-distance-value">${esc(slm_format_distance(tuition_km))}</div>
+					<div class="slm-popup-distance-label">${esc(__("from BB Academy (straight line)"))}</div>
+				</div>`;
+
+	const school_label =
+		student.school && school_km !== null
+			? `${student.school} (${slm_format_distance(school_km)})`
+			: student.school;
+
 	const rows = [
+		[__("School"), school_label],
 		[__("Gender"), student.gender],
 		[__("Standard"), student.standard],
 		[__("Batch"), student.batch],
@@ -706,13 +963,14 @@ function slm_popup_html(student) {
 					<div class="slm-popup-id">${esc(student.name)}</div>
 				</div>
 			</div>
+			${distance_html}
 			<div class="slm-popup-body">${rows}</div>
 			<div class="slm-popup-actions">
 				<a class="slm-popup-btn slm-popup-btn-view" href="${form_url}">
 					<i class="fa fa-user"></i> ${esc(__("View Student"))}
 				</a>
 				<a class="slm-popup-btn slm-popup-btn-directions"
-					href="${slm_directions_url(student.latitude, student.longitude)}"
+					href="${slm_directions_url(student.latitude, student.longitude, page.tuition)}"
 					target="_blank" rel="noopener noreferrer">
 					<i class="fa fa-location-arrow"></i> ${esc(__("Get Directions"))}
 				</a>

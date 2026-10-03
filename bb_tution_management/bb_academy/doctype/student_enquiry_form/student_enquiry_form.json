@@ -26,21 +26,29 @@
   "column_break_3",
   "mother_number",
   "mother_name",
+  "section_break_qetc",
+  "guardian_name",
+  "relation_with_guardian",
+  "column_break_cipe",
+  "guardian_occupation",
+  "guardian_number",
+  "section_break_barl",
+  "remarks",
   "follow_up_section",
   "source",
   "area",
   "column_break_4",
   "next_follow_up_date",
   "street",
-  "section_break_barl",
-  "remarks",
   "section_break_fmkm",
   "counselling",
   "fees_explained_by",
   "timing_issue_checking",
   "column_break_kaly",
   "given_by",
-  "join_pana_vandhurukingala_or_enquiry_pana_vandhurukingala"
+  "join_pana_vandhurukingala_or_enquiry_pana_vandhurukingala",
+  "section_break_jiuj",
+  "enquiry_log"
  ],
  "fields": [
   {
@@ -188,6 +196,27 @@
    "label": "Mother Number"
   },
   {
+   "fieldname": "guardian_name",
+   "fieldtype": "Data",
+   "label": "Guardian Name"
+  },
+  {
+   "fieldname": "relation_with_guardian",
+   "fieldtype": "Select",
+   "label": "Relation With Guardian",
+   "options": "\nGrand Mother\nGrand Father\nUncle\nAunt\nBrother\nSister\nOther"
+  },
+  {
+   "fieldname": "guardian_occupation",
+   "fieldtype": "Data",
+   "label": "Guardian Occupation"
+  },
+  {
+   "fieldname": "guardian_number",
+   "fieldtype": "Data",
+   "label": "Guardian Number"
+  },
+  {
    "fieldname": "father_number",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -246,6 +275,24 @@
    "fieldtype": "Select",
    "label": "Timing Issue Checking",
    "options": "\nSchool Timing\nRemedial Class Timing\nReached Timing"
+  },
+  {
+   "fieldname": "section_break_jiuj",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "enquiry_log",
+   "fieldtype": "Table",
+   "label": "Enquiry Log",
+   "options": "Enquiry Call Log"
+  },
+  {
+   "fieldname": "section_break_qetc",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_cipe",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -255,7 +302,7 @@
    "link_fieldname": "student_enquiry"
   }
  ],
- "modified": "2026-09-05 12:22:15.352644",
+ "modified": "2026-09-26 15:05:53.368589",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Enquiry Form",

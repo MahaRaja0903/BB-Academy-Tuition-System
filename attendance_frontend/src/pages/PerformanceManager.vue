@@ -648,7 +648,7 @@
         <p class="perf-modal-sub">
           {{ date }} is a holiday, but a class was taken. Recording that re-opens the day for
           attendance and performance — for the scope you pick and nobody else. Mark attendance
-          first; only students marked Present can be graded.
+          first; only students marked Present or Late can be graded.
         </p>
 
         <label class="perf-modal-label">Who sat the class <span class="perf-required">*</span></label>
@@ -690,6 +690,29 @@
           The student is excused from today's {{ category }}. It counts as neither a pass nor a
           fail, and is left out of the monthly percentage.
         </p>
+
+        <template v-if="insteadOptions.length">
+          <label class="perf-modal-label">What did the student do instead?</label>
+          <div class="perf-chip-picker">
+            <button
+              v-for="opt in ['', ...insteadOptions]"
+              :key="opt || 'nothing'"
+              type="button"
+              class="perf-chip"
+              :class="{ active: skipModal.instead === opt }"
+              @click="pickInstead(opt)"
+            >
+              {{ opt || 'Nothing' }}
+            </button>
+          </div>
+          <small v-if="skipModal.insteadLoading" class="perf-field-hint">
+            <i class="fa fa-spinner fa-spin"></i> Loading {{ skipModal.instead }}…
+          </small>
+          <small v-else-if="skipModal.insteadExists" class="perf-field-hint">
+            {{ skipModal.student?.student_name }} already has a {{ skipModal.instead }} entry today —
+            saving updates it.
+          </small>
+        </template>
 
         <template v-if="config.usesSyllabus">
           <p class="perf-modal-sub perf-modal-sub-tight">
@@ -761,6 +784,46 @@
           </div>
         </template>
 
+        <template v-if="skipModal.instead === 'Study'">
+          <label class="perf-modal-label">Study Result <span class="perf-required">*</span></label>
+          <div class="perf-chip-picker">
+            <button
+              v-for="r in CATEGORY_CONFIG.Study.results"
+              :key="r.value"
+              type="button"
+              class="perf-chip"
+              :class="{ active: skipModal.insteadResult === r.value }"
+              @click="skipModal.insteadResult = r.value"
+            >
+              <i class="fa" :class="r.icon"></i> {{ r.value }}
+            </button>
+          </div>
+        </template>
+
+        <template v-else-if="skipModal.instead">
+          <label class="perf-modal-label">{{ skipModal.instead }} Marks <span class="perf-required">*</span></label>
+          <div class="perf-marks-pair">
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              class="form-control"
+              placeholder="Obtained"
+              v-model="skipModal.insteadMarks"
+            />
+            <span>/</span>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              class="form-control"
+              placeholder="Total"
+              v-model="skipModal.insteadTotal"
+            />
+          </div>
+          <small class="perf-field-hint">The grade is worked out from the marks.</small>
+        </template>
+
         <label class="perf-modal-label">Remarks <span class="perf-required">*</span></label>
         <textarea
           class="form-control perf-textarea"
@@ -775,7 +838,7 @@
           <button class="perf-btn perf-btn-secondary" @click="closeSkipModal">Cancel</button>
           <button
             class="perf-btn perf-btn-primary"
-            :disabled="!skipModal.remarks.trim() || skipModal.saving"
+            :disabled="!skipModal.remarks.trim() || skipModal.saving || skipModal.insteadLoading"
             @click="confirmSkip"
           >
             {{ skipModal.saving ? 'Saving…' : config.skipLabel }}
@@ -934,6 +997,17 @@ const CATEGORY_CONFIG = {
       { value: 'Incomplete', icon: 'fa-times-circle', tone: 'bad' },
     ],
   },
+  // Same setup as Study, but not graded — everyone present had the class.
+  Class: {
+    icon: 'fa-graduation-cap',
+    usesSyllabus: true,
+    usesQuestions: false,
+    usesMarks: false,
+    usesReasons: false,
+    usesSkip: true,
+    skipLabel: 'Skip Class',
+    results: [{ value: 'Attended', icon: 'fa-check-circle', tone: 'good' }],
+  },
   Test: {
     icon: 'fa-file-text-o',
     usesSyllabus: true,
@@ -974,16 +1048,19 @@ const CATEGORY_CONFIG = {
     skipLabel: '',
     results: [
       { value: 'Good', icon: 'fa-smile-o', tone: 'good' },
-      { value: 'Bad', icon: 'fa-frown-o', tone: 'mid' },
-      { value: 'Worst', icon: 'fa-exclamation-triangle', tone: 'bad' },
+      { value: 'Discipline', icon: 'fa-frown-o', tone: 'mid' },
+      { value: 'Critical', icon: 'fa-exclamation-triangle', tone: 'bad' },
     ],
   },
 }
 
-// Every standard sits Study, Test and Behaviour; the subject test is whichever
+// Every standard sits Study, Class, Test and Behaviour; the subject test is whichever
 // one the Standard master names (Accounts Test for Commerce).
-const SHARED_CATEGORIES = ['Study', 'Test']
+const SHARED_CATEGORIES = ['Study', 'Class', 'Test']
 const SUBJECT_TESTS = ['Maths Test', 'Accounts Test']
+// What a skipped student can be recorded as having done instead — mirrors
+// INSTEAD_CATEGORIES in bb_academy/performance.py.
+const INSTEAD_CATEGORIES = ['Study', 'Test']
 const DEFAULT_SUBJECT_TEST = 'Maths Test'
 
 // Half the paper passes — the same rule bb_academy/performance_config.py applies.
@@ -992,7 +1069,7 @@ function halfOf(total) {
 }
 
 // Grades the teacher must justify against the Behaviour Reason master list.
-const REASON_REQUIRED = ['Bad', 'Worst']
+const REASON_REQUIRED = ['Discipline', 'Critical']
 
 const standards = ref([])
 const batches = ref([])
@@ -1109,6 +1186,14 @@ const skipModal = reactive({
   subject: '',
   lessons: [],
   portions: [],
+  // What the student did in place of the skipped session: '' (nothing),
+  // 'Study' or 'Test'. It is saved as a real row in that category.
+  instead: '',
+  insteadResult: '',
+  insteadMarks: '',
+  insteadTotal: '',
+  insteadExists: false,
+  insteadLoading: false,
   remarks: '',
   saving: false,
   error: '',
@@ -1161,6 +1246,12 @@ const lessonsResource = createResource({
 const detailLessonsResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.get_lessons',
 })
+const skipResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.skip_student_performance',
+})
+const entryResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.get_student_entry',
+})
 const skipLessonsResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.get_lessons',
 })
@@ -1193,6 +1284,12 @@ const columnCount = computed(() => (config.value.usesMarks ? 5 : 4))
 
 // The standard sits exactly one subject test, so only that one is offered.
 const categoryOptions = computed(() => [...SHARED_CATEGORIES, subjectTest.value, 'Behaviour'])
+
+// Skipping one session usually means the student did the other: a skipped
+// Study was a Test sat, a skipped Test was spent studying.
+const insteadOptions = computed(() =>
+  config.value.usesSkip ? INSTEAD_CATEGORIES.filter((c) => c !== category.value) : []
+)
 
 // The grade buttons stay three wide; Skipped is set by its own checkbox, but it
 // still needs a KPI card and a stat chip of its own.
@@ -1342,7 +1439,7 @@ const emptyState = computed(() => {
     return {
       icon: 'fa-clock-o',
       title: 'Attendance Not Marked Yet',
-      text: `None of the ${totalStudents.value} students in this batch have attendance for ${date.value}. Mark attendance first — only Present students can be graded.`,
+      text: `None of the ${totalStudents.value} students in this batch have attendance for ${date.value}. Mark attendance first — only Present or Late students can be graded.`,
       linkToAttendance: true,
     }
   }
@@ -1350,7 +1447,7 @@ const emptyState = computed(() => {
     return {
       icon: 'fa-user-times',
       title: 'No Present Students',
-      text: `No student in this Standard and Batch is marked Present on ${date.value}.`,
+      text: `No student in this Standard and Batch is marked Present or Late on ${date.value}.`,
     }
   }
   if (visibleStudents.value.length === 0) {
@@ -1782,11 +1879,11 @@ function onResultClick(student, result) {
   })
 }
 
-async function applyResult(student, payload) {
+async function applyResult(student, payload, resource = saveResource) {
   saveError.value = ''
   savingStudent.value = student.student_id
   try {
-    const res = await saveResource.submit({
+    const res = await resource.submit({
       student: student.student_id,
       performance_date: date.value,
       category: category.value,
@@ -1875,6 +1972,7 @@ function onSkipToggle(student, checked) {
     skipLessonSearch.value = ''
     skipModal.remarks = student.remarks || ''
     skipModal.error = ''
+    resetInstead()
     loadSkipLessons(skipModal.subject, skipModal.lessons)
     return
   }
@@ -1886,6 +1984,49 @@ function onSkipToggle(student, checked) {
   })
 }
 
+function resetInstead() {
+  skipModal.instead = ''
+  skipModal.insteadResult = ''
+  skipModal.insteadMarks = ''
+  skipModal.insteadTotal = ''
+  skipModal.insteadExists = false
+  skipModal.insteadLoading = false
+}
+
+// Opens on whatever the student already has in that category today, so
+// picking Study or Test again edits the entry instead of starting over.
+async function pickInstead(opt) {
+  resetInstead()
+  skipModal.instead = opt
+  skipModal.error = ''
+  if (!opt || !skipModal.student) return
+
+  skipModal.insteadLoading = true
+  try {
+    const entry = await entryResource.submit({
+      student: skipModal.student.student_id,
+      performance_date: date.value,
+      category: opt,
+      standard: standard.value,
+      batch: batch.value,
+    })
+    if (skipModal.instead !== opt) return
+    if (entry?.no_session) {
+      skipModal.error = `No ${opt} is set for this batch today — undo "No ${opt}" first.`
+    }
+    skipModal.insteadExists = !!entry?.exists && !entry?.skipped
+    if (skipModal.insteadExists) {
+      skipModal.insteadResult = entry.result || ''
+      if (entry.marks_obtained !== null) skipModal.insteadMarks = entry.marks_obtained
+    }
+    if (entry?.total_marks) skipModal.insteadTotal = entry.total_marks
+  } catch (e) {
+    skipModal.error = errorText(e, `Failed to load ${opt}`)
+  } finally {
+    if (skipModal.instead === opt) skipModal.insteadLoading = false
+  }
+}
+
 function closeSkipModal() {
   skipModal.open = false
   skipModal.student = null
@@ -1894,6 +2035,7 @@ function closeSkipModal() {
   skipModal.portions = []
   skipModal.remarks = ''
   skipModal.error = ''
+  resetInstead()
   skipLessonSearch.value = ''
   // The checkbox has already flipped; re-render to snap it back to what is saved.
   students.value = [...students.value]
@@ -1904,19 +2046,45 @@ async function confirmSkip() {
   const remarks = skipModal.remarks.trim()
   if (!student || !remarks) return
 
+  const instead = skipModal.instead
+  const marks = skipModal.insteadMarks === '' ? null : Number(skipModal.insteadMarks)
+  const total = skipModal.insteadTotal === '' ? null : Number(skipModal.insteadTotal)
+  if (instead === 'Study' && !skipModal.insteadResult) {
+    skipModal.error = 'Pick the Study result for what the student did instead.'
+    return
+  }
+  if (instead && instead !== 'Study') {
+    if (marks === null || Number.isNaN(marks) || !total) {
+      skipModal.error = `Enter the ${instead} marks obtained and the total.`
+      return
+    }
+    if (marks > total) {
+      skipModal.error = `Marks (${marks}) cannot exceed the total of ${total}.`
+      return
+    }
+  }
+
   skipModal.saving = true
   skipModal.error = ''
   try {
     // The syllabus goes with the skip: a skipped student still did something,
-    // and this row is the only record of what.
-    await applyResult(student, {
-      result: SKIP_RESULT,
-      skipped: 1,
-      remarks,
-      subject: config.value.usesSyllabus ? skipModal.subject : undefined,
-      lessons: config.value.usesSyllabus ? skipModal.lessons : undefined,
-      portions: config.value.usesSyllabus ? skipModal.portions : undefined,
-    })
+    // and this row is the only record of what. When that something was a
+    // Study or a Test, it is also saved as a row in that category.
+    await applyResult(
+      student,
+      {
+        remarks,
+        subject: config.value.usesSyllabus ? skipModal.subject : undefined,
+        lessons: config.value.usesSyllabus ? skipModal.lessons : undefined,
+        portions: config.value.usesSyllabus ? skipModal.portions : undefined,
+        instead_category: instead || undefined,
+        instead_result: instead === 'Study' ? skipModal.insteadResult : undefined,
+        instead_marks_obtained: instead && instead !== 'Study' ? marks : undefined,
+        instead_total_marks: instead && instead !== 'Study' ? total : undefined,
+      },
+      skipResource
+    )
+    resetInstead()
     skipModal.open = false
     skipModal.student = null
     skipModal.subject = ''
@@ -2069,7 +2237,7 @@ async function bulkMark(result) {
       if (saved.has(s.student_id)) s.result = result
     })
     if (res?.skipped?.length) {
-      saveError.value = `${res.skipped.length} student(s) were skipped — they are not marked Present today.`
+      saveError.value = `${res.skipped.length} student(s) were skipped — they are not marked Present or Late today.`
     }
     selected.clear()
     recomputeSummary()
@@ -3077,6 +3245,15 @@ watch([resultFilter, showCompleted, search], () => {
    explicit columns without creating an implicit one when the grid collapses
    to a single column on a phone. */
 .perf-manager .perf-field-lesson { grid-column: 1 / -1; }
+
+/* Skip modal: "12 / 20" for the Test the student sat instead. */
+.perf-manager .perf-marks-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.perf-manager .perf-marks-pair .form-control { flex: 1; min-width: 0; }
+.perf-manager .perf-marks-pair span { color: var(--text-muted); font-weight: 600; }
 
 .perf-manager .perf-chip-picker {
   display: flex;

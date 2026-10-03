@@ -1,0 +1,24 @@
+{
+ "content": null,
+ "creation": "2026-09-27 09:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "fa fa-bar-chart",
+ "idx": 0,
+ "modified": "2026-09-27 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "admission-trends",
+ "owner": "Administrator",
+ "page_name": "admission-trends",
+ "roles": [
+  {"role": "System Manager"},
+  {"role": "Administrator"},
+  {"role": "Receptionist"},
+  {"role": "Accountant"},
+  {"role": "Teacher"}
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Admission Trends"
+}

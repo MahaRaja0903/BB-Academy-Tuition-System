@@ -19,6 +19,7 @@
   "date_of_birth",
   "gender",
   "blood_group",
+  "rejoined_date",
   "section_break_ygxb",
   "discontinued__date",
   "suspended_date",
@@ -31,6 +32,10 @@
   "column_break_2",
   "current_batch",
   "group",
+  "section_break_jcom",
+  "skills_any",
+  "column_break_epmc",
+  "achievement",
   "section_break_zaum",
   "attendance_batch_set",
   "attendance_batch",
@@ -60,6 +65,12 @@
   "mother_name",
   "mother_mobile_number",
   "mother_occupation",
+  "section_break_oufu",
+  "guardian_name",
+  "guardian_occupation",
+  "column_break_vqab",
+  "relation_with_guardian",
+  "guardian_mobile_number",
   "school_details_section",
   "school_name",
   "referred_by",
@@ -278,6 +289,27 @@
    "label": "Mother Occupation"
   },
   {
+   "fieldname": "guardian_name",
+   "fieldtype": "Data",
+   "label": "Guardian Name"
+  },
+  {
+   "fieldname": "relation_with_guardian",
+   "fieldtype": "Select",
+   "label": "Relation With Guardian",
+   "options": "\nGrand Mother\nGrand Father\nUncle\nAunt\nBrother\nSister\nOther"
+  },
+  {
+   "fieldname": "guardian_occupation",
+   "fieldtype": "Data",
+   "label": "Guardian Occupation"
+  },
+  {
+   "fieldname": "guardian_mobile_number",
+   "fieldtype": "Data",
+   "label": "Guardian Mobile Number"
+  },
+  {
    "fieldname": "referred_by",
    "fieldtype": "Link",
    "label": "Referred By",
@@ -312,8 +344,7 @@
    "fieldname": "payment_details",
    "fieldtype": "Table",
    "label": "Payment Details",
-   "options": "Student Payment Detail",
-   "read_only": 1
+   "options": "Student Payment Detail"
   },
   {
    "depends_on": "eval:doc.standard && (doc.standard.startsWith(\"11\") || doc.standard.startsWith(\"12\"))",
@@ -326,7 +357,7 @@
    "fieldname": "preferred_mobile_number",
    "fieldtype": "Select",
    "label": "Preferred Mobile Number ",
-   "options": "\nFather\nMother"
+   "options": "\nFather\nMother\nGuardian"
   },
   {
    "fieldname": "preferred_whatsapp_number",
@@ -528,6 +559,37 @@
   {
    "fieldname": "section_break_ezea",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "rejoined_date",
+   "fieldtype": "Date",
+   "label": "Rejoined Date"
+  },
+  {
+   "fieldname": "section_break_oufu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_vqab",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_jcom",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "skills_any",
+   "fieldtype": "Data",
+   "label": "Skills Any"
+  },
+  {
+   "fieldname": "column_break_epmc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "achievement",
+   "fieldtype": "Data",
+   "label": " Achievement "
   }
  ],
  "image_field": "image",
@@ -538,7 +600,7 @@
    "link_fieldname": "student"
   }
  ],
- "modified": "2026-09-13 13:09:02.120146",
+ "modified": "2026-09-28 19:05:30.936765",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",
@@ -596,7 +658,7 @@
   }
  ],
  "row_format": "Dynamic",
- "search_fields": "student_name,standard,admission_number,mother_mobile_number,father_mobile_number",
+ "search_fields": "student_name,standard,admission_number,mother_mobile_number,father_mobile_number,guardian_mobile_number",
  "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",

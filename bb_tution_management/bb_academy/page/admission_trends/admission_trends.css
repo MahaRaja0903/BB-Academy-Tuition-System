@@ -1,0 +1,387 @@
+/* Admission Trends dashboard: styles.
+
+   Surfaces and ink come from the desk theme variables, so the page follows
+   light and dark mode. Series colours: enquiries light blue, admissions green,
+   the same pair (by meaning) as the Enquiry Conversion page. The grid uses one
+   hue, light to dark, for counts. */
+
+.at-root {
+	--at-enq: #5aa9e6;
+	--at-adm: #2e7d32;
+	--at-heat: #2a78d6;
+	--at-peak: #b26a00;
+
+	--at-surface: var(--card-bg, #fff);
+	--at-plane: var(--subtle-fg, #f8f8f8);
+	--at-line: var(--border-color, #e2e2e2);
+	--at-ink: var(--text-color, #1f272e);
+	--at-ink-2: var(--text-muted, #6c7680);
+	--at-grid: var(--gray-200, #ededed);
+}
+
+[data-theme="dark"] .at-root {
+	--at-adm: #4caf50;
+	--at-heat: #3987e5;
+	--at-peak: #f0a640;
+}
+
+.at-root.at-loading .at-canvas {
+	opacity: 0.55;
+	pointer-events: none;
+	transition: opacity 0.15s;
+}
+
+.at-canvas {
+	color: var(--at-ink);
+	margin-bottom: 24px;
+}
+
+.at-head {
+	margin: 4px 0 16px;
+}
+
+.at-title {
+	font-size: clamp(18px, 2.2vw, 24px);
+	font-weight: 600;
+	margin: 0 0 4px;
+}
+
+.at-sub {
+	color: var(--at-ink-2);
+	font-size: 13px;
+}
+
+.at-empty {
+	padding: 48px 16px;
+	text-align: center;
+	color: var(--at-ink-2);
+	background: var(--at-surface);
+	border: 1px solid var(--at-line);
+	border-radius: 12px;
+}
+
+[data-at-drill] {
+	cursor: pointer;
+}
+
+[data-at-drill]:focus-visible {
+	outline: 2px solid var(--at-heat);
+	outline-offset: 2px;
+}
+
+/* ── tiles ───────────────────────────────────────────────────────── */
+
+.at-tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.at-tile {
+	background: var(--at-surface);
+	border: 1px solid var(--at-line);
+	border-radius: 12px;
+	padding: 14px 16px;
+}
+
+.at-tile[data-at-drill]:hover {
+	border-color: var(--at-heat);
+}
+
+.at-tile__label {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--at-ink-2);
+}
+
+.at-tile__value {
+	font-size: 26px;
+	font-weight: 700;
+	line-height: 1.2;
+	margin: 6px 0 4px;
+	font-variant-numeric: tabular-nums;
+}
+
+.at-tile__foot {
+	font-size: 12px;
+	color: var(--at-ink-2);
+}
+
+/* ── cards ───────────────────────────────────────────────────────── */
+
+.at-card {
+	background: var(--at-surface);
+	border: 1px solid var(--at-line);
+	border-radius: 12px;
+	padding: 16px;
+	margin-bottom: 16px;
+}
+
+.at-card__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px 16px;
+	margin-bottom: 14px;
+}
+
+.at-card__title {
+	font-size: 15px;
+	font-weight: 600;
+	margin: 0;
+}
+
+.at-card__hint {
+	font-size: 12px;
+	color: var(--at-ink-2);
+}
+
+.at-legend {
+	display: flex;
+	gap: 16px;
+	font-size: 12px;
+	color: var(--at-ink-2);
+}
+
+.at-legend span {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.at-swatch {
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+	display: inline-block;
+}
+
+.at-swatch--enq { background: var(--at-enq); }
+.at-swatch--adm { background: var(--at-adm); }
+
+/* ── month chart ─────────────────────────────────────────────────── */
+
+.at-mchart-scroll {
+	overflow-x: auto;
+}
+
+.at-mchart {
+	display: grid;
+	grid-template-columns: repeat(var(--at-months), minmax(56px, 1fr));
+	gap: 0;
+	min-width: calc(var(--at-months) * 62px);
+}
+
+.at-mgroup {
+	display: flex;
+	flex-direction: column;
+}
+
+.at-mgroup__bars {
+	height: 220px;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	gap: 2px;
+	padding-top: 18px; /* room for the value above the tallest bar */
+	border-bottom: 1px solid var(--at-line);
+	background-image: linear-gradient(var(--at-grid) 1px, transparent 1px);
+	background-size: 100% 25%;
+	background-position: 0 18px;
+}
+
+.at-mbar {
+	position: relative;
+	flex: 0 1 20px;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	align-items: center;
+}
+
+.at-mbar__fill {
+	width: 100%;
+	border-radius: 4px 4px 0 0;
+	min-height: 0;
+}
+
+.at-mbar--enq .at-mbar__fill { background: var(--at-enq); }
+.at-mbar--adm .at-mbar__fill { background: var(--at-adm); }
+
+.at-mbar:hover .at-mbar__fill {
+	filter: brightness(1.1);
+}
+
+.at-mbar__val {
+	font-size: 11px;
+	color: var(--at-ink-2);
+	font-variant-numeric: tabular-nums;
+	margin-bottom: 2px;
+}
+
+.at-mbar--adm .at-mbar__val {
+	color: var(--at-ink);
+	font-weight: 600;
+}
+
+.at-mgroup__label {
+	text-align: center;
+	font-size: 12px;
+	color: var(--at-ink-2);
+	padding: 6px 0 0;
+	white-space: nowrap;
+}
+
+.at-mgroup--peak .at-mgroup__label {
+	color: var(--at-ink);
+	font-weight: 600;
+}
+
+.at-peak {
+	display: block;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--at-peak);
+}
+
+/* ── standard × month grid ───────────────────────────────────────── */
+
+.at-grid-scroll {
+	overflow-x: auto;
+}
+
+.at-grid {
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 2px;
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+
+.at-grid th {
+	font-weight: 600;
+	color: var(--at-ink-2);
+	text-align: center;
+	padding: 6px 8px;
+	white-space: nowrap;
+}
+
+.at-grid .at-grid__std,
+.at-grid thead th:first-child,
+.at-grid tfoot th {
+	text-align: left;
+	color: var(--at-ink);
+	position: sticky;
+	left: 0;
+	background: var(--at-surface);
+}
+
+.at-grid .at-th--peak {
+	color: var(--at-peak);
+}
+
+.at-cell {
+	text-align: center;
+	padding: 8px;
+	min-width: 48px;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--at-heat) var(--at-t), transparent);
+	color: var(--at-ink);
+}
+
+.at-cell--strong {
+	color: #fff;
+	font-weight: 600;
+}
+
+.at-cell--zero {
+	color: var(--at-ink-2);
+	opacity: 0.5;
+}
+
+.at-cell[data-at-drill]:hover {
+	outline: 2px solid var(--at-ink);
+	outline-offset: -2px;
+}
+
+.at-grid__total {
+	text-align: center;
+	font-weight: 700;
+	padding: 8px;
+	border-radius: 4px;
+	background: var(--at-plane);
+}
+
+.at-grid__total[data-at-drill]:hover {
+	text-decoration: underline;
+}
+
+.at-grid__grand {
+	color: var(--at-adm);
+}
+
+/* ── standards ranked ────────────────────────────────────────────── */
+
+.at-hbars {
+	display: grid;
+	gap: 6px;
+}
+
+.at-hbar {
+	display: grid;
+	grid-template-columns: 130px 1fr 48px 150px;
+	align-items: center;
+	gap: 12px;
+	padding: 4px 6px;
+	border-radius: 6px;
+	font-size: 13px;
+}
+
+.at-hbar:hover {
+	background: var(--at-plane);
+}
+
+.at-hbar__name {
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.at-hbar__track {
+	height: 14px;
+}
+
+.at-hbar__fill {
+	display: block;
+	height: 100%;
+	background: var(--at-adm);
+	border-radius: 0 4px 4px 0;
+}
+
+.at-hbar__val {
+	font-weight: 700;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.at-hbar__split {
+	font-size: 12px;
+	color: var(--at-ink-2);
+}
+
+@media (max-width: 640px) {
+	.at-hbar {
+		grid-template-columns: 90px 1fr 36px;
+	}
+	.at-hbar__split {
+		grid-column: 1 / -1;
+		padding-left: 102px;
+		margin-top: -4px;
+	}
+}

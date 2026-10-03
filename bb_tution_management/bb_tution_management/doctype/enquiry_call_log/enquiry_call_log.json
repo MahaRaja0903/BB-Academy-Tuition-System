@@ -1,0 +1,62 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-26 15:02:08.651850",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "who_attended_the_call",
+  "what_was_the_discussion_in_the_call",
+  "call_works_done_by_s",
+  "date",
+  "follow_up_date"
+ ],
+ "fields": [
+  {
+   "fieldname": "who_attended_the_call",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Who Attended The Call "
+  },
+  {
+   "fieldname": "what_was_the_discussion_in_the_call",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "what was the Discussion in The Call"
+  },
+  {
+   "fieldname": "call_works_done_by_s",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Call Works Done By s"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date"
+  },
+  {
+   "fieldname": "follow_up_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Follow Up Date"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-29 00:03:36.909668",
+ "modified_by": "Administrator",
+ "module": "Bb Tution Management",
+ "name": "Enquiry Call Log",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

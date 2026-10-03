@@ -22,7 +22,7 @@ def generate_invoices(academic_year, fee_month):
 	active_students = frappe.get_all(
 		"Student",
 		filters={"status": "Active", "academic_year": academic_year},
-		fields=["name", "student_name", "standard", "current_batch", "monthly_fee", "admission_date", "fees_due_date"]
+		fields=["name", "student_name", "standard", "current_batch", "monthly_fee", "admission_date", "fees_due_date", "rejoined_date"]
 	)
 
 	created_count = 0
@@ -94,7 +94,18 @@ def generate_invoices(academic_year, fee_month):
 			waived = True
 		
 		if not waived:
-			items.append({"description": f"{fee_month} Monthly Fee", "amount": flt(student.monthly_fee)})
+			if student.rejoined_date and getdate(student.rejoined_date).strftime("%B") == fee_month:
+				rj_date = getdate(student.rejoined_date)
+				if rj_date.day <= 10:
+					items.append({"description": f"{fee_month} Monthly Fee", "amount": flt(student.monthly_fee)})
+				else:
+					_, days_in_month = monthrange(rj_date.year, rj_date.month)
+					remaining_days = days_in_month - rj_date.day + 1
+					prorated_fee = (flt(student.monthly_fee) / days_in_month) * remaining_days
+					items.append({"description": f"{fee_month} Fee ({remaining_days} days prorated due to rejoin)", "amount": prorated_fee})
+			else:
+				items.append({"description": f"{fee_month} Monthly Fee", "amount": flt(student.monthly_fee)})
+			
 			
 		if not items:
 			# Nothing to charge?

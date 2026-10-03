@@ -2,17 +2,18 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "creation": "2026-09-12 10:00:00.000000",
+ "creation": "2026-09-12 10:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "lesson_name",
   "standard",
   "subject",
   "column_break_map",
+  "lesson_name",
   "lesson_order",
   "disabled",
+  "section_break_vgoo",
   "description"
  ],
  "fields": [
@@ -58,6 +59,7 @@
    "default": "0",
    "fieldname": "disabled",
    "fieldtype": "Check",
+   "hidden": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Disabled"
@@ -66,12 +68,16 @@
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description"
+  },
+  {
+   "fieldname": "section_break_vgoo",
+   "fieldtype": "Section Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-12 10:00:00.000000",
+ "modified": "2026-09-17 19:18:30.091821",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Lesson",

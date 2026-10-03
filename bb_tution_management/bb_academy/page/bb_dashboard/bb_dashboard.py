@@ -56,7 +56,8 @@ LEDGER_SQL = """
 """
 
 BILLED_SQL = "coalesce(spd.amount_need_to_pay, 0)"
-COLLECTED_SQL = "coalesce(spd.amount_paid, 0)"
+# Net of anything handed back through a Fee Refund.
+COLLECTED_SQL = "coalesce(spd.amount_paid, 0) - coalesce(spd.refunded_amount, 0)"
 
 # Only ever the amounts the table itself records -- never the student's standing
 # monthly fee, which would bill the free-education students for months they were
@@ -502,8 +503,10 @@ def get_pending_followups(limit=8):
 			"applicant_name",
 			"father_name",
 			"mother_name",
+			"guardian_name",
 			"father_number",
 			"mother_number",
+			"guardian_number",
 			"next_follow_up_date",
 			"standard",
 		],
@@ -513,8 +516,8 @@ def get_pending_followups(limit=8):
 	today_date = getdate(today)
 	for r in rows:
 		r["overdue_days"] = (today_date - getdate(r.next_follow_up_date)).days
-		r["parent_name"] = r.father_name or r.mother_name
-		r["parent_mobile"] = r.father_number or r.mother_number
+		r["parent_name"] = r.father_name or r.mother_name or r.guardian_name
+		r["parent_mobile"] = r.father_number or r.mother_number or r.guardian_number
 	return rows
 
 

@@ -148,7 +148,11 @@ doc_events = {
 		"after_insert": "bb_tution_management.bb_academy.mistakes.sync_from_tracker",
 		"on_update": "bb_tution_management.bb_academy.mistakes.sync_from_tracker",
 		"after_delete": "bb_tution_management.bb_academy.mistakes.sync_from_tracker",
-	}
+	},
+	# frappe_whatsapp's record of each API send -> WhatsApp Message Log
+	"WhatsApp Message": {
+		"on_update": "bb_tution_management.bb_academy.doctype.whatsapp_message_log.whatsapp_message_log.sync_from_whatsapp_message",
+	},
 }
 
 # doc_events = {
@@ -163,6 +167,12 @@ doc_events = {
 # ---------------
 
 scheduler_events = {
+	"cron": {
+		# One-off: 5:30 PM IST on 23 Sep 2026 only (see missing_details.SEND_ON)
+		"30 17 23 9 *": [
+			"bb_tution_management.bb_academy.missing_details.send_scheduled",
+		],
+	},
 	"daily": [
 		"bb_tution_management.bb_academy.doctype.student.student.check_attendance_batch_expiry",
 		# Self-heal: doc_events keep the records live, this catches anything

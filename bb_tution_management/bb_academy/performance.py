@@ -1119,6 +1119,153 @@ def clear_student_performance(student, performance_date, category, standard=None
 	}
 
 
+# What a skipped student can be recorded as having done instead.
+INSTEAD_CATEGORIES = ["Study", "Test"]
+
+
+def _instead_options(category, standard):
+	"""The categories a skip of `category` can point at — never itself."""
+	offered = categories_for_standard(standard)
+	return [c for c in INSTEAD_CATEGORIES if c != category and c in offered]
+
+
+@frappe.whitelist()
+def get_student_entry(student, performance_date, category, standard=None, batch=None):
+	"""One student's row for a day in some other category, for the skip modal.
+
+	Falls back to that category's batch setup, so a Test the student sat instead
+	opens on the day's Total Marks rather than a blank paper.
+	"""
+	_validate_category(category)
+
+	stu = frappe.db.get_value(
+		"Student",
+		student,
+		["name", "standard", "current_batch", "attendance_batch", "attendance_batch_set"],
+		as_dict=True,
+	)
+	if not stu:
+		frappe.throw(f"Student {student} not found")
+
+	standard = standard or stu.standard
+	batch = batch or (stu.attendance_batch if stu.attendance_batch_set else stu.current_batch)
+	session = _get_session(performance_date, standard, batch, category)
+
+	name = frappe.db.get_value(
+		"Student Performance Tracker",
+		{"student": student, "date": getdate(performance_date), "category": category},
+		"name",
+	)
+	if name:
+		doc = frappe.get_doc("Student Performance Tracker", name)
+		return {
+			"exists": True,
+			"result": doc.result,
+			"skipped": cint(doc.skipped),
+			"subject": doc.subject,
+			"lessons": [r.lesson for r in (doc.lessons or [])],
+			"portions": [r.portion for r in (doc.portions or [])],
+			"total_marks": flt(doc.total_marks),
+			"pass_marks": flt(doc.pass_marks),
+			"marks_obtained": flt(doc.marks_obtained),
+			"no_session": cint(session.get("no_session")) if session else 0,
+		}
+
+	return {
+		"exists": False,
+		"result": None,
+		"skipped": 0,
+		"subject": session.get("subject") if session else None,
+		"lessons": session.get("lessons") if session else [],
+		"portions": session.get("portions") if session else [],
+		"total_marks": flt(session.get("total_marks")) if session else 0,
+		"pass_marks": flt(session.get("pass_marks")) if session else 0,
+		"marks_obtained": None,
+		"no_session": cint(session.get("no_session")) if session else 0,
+	}
+
+
+@frappe.whitelist()
+def skip_student_performance(
+	student,
+	performance_date,
+	category,
+	remarks,
+	subject=None,
+	lessons=None,
+	portions=None,
+	instead_category=None,
+	instead_result=None,
+	instead_marks_obtained=None,
+	instead_total_marks=None,
+	standard=None,
+	batch=None,
+):
+	"""Skip one student out of `category`, and optionally record what they did
+	instead — a Study grade or a Test score — in that category's own row.
+
+	Both writes share the request's transaction, so a bad Test score never
+	leaves a skip behind without the entry it was meant to explain.
+	"""
+	res = save_student_performance(
+		student,
+		performance_date,
+		category,
+		skipped=1,
+		remarks=remarks,
+		subject=subject,
+		lessons=lessons,
+		portions=portions,
+		standard=standard,
+		batch=batch,
+	)
+
+	if not instead_category:
+		return res
+
+	standard = standard or frappe.db.get_value("Student", student, "standard")
+	if instead_category not in _instead_options(category, standard):
+		frappe.throw(
+			f"{instead_category} cannot be recorded in place of {category}.",
+			title="Invalid Choice",
+		)
+
+	instead_cfg = category_config(instead_category)
+	if instead_total_marks in (None, "") or not instead_cfg["uses_marks"]:
+		instead_total_marks = None
+	has_marks = instead_marks_obtained not in (None, "")
+	if instead_cfg["uses_marks"]:
+		if not has_marks and not instead_result:
+			frappe.throw(
+				f"Enter the marks {instead_category} was scored at, or pick a grade.",
+				title="Marks Required",
+			)
+	elif not instead_result:
+		frappe.throw(f"Pick a {instead_category} grade.", title="Grade Required")
+
+	instead = save_student_performance(
+		student,
+		performance_date,
+		instead_category,
+		result=instead_result or None,
+		marks_obtained=instead_marks_obtained if instead_cfg["uses_marks"] else None,
+		total_marks=instead_total_marks,
+		pass_marks=default_pass_marks(instead_total_marks) if instead_total_marks else None,
+		remarks=f"In place of {category}: {remarks.strip()}",
+		subject=subject,
+		lessons=lessons,
+		portions=portions,
+		standard=standard,
+		batch=batch,
+	)
+	res["instead"] = {
+		"category": instead_category,
+		"result": instead["result"],
+		"marks_obtained": instead["marks_obtained"],
+	}
+	return res
+
+
 @frappe.whitelist()
 def save_bulk_performance(
 	students,
@@ -1209,7 +1356,7 @@ def add_behaviour_reason(reason_name, severity="Both", description=None):
 		{
 			"doctype": "Behaviour Reason",
 			"reason_name": reason_name,
-			"severity": severity if severity in ("Both", "Bad", "Worst") else "Both",
+			"severity": severity if severity in ("Both", "Discipline", "Critical") else "Both",
 			"description": description,
 		}
 	).insert()

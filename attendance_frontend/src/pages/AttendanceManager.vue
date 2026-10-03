@@ -108,7 +108,7 @@
     </div>
 
     <!-- KPI cards -->
-    <div class="att-kpi-grid">
+    <div class="att-kpi-grid" :class="{ 'has-holiday': summary.holiday }">
       <button
         v-for="kpi in kpis"
         :key="kpi.key"
@@ -211,6 +211,14 @@
           @click="bulkMark('Late')"
         >
           <i class="fa fa-clock-o"></i> Late
+        </button>
+        <button
+          v-if="!secondRound"
+          class="att-bulk-btn att-bulk-holiday"
+          title="Give the selected students a holiday for a date range"
+          @click="openStudentHolidayModal"
+        >
+          <i class="fa fa-calendar-times-o"></i> Holiday
         </button>
         <button class="att-bulk-btn att-bulk-clear" @click="selected.clear()">Clear</button>
       </div>
@@ -319,6 +327,7 @@
               v-for="s in (loading || emptyState ? [] : visibleStudents)"
               :key="s.student_id"
               class="att-student-row"
+              :class="{ 'is-on-holiday': s.student_holiday }"
               :data-current-status="statusOf(s) || ''"
             >
               <td class="att-td-select">
@@ -326,6 +335,7 @@
                   type="checkbox"
                   class="att-row-select"
                   :checked="selected.has(s.student_id)"
+                  :disabled="!!s.student_holiday"
                   @change="toggleSelect(s.student_id)"
                 />
               </td>
@@ -396,7 +406,24 @@
                 </span>
               </td>
               <td class="att-td-actions">
-                <div class="att-status-group">
+                <div v-if="s.student_holiday" class="att-student-holiday">
+                  <span class="att-student-holiday-badge">
+                    <i class="fa fa-calendar-times-o"></i> On Holiday
+                  </span>
+                  <span class="att-student-holiday-range">
+                    {{ s.student_holiday.from_date }} → {{ s.student_holiday.to_date }}
+                  </span>
+                  <span>{{ s.student_holiday.reason }}</span>
+                  <button
+                    type="button"
+                    class="att-student-holiday-remove"
+                    :disabled="removingHoliday === s.student_holiday.name"
+                    @click="removeStudentHoliday(s)"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <div v-else class="att-status-group">
                   <!-- Plain buttons, not hidden radios. A radio carries its own
                        checked state in the DOM, and the browser sets it before
                        @change fires; every tap we refuse (Present/Absent under a
@@ -531,6 +558,58 @@
       </div>
     </div>
 
+    <!-- Student-wise holiday modal -->
+    <div
+      v-if="studentHolidayModal.open"
+      class="att-modal-backdrop"
+      @click.self="studentHolidayModal.open = false"
+    >
+      <div class="att-modal">
+        <h3>Holiday for {{ studentHolidayModal.students.length }} Selected Students</h3>
+        <ul class="att-birthday-list">
+          <li v-for="st in studentHolidayModal.students" :key="st.student_id">
+            {{ st.student_name }} <span>{{ st.student_id }}</span>
+          </li>
+        </ul>
+
+        <label class="att-modal-label">From Date <span class="att-req">*</span></label>
+        <input type="date" class="form-control" v-model="studentHolidayModal.from_date" />
+
+        <label class="att-modal-label">To Date <span class="att-req">*</span></label>
+        <input
+          type="date"
+          class="form-control"
+          v-model="studentHolidayModal.to_date"
+          :min="studentHolidayModal.from_date"
+        />
+
+        <label class="att-modal-label">Reason <span class="att-req">*</span></label>
+        <textarea
+          class="form-control att-textarea"
+          rows="2"
+          v-model="studentHolidayModal.reason"
+          placeholder="e.g. School holiday after exams"
+        ></textarea>
+
+        <p class="att-modal-note">
+          Attendance will not be taken for these students in this period. Any attendance
+          already marked for them on these dates will be removed.
+        </p>
+        <p v-if="studentHolidayModal.error" class="att-modal-error">{{ studentHolidayModal.error }}</p>
+
+        <div class="att-modal-actions">
+          <button class="att-btn att-btn-secondary" @click="studentHolidayModal.open = false">Cancel</button>
+          <button
+            class="att-btn att-btn-primary"
+            :disabled="studentHolidayModal.saving"
+            @click="confirmStudentHoliday"
+          >
+            {{ studentHolidayModal.saving ? 'Saving…' : 'Give Holiday' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Birthday list modal -->
     <div v-if="birthdayModalOpen" class="att-modal-backdrop" @click.self="birthdayModalOpen = false">
       <div class="att-modal">
@@ -591,6 +670,7 @@ const summary = reactive({
   absent: 0,
   late: 0,
   pending: 0,
+  holiday: 0,
   second_present: 0,
   second_absent: 0,
   second_late: 0,
@@ -641,6 +721,16 @@ const holidayModal = reactive({
   saving: false,
   error: '',
 })
+const studentHolidayModal = reactive({
+  open: false,
+  students: [],
+  from_date: '',
+  to_date: '',
+  reason: '',
+  saving: false,
+  error: '',
+})
+const removingHoliday = ref(null)
 const birthdayModalOpen = ref(false)
 
 const standardsResource = createResource({ url: 'bb_tution_management.bb_academy.lookups.get_options' })
@@ -657,6 +747,12 @@ const saveBulkResource = createResource({
 })
 const assignHolidayResource = createResource({
   url: 'bb_tution_management.bb_academy.attendance.assign_holiday',
+})
+const assignStudentHolidayResource = createResource({
+  url: 'bb_tution_management.bb_academy.attendance.assign_student_holiday',
+})
+const removeStudentHolidayResource = createResource({
+  url: 'bb_tution_management.bb_academy.attendance.remove_student_holiday',
 })
 const specialClassResource = createResource({
   url: 'bb_tution_management.bb_academy.attendance.assign_special_class_day',
@@ -692,8 +788,9 @@ const attendanceLocked = computed(() => previousDayOpen.value && !secondRound.va
 const PREV_PENDING_MSG =
   'Previous day attendance is still pending. Complete it for this standard and batch first.'
 
+// Students on a student-wise holiday owe no attendance, in either round.
 const firstRoundComplete = computed(
-  () => students.value.length > 0 && students.value.every((s) => s.today_status)
+  () => students.value.length > 0 && students.value.every((s) => s.today_status || s.student_holiday)
 )
 
 const kpis = computed(() => {
@@ -704,19 +801,27 @@ const kpis = computed(() => {
     { key: 'absent', filter: 'Absent', label: 'Absent', icon: 'fa-times-circle', value: r2 ? summary.second_absent : summary.absent, title: 'Show absent students' },
     { key: 'late', filter: 'Late', label: 'Late', icon: 'fa-clock-o', value: r2 ? summary.second_late : summary.late, title: 'Show late students' },
     { key: 'pending', filter: 'Pending', label: 'Pending', icon: 'fa-hourglass-half', value: r2 ? summary.second_pending : summary.pending, title: 'Show pending students' },
+    ...(summary.holiday
+      ? [{ key: 'holiday', filter: 'Holiday', label: 'On Holiday', icon: 'fa-calendar-times-o', value: summary.holiday, title: 'Show students on holiday' }]
+      : []),
   ]
 })
 
 // Mirrors the desk's student_visible_for_status(): an explicit KPI filter wins,
 // otherwise "Show Completed" decides whether marked students are listed.
-function visibleForStatus(status) {
-  if (statusFilter.value === 'Pending') return !status
+// A student on holiday counts as done: hidden with the completed ones, and
+// reachable through the "On Holiday" card.
+function visibleForStatus(s) {
+  const status = statusOf(s)
   if (statusFilter.value === 'Total') return true
+  if (statusFilter.value === 'Holiday') return !!s.student_holiday
+  if (s.student_holiday) return !statusFilter.value && showCompleted.value
+  if (statusFilter.value === 'Pending') return !status
   if (statusFilter.value) return status === statusFilter.value
   return showCompleted.value ? true : !status
 }
 
-const statusFiltered = computed(() => students.value.filter((s) => visibleForStatus(statusOf(s))))
+const statusFiltered = computed(() => students.value.filter(visibleForStatus))
 
 const visibleStudents = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -761,11 +866,12 @@ const emptyState = computed(() => {
   return null
 })
 
+const selectableStudents = computed(() => visibleStudents.value.filter((s) => !s.student_holiday))
 const allVisibleSelected = computed(
-  () => visibleStudents.value.length > 0 && visibleStudents.value.every((s) => selected.has(s.student_id))
+  () => selectableStudents.value.length > 0 && selectableStudents.value.every((s) => selected.has(s.student_id))
 )
 const someVisibleSelected = computed(
-  () => !allVisibleSelected.value && visibleStudents.value.some((s) => selected.has(s.student_id))
+  () => !allVisibleSelected.value && selectableStudents.value.some((s) => selected.has(s.student_id))
 )
 
 function initials(name) {
@@ -787,7 +893,7 @@ function toggleSelect(id) {
 }
 
 function toggleSelectAll(checked) {
-  visibleStudents.value.forEach((s) => {
+  selectableStudents.value.forEach((s) => {
     if (checked) selected.add(s.student_id)
     else selected.delete(s.student_id)
   })
@@ -862,10 +968,14 @@ async function loadStudents() {
 
 function recomputeSummary() {
   const s = {
-    present: 0, absent: 0, late: 0, pending: 0,
+    present: 0, absent: 0, late: 0, pending: 0, holiday: 0,
     second_present: 0, second_absent: 0, second_late: 0, second_pending: 0,
   }
   students.value.forEach((st) => {
+    if (st.student_holiday) {
+      s.holiday++
+      return
+    }
     if (st.today_status === 'Present') s.present++
     else if (st.today_status === 'Absent') s.absent++
     else if (st.today_status === 'Late') s.late++
@@ -1024,6 +1134,61 @@ async function bulkMark(status) {
     saveError.value = e?.messages?.[0] || e?.message || 'Failed to save attendance'
   } finally {
     bulkSaving.value = false
+  }
+}
+
+function openStudentHolidayModal() {
+  if (selected.size === 0) return
+  studentHolidayModal.open = true
+  studentHolidayModal.students = students.value.filter((s) => selected.has(s.student_id))
+  studentHolidayModal.from_date = date.value
+  studentHolidayModal.to_date = date.value
+  studentHolidayModal.reason = ''
+  studentHolidayModal.error = ''
+  studentHolidayModal.saving = false
+}
+
+async function confirmStudentHoliday() {
+  studentHolidayModal.error = ''
+  const reason = studentHolidayModal.reason.trim()
+  if (!studentHolidayModal.from_date || !studentHolidayModal.to_date || !reason) {
+    studentHolidayModal.error = 'From Date, To Date and Reason are required.'
+    return
+  }
+  if (studentHolidayModal.to_date < studentHolidayModal.from_date) {
+    studentHolidayModal.error = 'To Date cannot be before From Date.'
+    return
+  }
+  studentHolidayModal.saving = true
+  try {
+    await assignStudentHolidayResource.submit({
+      students: JSON.stringify(studentHolidayModal.students.map((s) => s.student_id)),
+      from_date: studentHolidayModal.from_date,
+      to_date: studentHolidayModal.to_date,
+      reason,
+    })
+    studentHolidayModal.open = false
+    // Reloads: the holiday can also release the previous-day lock.
+    loadStudents()
+  } catch (e) {
+    studentHolidayModal.error = e?.messages?.[0] || e?.message || 'Failed to assign holiday'
+  } finally {
+    studentHolidayModal.saving = false
+  }
+}
+
+async function removeStudentHoliday(student) {
+  const h = student.student_holiday
+  if (!h) return
+  if (!window.confirm(`Remove the holiday (${h.from_date} → ${h.to_date}) for ${student.student_name}?`)) return
+  removingHoliday.value = h.name
+  try {
+    await removeStudentHolidayResource.submit({ name: h.name })
+    loadStudents()
+  } catch (e) {
+    saveError.value = e?.messages?.[0] || e?.message || 'Failed to remove holiday'
+  } finally {
+    removingHoliday.value = null
   }
 }
 
@@ -1743,6 +1908,40 @@ watch([statusFilter, showCompleted, search, secondRound], () => {
 .attendance-manager .att-bulk-clear:hover {
   color: var(--text-color);
   text-decoration: underline;
+}
+
+/* ---- student-wise holiday ---- */
+.attendance-manager .att-bulk-holiday { color: var(--purple-600, #7c3aed); border-color: var(--purple-200, var(--border-color)); }
+.attendance-manager .att-bulk-holiday:hover { background: var(--purple-600, #7c3aed); color: #fff; }
+.attendance-manager .att-student-row.is-on-holiday { opacity: 0.8; }
+.attendance-manager .att-student-holiday {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.attendance-manager .att-student-holiday-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--purple-600, #7c3aed);
+  background: var(--purple-50, rgba(124, 58, 237, 0.1));
+}
+.attendance-manager .att-student-holiday-range { font-weight: 600; color: var(--text-color); }
+.attendance-manager .att-student-holiday-remove {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 700;
+  color: var(--red-600);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.attendance-manager .att-modal-note { margin: 10px 0 0; font-size: 12px; color: var(--text-muted); }
+@media (min-width: 993px) {
+  .attendance-manager .att-kpi-grid.has-holiday { grid-template-columns: repeat(6, 1fr); }
 }
 
 /* ---- holiday card ---- */

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Details Form</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <!-- Loading State -->
+    <div class="bg-white p-10 rounded-xl shadow-lg w-full max-w-md text-center" id="loading-container">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" id="spinner"></div>
+        <p class="text-gray-600 font-medium" id="loading-text">Loading student details...</p>
+    </div>
+
+    <!-- Form Container -->
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md hidden" id="form-container">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Student Information</h2>
+        
+        <form id="student-form" class="space-y-4">
+            <div id="error-msg" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"></div>
+
+            <div>
+                <label for="studentName" class="block text-sm font-medium text-gray-700 mb-1">Student Name</label>
+                <input type="text" id="studentName" name="studentName" required readonly
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 focus:outline-none"
+                    placeholder="Loading...">
+            </div>
+
+            <div>
+                <label for="standard" class="block text-sm font-medium text-gray-700 mb-1">Standard / Grade</label>
+                <input type="text" id="standard" name="standard" required readonly
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 focus:outline-none"
+                    placeholder="Loading...">
+            </div>
+
+            <div>
+                <label for="batch" class="block text-sm font-medium text-gray-700 mb-1">Current Batch</label>
+                <input type="text" id="batch" name="batch" required readonly
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 focus:outline-none"
+                    placeholder="Loading...">
+            </div>
+
+            <hr class="my-4 border-gray-200">
+
+            <div>
+                <label for="fatherOccupation" class="block text-sm font-medium text-gray-700 mb-1">Father's Occupation</label>
+                <input type="text" id="fatherOccupation" name="fatherOccupation" required 
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                    placeholder="Enter father's occupation">
+            </div>
+
+            <div>
+                <label for="motherOccupation" class="block text-sm font-medium text-gray-700 mb-1">Mother's Occupation</label>
+                <input type="text" id="motherOccupation" name="motherOccupation" required 
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                    placeholder="Enter mother's occupation">
+            </div>
+
+            <div>
+                <label for="preferredMobileNumber" class="block text-sm font-medium text-gray-700 mb-1">Preferred Mobile Number</label>
+                <select id="preferredMobileNumber" name="preferredMobileNumber" required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white">
+                    <option value="" disabled selected>Select Preferred Mobile</option>
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Guardian">Guardian</option>
+                </select>
+                <p class="text-xs text-blue-600 mt-1">By choosing this, WhatsApp messages will be sent to this user.</p>
+            </div>
+
+            <hr class="my-4 border-gray-200">
+
+            <div>
+                <label for="skillsAny" class="block text-sm font-medium text-gray-700 mb-1">Skills (Any)</label>
+                <input type="text" id="skillsAny" name="skillsAny" 
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                    placeholder="e.g. Painting, Sports, Music, Dance">
+            </div>
+
+            <div>
+                <label for="achievement" class="block text-sm font-medium text-gray-700 mb-1">Achievement</label>
+                <input type="text" id="achievement" name="achievement" 
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                    placeholder="e.g. State Level, District Level Achievement">
+            </div>
+
+            <button type="submit" id="submit-btn"
+                class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                Submit Details
+            </button>
+            <p class="text-xs text-gray-500 text-center mt-2">Note: You will be asked to grant location permission to verify your address.</p>
+        </form>
+    </div>
+
+    <!-- Thank You Container -->
+    <div class="bg-white p-10 rounded-xl shadow-lg w-full max-w-md hidden text-center transform transition-all" id="thank-you-container">
+        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+            <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-900 mb-4">Thank You!</h2>
+        <p class="text-lg text-gray-600 font-medium">Have a Great Learning!</p>
+    </div>
+
+    <script>
+        window.csrf_token = "{{ frappe.session.csrf_token }}";
+        document.addEventListener('DOMContentLoaded', () => {
+            const formContainer = document.getElementById('form-container');
+            const loadingContainer = document.getElementById('loading-container');
+            const loadingText = document.getElementById('loading-text');
+            const spinner = document.getElementById('spinner');
+            const thankYouContainer = document.getElementById('thank-you-container');
+            const studentForm = document.getElementById('student-form');
+            const errorMsg = document.getElementById('error-msg');
+            const submitBtn = document.getElementById('submit-btn');
+
+            // Parse URL params for student_id
+            const urlParams = new URLSearchParams(window.location.search);
+            const studentId = urlParams.get('student_id');
+
+            if (!studentId) {
+                loadingText.innerText = "Invalid Link: Missing Student ID parameter.";
+                loadingText.classList.add('text-red-500');
+                spinner.classList.add('hidden');
+                return;
+            }
+
+            const cacheKey = `studentFormSubmitted_${studentId}`;
+
+            // Check if already submitted
+            if (localStorage.getItem(cacheKey) === 'true') {
+                loadingContainer.classList.add('hidden');
+                thankYouContainer.classList.remove('hidden');
+                return;
+            }
+
+            // Fetch student data using the new API
+            fetch(`/api/method/bb_tution_management.api.get_student_details_for_form?student_id=${encodeURIComponent(studentId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message && data.message.status === 'success') {
+                        const student = data.message.data;
+                        
+                        // Populate readonly fields
+                        document.getElementById('studentName').value = student.student_name || '';
+                        document.getElementById('standard').value = student.standard || '';
+                        document.getElementById('batch').value = student.current_batch || '';
+                        
+                        // Pre-fill if they already exist
+                        if(student.father_occupation) document.getElementById('fatherOccupation').value = student.father_occupation;
+                        if(student.mother_occupation) document.getElementById('motherOccupation').value = student.mother_occupation;
+                        if(student.skills_any) document.getElementById('skillsAny').value = student.skills_any;
+                        if(student.achievement) document.getElementById('achievement').value = student.achievement;
+                        if(student.preferred_mobile_number) document.getElementById('preferredMobileNumber').value = student.preferred_mobile_number;
+
+                        // Show form
+                        loadingContainer.classList.add('hidden');
+                        formContainer.classList.remove('hidden');
+                    } else {
+                        throw new Error(data.message?.message || "Student not found.");
+                    }
+                })
+                .catch(error => {
+                    loadingText.innerText = error.message;
+                    loadingText.classList.add('text-red-500');
+                    spinner.classList.add('hidden');
+                });
+
+            // Function to handle the actual submission via API
+            const submitData = (fatherOcc, motherOcc, prefMobile, skillsAny, achievement, lat, lng) => {
+                fetch('/api/method/bb_tution_management.api.update_student_parent_info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Frappe-CSRF-Token': window.csrf_token
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        father_occupation: fatherOcc,
+                        mother_occupation: motherOcc,
+                        preferred_mobile_number: prefMobile,
+                        skills_any: skillsAny,
+                        achievement: achievement,
+                        latitude: lat,
+                        longitude: lng
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message && data.message.status === 'success') {
+                        localStorage.setItem(cacheKey, 'true');
+                        formContainer.classList.add('hidden');
+                        thankYouContainer.classList.remove('hidden');
+                    } else {
+                        throw new Error(data.message?.message || "An error occurred");
+                    }
+                })
+                .catch(error => {
+                    errorMsg.innerText = error.message || "Failed to connect to the server.";
+                    errorMsg.classList.remove('hidden');
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Submit Details';
+                });
+            };
+
+            // Handle submission
+            studentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const fatherOcc = document.getElementById('fatherOccupation').value;
+                const motherOcc = document.getElementById('motherOccupation').value;
+                const prefMobile = document.getElementById('preferredMobileNumber').value;
+                const skillsAny = document.getElementById('skillsAny').value;
+                const achievement = document.getElementById('achievement').value;
+
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'Requesting Location...';
+                errorMsg.classList.add('hidden');
+
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            submitBtn.innerText = 'Submitting...';
+                            submitData(fatherOcc, motherOcc, prefMobile, skillsAny, achievement, position.coords.latitude, position.coords.longitude);
+                        },
+                        (error) => {
+                            console.warn("Geolocation error:", error);
+                            // If user denies or there's an error, still submit but without lat/long
+                            submitBtn.innerText = 'Submitting...';
+                            submitData(fatherOcc, motherOcc, prefMobile, skillsAny, achievement, null, null);
+                        },
+                        { timeout: 10000 }
+                    );
+                } else {
+                    // Browser doesn't support geolocation
+                    submitBtn.innerText = 'Submitting...';
+                    submitData(fatherOcc, motherOcc, prefMobile, skillsAny, achievement, null, null);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

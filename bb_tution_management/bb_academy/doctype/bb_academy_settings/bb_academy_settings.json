@@ -8,8 +8,13 @@
   "discount_amount_limit",
   "coupon_code_amount_at_the_time_of_joining_month",
   "default_coupon_code_amount",
+  "tuition_mobile_number",
   "section_break_jxhw",
-  "whats_app_group_detail"
+  "whats_app_group_detail",
+  "section_break_xehp",
+  "tuition_latitude",
+  "column_break_anqc",
+  "tuition_longitude"
  ],
  "fields": [
   {
@@ -37,13 +42,36 @@
    "fieldtype": "Table",
    "label": "Whats App Group Detail",
    "options": "Whats App Group Detail"
+  },
+  {
+   "fieldname": "tuition_mobile_number",
+   "fieldtype": "Data",
+   "label": "Tuition Mobile Number"
+  },
+  {
+   "fieldname": "section_break_xehp",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "tuition_latitude",
+   "fieldtype": "Float",
+   "label": "Tuition Latitude"
+  },
+  {
+   "fieldname": "column_break_anqc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tuition_longitude",
+   "fieldtype": "Float",
+   "label": "Tuition Longitude"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-10 15:07:22.802614",
+ "modified": "2026-09-27 10:07:39.758641",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "BB Academy Settings",

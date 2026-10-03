@@ -8,9 +8,11 @@
  "field_order": [
   "student_id",
   "amount",
+  "referred_for_student",
   "column_break_fdbb",
   "student_name",
-  "valid_till"
+  "valid_till",
+  "referred_for_student_name"
  ],
  "fields": [
   {
@@ -41,12 +43,27 @@
   {
    "fieldname": "column_break_fdbb",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "referred_for_student",
+   "fieldtype": "Link",
+   "label": "Referred For Student",
+   "options": "Student",
+   "in_standard_filter": 1
+  },
+  {
+   "fetch_from": "referred_for_student.student_name",
+   "fieldname": "referred_for_student_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Referred For Student Name",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-07 00:01:34.231712",
+ "modified": "2026-09-26 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Referral Coupon Code",

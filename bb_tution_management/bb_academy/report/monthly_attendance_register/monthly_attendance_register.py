@@ -110,6 +110,17 @@ def execute(filters=None):
     for sd in special_days:
         special_by_date[getdate(sd.class_date)].append(sd)
 
+    # Student-wise holidays (e.g. a school's post-exam leave for some students).
+    student_holidays = frappe.db.sql("""
+        SELECT student, from_date, to_date
+        FROM `tabStudent Holiday`
+        WHERE from_date <= %(to_date)s AND to_date >= %(from_date)s
+    """, filters, as_dict=True)
+
+    student_holidays_by_student = defaultdict(list)
+    for sh in student_holidays:
+        student_holidays_by_student[sh.student].append((getdate(sh.from_date), getdate(sh.to_date)))
+
     def _covers(rule, row):
         """Does a holiday / special-class rule apply to this student's row?"""
         if rule.scope == 'Entire School':
@@ -135,6 +146,10 @@ def execute(filters=None):
                 if is_holiday and any(_covers(sd, row) for sd in special_by_date.get(d, [])):
                     # Class was conducted despite the holiday.
                     is_holiday = False
+                if not is_holiday:
+                    is_holiday = any(
+                        f <= d <= t for f, t in student_holidays_by_student.get(stu, [])
+                    )
                 row[col] = "H" if is_holiday else "-"
                 
         out.append(row)

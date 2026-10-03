@@ -24,7 +24,7 @@ from frappe.utils import flt
 SKIP_RESULT = "Skipped"
 
 # Behaviour is never skipped — the student was in the room either way.
-SKIPPABLE_CATEGORIES = ["Study", "Test", "Maths Test", "Accounts Test"]
+SKIPPABLE_CATEGORIES = ["Study", "Class", "Test", "Maths Test", "Accounts Test"]
 
 # The subject-specific test, one per standard. "Maths Test" is the default;
 # Commerce standards sit "Accounts Test" instead.
@@ -35,10 +35,13 @@ COMMERCE_SUBJECT_TEST = "Accounts Test"
 # category -> the grades it offers, in the order the UI renders them.
 CATEGORY_RESULTS = {
 	"Study": ["Excellent", "Completed", "Incomplete", SKIP_RESULT],
+	# Class is not graded — every student listed was present and sat the class.
+	# "Attended" only records that it happened and what it covered.
+	"Class": ["Attended", SKIP_RESULT],
 	"Test": ["Full Mark", "Pass Mark", "Fail", SKIP_RESULT],
 	"Maths Test": ["Full Mark", "Pass Mark", "Fail", SKIP_RESULT],
 	"Accounts Test": ["Full Mark", "Pass Mark", "Fail", SKIP_RESULT],
-	"Behaviour": ["Good", "Bad", "Worst"],
+	"Behaviour": ["Good", "Discipline", "Critical"],
 }
 
 CATEGORIES = list(CATEGORY_RESULTS.keys())
@@ -51,17 +54,21 @@ for _cat in CATEGORIES:
 		if _r not in ALL_RESULTS:
 			ALL_RESULTS.append(_r)
 
-# Grades that require the teacher to say what the student actually did.
-REASON_REQUIRED_RESULTS = ["Bad", "Worst"]
+# -----------------------------------------------------------------------------
+# Configuration Variables
+# -----------------------------------------------------------------------------
 
-# Grades that count against a student in the monthly stat chips and the report.
+# Results that demand a specific behaviour reason to be picked from the master
+REASON_REQUIRED_RESULTS = ["Discipline", "Critical"]
+
+# Results that qualify as a "mistake" / "poor performance" metric
 # Skipped is deliberately absent: an excused student has not done badly.
-LOW_RESULTS = ["Incomplete", "Fail", "Bad", "Worst"]
+LOW_RESULTS = ["Incomplete", "Fail", "Discipline", "Critical"]
 
 # Only students the attendance register marks with one of these statuses are
 # listed for grading — you cannot rate a lesson a student did not sit through.
-# Add "Late" here if late arrivals should be gradable too.
-PRESENT_STATUSES = ["Present"]
+# A late arrival still sat the lesson, so they are graded too.
+PRESENT_STATUSES = ["Present", "Late"]
 
 # Half the paper is a pass, unless the teacher overrides it for the day.
 PASS_MARK_PERCENT = 50.0
@@ -75,6 +82,14 @@ _CONFIG = {
 		# Subject / Lesson / Portion are entered once for the whole batch.
 		"uses_syllabus": True,
 		"uses_questions": True,
+		"uses_marks": False,
+		"uses_reasons": False,
+		"uses_skip": True,
+	},
+	"Class": {
+		# Subject / Lesson / Portion, same as Study — but no grade to give.
+		"uses_syllabus": True,
+		"uses_questions": False,
 		"uses_marks": False,
 		"uses_reasons": False,
 		"uses_skip": True,

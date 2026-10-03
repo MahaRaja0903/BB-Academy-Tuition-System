@@ -193,6 +193,7 @@ frappe.ui.form.on("Student", {
 						row.status = kept.status;
 						row.amount_paid = kept.amount_paid;
 						row.pending = kept.pending;
+						row.coupon_amount = kept.coupon_amount;
 					} else {
 						let status = pos < admission_pos ? "Not Joined" : "Not Paid";
 						if (frm.doc.scholarship_student && status === "Not Paid") {

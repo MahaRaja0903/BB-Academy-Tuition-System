@@ -38,6 +38,7 @@ MAP_FIELDS = (
 	"area",
 	"street_name",
 	"address",
+	"school_name",
 	"latitude",
 	"longitude",
 )
@@ -93,6 +94,7 @@ def _split(rows):
 					"area": row.get("area"),
 					"street_name": row.get("street_name"),
 					"address": row.get("address"),
+					"school": row.get("school_name"),
 					"latitude": flt(row.get("latitude")),
 					"longitude": flt(row.get("longitude")),
 				}
@@ -185,3 +187,47 @@ def get_students_without_location(limit_start=0, page_length=DEFAULT_PAGE_LENGTH
 		"returned": len(rows),
 		"has_more": len(rows) == page_length,
 	}
+
+
+@frappe.whitelist()
+def get_places():
+	"""The tuition centre and every active school that has coordinates.
+
+	These are fixed reference points drawn on top of the students: the tuition
+	centre comes from BB Academy Settings (`tuition_latitude` /
+	`tuition_longitude`), schools from their own Latitude / Longitude fields.
+	Distances are worked out in the browser, so nothing else is needed here.
+	"""
+	_guard()
+
+	settings = frappe.get_cached_doc("BB Academy Settings")
+	tuition = None
+	if has_valid_coordinates(settings.get("tuition_latitude"), settings.get("tuition_longitude")):
+		tuition = {
+			"name": _("BB Academy"),
+			"latitude": flt(settings.tuition_latitude),
+			"longitude": flt(settings.tuition_longitude),
+		}
+
+	located, unlocated = [], 0
+	for row in frappe.get_all(
+		"School",
+		filters={"is_active": 1},
+		fields=["name", "school_name", "board", "address", "latitude", "longitude"],
+		order_by="school_name asc",
+	):
+		if not has_valid_coordinates(row.latitude, row.longitude):
+			unlocated += 1
+			continue
+		located.append(
+			{
+				"name": row.name,
+				"school_name": row.school_name or row.name,
+				"board": row.board,
+				"address": row.address,
+				"latitude": flt(row.latitude),
+				"longitude": flt(row.longitude),
+			}
+		)
+
+	return {"tuition": tuition, "schools": located, "schools_without_location": unlocated}

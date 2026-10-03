@@ -1,7 +1,7 @@
 {
  "charts": [],
  "content": "[{\"id\":\"perfShortcutHeader\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Quick Access</span>\",\"col\":12}},{\"id\":\"sc0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Student Profile\",\"col\":3}},{\"id\":\"sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Performance Manager\",\"col\":3}},{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"bbDashLink\",\"type\":\"card\",\"data\":{\"card_name\":\"Dashboard\",\"col\":4}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"0FsumFCZ5D\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}},{\"id\":\"attManagerCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance\",\"col\":4}},{\"id\":\"attReportCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance Reports\",\"col\":4}},{\"id\":\"perfManagerCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Performance\",\"col\":4}}]",
- "creation": "2026-08-20 15:19:33.586124",
+ "creation": "2026-09-27 10:31:46.166036",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -17,7 +17,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Dashboard",
-   "link_count": 1,
+   "link_count": 5,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -31,6 +31,48 @@
    "link_to": "bb-dashboard",
    "link_type": "Page",
    "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "description": "Enquiry to admission conversion by standard and gender",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Enquiry Conversion",
+   "link_count": 0,
+   "link_to": "enquiry-conversion",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "description": "Admissions by month and standard, with enquiries alongside",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Admission Trends",
+   "link_count": 0,
+   "link_to": "admission-trends",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Fees Report",
+   "link_count": 0,
+   "link_to": "fees-report",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Fee Payment Summary",
+   "link_count": 0,
+   "link_to": "fee-payment-summary",
+   "link_type": "Page",
+   "onboard": 0,
    "type": "Link"
   },
   {
@@ -437,7 +479,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-06 01:47:12.404380",
+ "modified": "2026-09-30 20:28:11.972741",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "BB Academy",

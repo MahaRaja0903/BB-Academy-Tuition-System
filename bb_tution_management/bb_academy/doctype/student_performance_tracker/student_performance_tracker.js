@@ -9,10 +9,11 @@ const LESSON_QUERY =
 // Mirrors CATEGORY_RESULTS in bb_academy/performance_config.py.
 const CATEGORY_RESULTS = {
 	Study: ["Excellent", "Completed", "Incomplete", "Skipped"],
+	Class: ["Attended", "Skipped"],
 	Test: ["Full Mark", "Pass Mark", "Fail", "Skipped"],
 	"Maths Test": ["Full Mark", "Pass Mark", "Fail", "Skipped"],
 	"Accounts Test": ["Full Mark", "Pass Mark", "Fail", "Skipped"],
-	Behaviour: ["Good", "Bad", "Worst"],
+	Behaviour: ["Good", "Discipline", "Critical"],
 };
 
 // A Table MultiSelect has no set_value; emptying the grid is how you clear it.

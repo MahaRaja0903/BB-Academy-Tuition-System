@@ -55,25 +55,48 @@ def get_academic_year(date=None, standard=None):
 
 @frappe.whitelist()
 def make_admission_form(source_name, target_doc=None):
-	enquiry = frappe.get_doc("Student Enquiry Form", source_name)
-	
-	adm_form = frappe.get_doc({
-		"doctype": "Student Admission Form",
-		"student_enquiry": enquiry.name,
-		"academic_year": enquiry.academic_year,
-		"standard": enquiry.standard,
-		"student_name": enquiry.applicant_name,
-		"gender": enquiry.gender,
-		"date_of_birth": enquiry.date_of_birth,
-		"school_name": enquiry.school_name,
-		"father_name": enquiry.father_name,
-		"mother_name": enquiry.mother_name,
-		"father_mobile_number": enquiry.father_number,
-		"mother_mobile_number": enquiry.mother_number,
-		"address": enquiry.get("address") if hasattr(enquiry, "address") else None,
-		"application_date": frappe.utils.today()
-	})
-	return adm_form
+	from frappe.model.mapper import get_mapped_doc
+
+	# One enquiry becomes one admission -- send staff to the existing one
+	# rather than letting a second draft pile up.
+	existing = frappe.db.get_value(
+		"Student Admission Form",
+		{"student_enquiry": source_name, "docstatus": ["<", 2]},
+		"name",
+	)
+	if existing:
+		frappe.throw(
+			_("Admission Form {0} already exists for this enquiry.").format(
+				frappe.utils.get_link_to_form("Student Admission Form", existing)
+			),
+			title=_("Admission Already Created"),
+		)
+
+	def set_missing_values(source, target):
+		target.student_enquiry = source.name
+		target.application_date = frappe.utils.today()
+		if source.standard and not target.starting_payment:
+			target.starting_payment = frappe.db.get_value("Standard", source.standard, "starting_payment")
+
+	return get_mapped_doc(
+		"Student Enquiry Form",
+		source_name,
+		{
+			"Student Enquiry Form": {
+				"doctype": "Student Admission Form",
+				"field_map": {
+					"applicant_name": "student_name",
+					"father_number": "father_mobile_number",
+					"mother_number": "mother_mobile_number",
+					"guardian_number": "guardian_mobile_number",
+					"street": "street_name",
+				},
+				"field_no_map": ["naming_series", "status"],
+			},
+		},
+		target_doc,
+		set_missing_values,
+	)
 
 @frappe.whitelist()
 def get_short_url(long_url):

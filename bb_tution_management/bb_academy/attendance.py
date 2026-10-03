@@ -58,7 +58,7 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
         return {
             "students": [],
             "summary": {
-                "present": 0, "absent": 0, "late": 0, "pending": 0,
+                "present": 0, "absent": 0, "late": 0, "pending": 0, "holiday": 0,
                 "second_present": 0, "second_absent": 0, "second_late": 0, "second_pending": 0,
                 "first_round_complete": False,
             },
@@ -120,16 +120,23 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
     """, (date_obj, tuple(student_ids)), as_dict=True)
     lp_map = {p.student: p for p in late_permissions}
 
+    # 7. Student-wise holidays covering this date
+    sh_map = get_student_holidays(student_ids, date_obj)
+
     # Combine data
     result_students = []
     summary = {
-        "present": 0, "absent": 0, "late": 0, "pending": 0,
+        "present": 0, "absent": 0, "late": 0, "pending": 0, "holiday": 0,
         "second_present": 0, "second_absent": 0, "second_late": 0, "second_pending": 0,
     }
     
     for s in students:
         t_stat = today_map.get(s.name)
-        if t_stat == 'Present': summary["present"] += 1
+        student_holiday = sh_map.get(s.name)
+        if student_holiday:
+            # Off for the day: neither marked nor pending, in either round.
+            summary["holiday"] += 1
+        elif t_stat == 'Present': summary["present"] += 1
         elif t_stat == 'Absent': summary["absent"] += 1
         elif t_stat == 'Late': summary["late"] += 1
         else: summary["pending"] += 1
@@ -137,7 +144,8 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
         # Second round is only ever recorded on a row the first round created,
         # so an unmarked first round counts as pending here too.
         s_stat = second_map.get(s.name)
-        if s_stat == 'Present': summary["second_present"] += 1
+        if student_holiday: pass
+        elif s_stat == 'Present': summary["second_present"] += 1
         elif s_stat == 'Absent': summary["second_absent"] += 1
         elif s_stat == 'Late': summary["second_late"] += 1
         else: summary["second_pending"] += 1
@@ -176,7 +184,8 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
             "parents_informed": lp.parents_informed if lp else 0,
             "is_temporary": is_temporary,
             "original_batch": s.current_batch,
-            "second_status": second_map.get(s.name)
+            "second_status": second_map.get(s.name),
+            "student_holiday": student_holiday,
         })
 
     # Gates the "Second Attendance" toggle in both UIs: the second round can
@@ -269,6 +278,12 @@ def _previous_day_pending(standard, batch, attendance_date):
         day_students = _get_batch_students(standard, batch, cursor)
         if not day_students:
             # No student had joined yet on that day.
+            return None
+
+        # Students on a student-wise holiday that day owe no attendance.
+        off = get_student_holidays([s.name for s in day_students], cursor)
+        day_students = [s for s in day_students if s.name not in off]
+        if not day_students:
             return None
 
         day_ids = tuple(s.name for s in day_students)
@@ -492,6 +507,13 @@ def save_student_attendance(student, attendance_date, status, late_reason=None, 
     if holiday:
         frappe.throw("Cannot mark attendance on a holiday")
 
+    if get_student_holidays([student], attendance_date):
+        frappe.throw(
+            f"{stu.student_name} is on holiday on {getdate(attendance_date)}. "
+            "Remove the student holiday to mark attendance.",
+            title="Student On Holiday",
+        )
+
     # Round one only. The second round is optional and writes onto a row the
     # first round already created, so the day it belongs to was validated when
     # that row was saved — re-checking here would strand an in-progress second
@@ -560,6 +582,11 @@ def save_bulk_attendance(students, standard, batch, attendance_date, status, lat
 
     date_obj = getdate(attendance_date)
 
+    # Skipped rather than refused: "select all" on the screen can sweep in a
+    # student who is off today, and the rest of the batch should still save.
+    on_holiday = get_student_holidays(students, date_obj)
+    students = [s for s in students if s not in on_holiday]
+
     student_names = frappe.db.get_all(
         "Student",
         filters={"name": ["in", students]},
@@ -584,7 +611,7 @@ def save_bulk_attendance(students, standard, batch, attendance_date, status, lat
             )
         count += 1
 
-    return {"status": "success", "count": count}
+    return {"status": "success", "count": count, "skipped_on_holiday": sorted(on_holiday)}
 
 
 @frappe.whitelist()
@@ -753,6 +780,84 @@ def remove_special_class_day(date, standard=None, batch=None):
 
     frappe.delete_doc("Special Class Day", existing.name)
     return {"status": "success", "removed": True, "scope": existing.scope}
+
+
+# ---------------------------------------------------------------------------
+# Student-wise holidays
+# ---------------------------------------------------------------------------
+
+def get_student_holidays(student_ids, date):
+    """{student: holiday} for the students among `student_ids` who are on a
+    Student Holiday on `date`."""
+    student_ids = list(student_ids or [])
+    if not student_ids:
+        return {}
+
+    rows = frappe.db.sql("""
+        SELECT name, student, from_date, to_date, reason
+        FROM `tabStudent Holiday`
+        WHERE student IN %s
+          AND from_date <= %s
+          AND to_date >= %s
+    """, (tuple(student_ids), getdate(date), getdate(date)), as_dict=True)
+
+    return {r.student: r for r in rows}
+
+
+@frappe.whitelist()
+def assign_student_holiday(students, from_date, to_date, reason):
+    """Give the selected students a holiday from `from_date` to `to_date`.
+
+    Attendance already marked for them inside the range is cleared: the day is
+    a holiday for them, so an Absent recorded before the holiday was entered
+    must not keep counting against the student.
+    """
+    if not frappe.has_permission("Student Holiday", "create"):
+        frappe.throw("No permission to assign a student holiday")
+
+    if isinstance(students, str):
+        students = json.loads(students)
+    if not students:
+        frappe.throw("No students selected")
+
+    reason = (reason or "").strip()
+    if not reason:
+        frappe.throw("Reason is required")
+
+    from_date, to_date = getdate(from_date), getdate(to_date)
+    if to_date < from_date:
+        frappe.throw("To Date cannot be before From Date.")
+
+    created = []
+    for student in students:
+        doc = frappe.get_doc({
+            "doctype": "Student Holiday",
+            "student": student,
+            "from_date": from_date,
+            "to_date": to_date,
+            "reason": reason,
+        })
+        doc.insert()
+        created.append(doc.name)
+
+    cleared = frappe.db.sql("""
+        SELECT name FROM `tabStudent Attendance`
+        WHERE student IN %s AND attendance_date BETWEEN %s AND %s
+    """, (tuple(students), from_date, to_date), pluck=True)
+    for name in cleared:
+        frappe.delete_doc("Student Attendance", name)
+
+    return {"status": "success", "created": created, "cleared_attendance": len(cleared)}
+
+
+@frappe.whitelist()
+def remove_student_holiday(name):
+    """Delete a Student Holiday, making its days markable again."""
+    if not frappe.has_permission("Student Holiday", "delete"):
+        frappe.throw("No permission to remove a student holiday")
+
+    frappe.delete_doc("Student Holiday", name)
+    return {"status": "success"}
 
 
 @frappe.whitelist()

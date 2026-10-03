@@ -8,3 +8,4 @@ bb_tution_management.patches.remove_sms_settings
 bb_tution_management.patches.performance_lesson_portion_masters
 bb_tution_management.patches.performance_lessons_multiselect
 bb_tution_management.patches.clear_auto_stamped_times
+bb_tution_management.patches.add_fees_report_workspace_link

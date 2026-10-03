@@ -36,6 +36,12 @@
   "mother_name",
   "mother_mobile_number",
   "mother_occupation",
+  "section_break_ofkj",
+  "guardian_name",
+  "relation_with_guardian",
+  "column_break_xvje",
+  "guardian_mobile_number",
+  "guardian_occupation",
   "academic_allocation_section",
   "standard",
   "group",
@@ -409,7 +415,7 @@
    "fieldname": "preferred_mobile_number",
    "fieldtype": "Select",
    "label": "Preferred Mobile Number",
-   "options": "\nFather\nMother"
+   "options": "\nFather\nMother\nGuardian"
   },
   {
    "default": "0",
@@ -438,13 +444,42 @@
    "fieldname": "mother_occupation",
    "fieldtype": "Data",
    "label": "Mother occupation"
+  },
+  {
+   "fieldname": "guardian_name",
+   "fieldtype": "Data",
+   "label": "Guardian Name"
+  },
+  {
+   "fieldname": "relation_with_guardian",
+   "fieldtype": "Select",
+   "label": "Relation With Guardian",
+   "options": "\nGrand Mother\nGrand Father\nUncle\nAunt\nBrother\nSister\nOther"
+  },
+  {
+   "fieldname": "guardian_occupation",
+   "fieldtype": "Data",
+   "label": "Guardian Occupation"
+  },
+  {
+   "fieldname": "guardian_mobile_number",
+   "fieldtype": "Data",
+   "label": "Guardian Mobile Number"
+  },
+  {
+   "fieldname": "section_break_ofkj",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_xvje",
+   "fieldtype": "Column Break"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-14 00:13:55.898707",
+ "modified": "2026-09-26 15:12:57.564968",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

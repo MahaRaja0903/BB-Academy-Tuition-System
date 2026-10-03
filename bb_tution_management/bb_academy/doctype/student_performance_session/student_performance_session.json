@@ -60,7 +60,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Category",
-   "options": "Study\nTest\nMaths Test\nAccounts Test\nBehaviour",
+   "options": "Study\nClass\nTest\nMaths Test\nAccounts Test\nBehaviour",
    "reqd": 1
   },
   {
@@ -70,7 +70,7 @@
   },
   {
    "default": "0",
-   "depends_on": "eval:['Study','Test','Maths Test','Accounts Test'].includes(doc.category)",
+   "depends_on": "eval:['Study','Class','Test','Maths Test','Accounts Test'].includes(doc.category)",
    "description": "Tick when management planned no session of this category for this batch on this date. Nothing is graded for the day.",
    "fieldname": "no_session",
    "fieldtype": "Check",

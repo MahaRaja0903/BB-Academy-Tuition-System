@@ -66,6 +66,7 @@ class Student(Document):
 
 	def before_save(self):
 		self.track_batch_change()
+		self.track_rejoin()
 
 	def update_scholarship_payment_details(self):
 		"""When scholarship_student is checked, set all 'Not Paid' statuses in payment_details to 'Paid'."""
@@ -96,8 +97,8 @@ class Student(Document):
 			"doctype": "Referral Coupon Code",
 			"student_id": referring_student.name,
 			"student_name": referring_student.student_name,
-			"referred_student_id": self.name,
-			"referred_student_name": self.student_name,
+			"referred_for_student": self.name,
+			"referred_for_student_name": self.student_name,
 			"amount": 500,
 			"valid_till": valid_till,
 		})
@@ -187,6 +188,7 @@ class Student(Document):
 					"amount_need_to_pay": starting_payment_row.amount_need_to_pay,
 					"amount_paid": starting_payment_row.amount_paid,
 					"pending": starting_payment_row.pending,
+					"coupon_amount": starting_payment_row.coupon_amount,
 				})
 			else:
 				self.append("payment_details", {
@@ -209,6 +211,7 @@ class Student(Document):
 					"amount_need_to_pay": kept.amount_need_to_pay,
 					"amount_paid": kept.amount_paid,
 					"pending": kept.pending,
+					"coupon_amount": kept.coupon_amount,
 				})
 			else:
 				# Determine if the student had joined by this month
@@ -376,14 +379,42 @@ class Student(Document):
 			)
 		)
 
+	def track_rejoin(self):
+		if self.is_new():
+			return
+
+		doc_before = self.get_doc_before_save()
+		if not doc_before:
+			return
+
+		if doc_before.status == "Discontinued" and self.status == "Active":
+			if not self.rejoined_date:
+				frappe.throw(_("Rejoined Date is mandatory when changing status from Discontinued to Active."))
+			
+			rejoin_log = frappe.get_doc({
+				"doctype": "Student Rejoin Log",
+				"student": self.name,
+				"student_name": self.student_name,
+				"rejoined_date": self.rejoined_date,
+				"discontinued_date": doc_before.discontinued__date,
+				"discontinued_reason": doc_before.discontinued_reason
+			})
+			rejoin_log.insert(ignore_permissions=True)
+			
+			frappe.msgprint(_("Student Rejoin Log created successfully."))
+			
+			self.discontinued__date = None
+			self.discontinued_reason = None
+
 	def set_preferred_whatsapp_number(self):
 		if self.preferred_mobile_number == "Father":
 			phone = self.father_mobile_number
 		elif self.preferred_mobile_number == "Mother":
 			phone = self.mother_mobile_number
+		elif self.preferred_mobile_number == "Guardian":
+			phone = self.guardian_mobile_number
 		else:
-			phone = self.father_mobile_number or self.mother_mobile_number
-
+			phone = self.father_mobile_number or self.mother_mobile_number or self.guardian_mobile_number
 		if phone:
 			phone = str(phone).strip()
 			if len(phone) == 10 and phone.isdigit():

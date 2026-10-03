@@ -984,3 +984,112 @@
 		height: 38px;
 	}
 }
+
+/* --------------------------------------------------------------------------
+   Places — the tuition centre and schools, drawn above the student pins
+   -------------------------------------------------------------------------- */
+
+.slm-place {
+	background: none;
+	border: 0;
+	--slm-place: #0f766e;
+}
+
+.slm-place-tuition {
+	--slm-place: #e2504d;
+}
+
+.slm-place-pin {
+	position: relative;
+	width: 100%;
+	aspect-ratio: 1;
+	border-radius: 10px;
+	background: var(--slm-place);
+	color: #fff;
+	border: 3px solid #fff;
+	box-shadow: 0 3px 10px rgba(17, 24, 39, 0.35);
+	display: grid;
+	place-items: center;
+	font-size: 16px;
+	transition: transform 0.12s ease;
+}
+
+.slm-place-tuition .slm-place-pin {
+	border-radius: 50%;
+	font-size: 20px;
+	box-shadow: 0 0 0 6px rgba(226, 80, 77, 0.25), 0 4px 12px rgba(17, 24, 39, 0.35);
+}
+
+.slm-place:hover .slm-place-pin {
+	transform: scale(1.07);
+}
+
+.slm-place-tail {
+	position: absolute;
+	left: 50%;
+	bottom: 2px;
+	width: 12px;
+	height: 12px;
+	background: var(--slm-place);
+	transform: translateX(-50%) rotate(45deg);
+	border-radius: 0 0 3px 0;
+}
+
+.slm-popup-head-school {
+	background: linear-gradient(135deg, #0f766e, #115e59);
+}
+
+.slm-popup-head-tuition {
+	background: linear-gradient(135deg, #e2504d, #b91c1c);
+}
+
+.slm-popup-head-school .slm-popup-avatar,
+.slm-popup-head-tuition .slm-popup-avatar {
+	font-size: 22px;
+}
+
+/* Distance banner at the top of a student's popup */
+.slm-popup-distance {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 10px 16px;
+	background: rgba(226, 80, 77, 0.08);
+	border-bottom: 1px solid rgba(226, 80, 77, 0.18);
+}
+
+.slm-popup-distance-value {
+	font-size: 18px;
+	font-weight: 700;
+	color: #b91c1c;
+	font-variant-numeric: tabular-nums;
+}
+
+.slm-popup-distance-label {
+	font-size: 11.5px;
+	color: #7a8092;
+}
+
+.slm-popup-distance-unset {
+	display: block;
+	font-size: 11.5px;
+	color: #7a8092;
+	background: #f6f7f9;
+	border-bottom-color: #edf0f5;
+}
+
+/* Label riding on the dashed student → tuition line */
+.leaflet-tooltip.slm-distance-label {
+	background: #b91c1c;
+	color: #fff;
+	border: 0;
+	border-radius: 999px;
+	padding: 3px 10px;
+	font-size: 12px;
+	font-weight: 700;
+	box-shadow: 0 2px 8px rgba(17, 24, 39, 0.25);
+}
+
+.leaflet-tooltip.slm-distance-label:before {
+	display: none;
+}

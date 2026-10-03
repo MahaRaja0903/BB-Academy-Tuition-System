@@ -1,0 +1,480 @@
+/* Student Enquiry & Conversion dashboard: styles.
+
+   The canvas keeps its own light pastel palette (mint plane, beige-pink cards) in
+   both desk themes, so it always matches the printed version the client signed
+   off. Box colours come from the brief: blue #89CFF0, green #4CAF50, red #F44336.
+   Numbers on them use dark ink, which stays readable on all three (white on
+   #4CAF50 falls below 3:1).
+
+   Row alignment: the label column on the left and every segment column share
+   --ec-head-h / --ec-row-h / --ec-rate-h, which keeps "ENQUIRED COUNT" level
+   with the blue boxes. Change them together. */
+
+.ec-root {
+	--ec-plane: #eef8f2;
+	--ec-card: #fbefe6;
+	--ec-card-line: #ecd9c8;
+	--ec-ink: #1b1b1b;
+	--ec-ink-2: #555049;
+	--ec-arrow: #2f3a44;
+
+	--ec-enq: #89cff0;
+	--ec-join: #4caf50;
+	--ec-not: #f44336;
+
+	--ec-pad: 14px;
+	--ec-head-h: 150px;
+	--ec-row-h: 84px;
+	--ec-rate-h: 64px;
+	--ec-rate-gap: 12px;
+}
+
+/* While a reload runs, the old figures are dimmed and cannot be clicked, so a
+   drill-down never opens the list for filters that are about to change. */
+.ec-root.ec-loading .ec-canvas {
+	opacity: 0.55;
+	pointer-events: none;
+	transition: opacity 0.15s;
+}
+
+.ec-canvas {
+	background: var(--ec-plane);
+	color: var(--ec-ink);
+	border-radius: 16px;
+	padding: 24px 24px 20px;
+	margin-bottom: 24px;
+}
+
+/* ── header ───────────────────────────────────────────────────────── */
+
+.ec-head {
+	text-align: center;
+	margin-bottom: 22px;
+}
+
+.ec-title {
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: clamp(18px, 2.4vw, 30px);
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--ec-ink);
+	margin: 0 0 6px;
+}
+
+.ec-sub {
+	font-size: 16px;
+	color: var(--ec-ink-2);
+}
+
+/* ── board: labels | segments | side panel ─────────────────────────── */
+
+.ec-board {
+	display: grid;
+	grid-template-columns: 170px minmax(0, 1fr) 280px;
+	gap: 18px;
+	align-items: start;
+}
+
+.ec-labels {
+	display: flex;
+	flex-direction: column;
+	padding-top: var(--ec-pad);
+}
+
+.ec-labels__spacer {
+	height: var(--ec-head-h);
+}
+
+.ec-label {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-weight: 700;
+	font-size: 14px;
+	line-height: 1.2;
+	text-transform: uppercase;
+	color: var(--ec-ink);
+}
+
+.ec-label__ico {
+	flex: 0 0 34px;
+	height: 34px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 16px;
+	background: #fff;
+	border: 1px solid var(--ec-card-line);
+}
+
+.ec-label__ico--enq { color: #2b7fae; }
+.ec-label__ico--join { color: #2e7d32; }
+.ec-label__ico--not { color: #c62828; }
+
+.ec-label--rate {
+	height: var(--ec-rate-h);
+	margin-top: var(--ec-rate-gap);
+	border-top: 1px solid var(--ec-ink-2);
+	padding-left: 4px;
+}
+
+.ec-row-h {
+	height: var(--ec-row-h);
+}
+
+/* ── segment columns ──────────────────────────────────────────────── */
+
+.ec-segments-scroll {
+	overflow-x: auto;
+	padding-bottom: 4px;
+}
+
+.ec-segments {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(160px, 1fr);
+	gap: 16px;
+}
+
+.ec-col {
+	position: relative;
+	background: var(--ec-card);
+	border: 1px solid var(--ec-card-line);
+	border-radius: 18px;
+	padding: var(--ec-pad) 0 8px;
+}
+
+.ec-col__head {
+	height: var(--ec-head-h);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 0 8px 12px;
+	text-align: center;
+}
+
+.ec-avatar {
+	width: 60px;
+	height: 60px;
+	border-radius: 50%;
+	background: #fff;
+	border: 1px solid var(--ec-card-line);
+	overflow: hidden;
+}
+
+.ec-avatar svg {
+	width: 100%;
+	height: 100%;
+	display: block;
+}
+
+.ec-avatar--pair {
+	width: 96px;
+	border-radius: 30px;
+}
+
+.ec-pair {
+	display: flex;
+	height: 100%;
+}
+
+.ec-pair svg {
+	width: 50%;
+}
+
+.ec-col__title {
+	font-weight: 700;
+	font-size: 15px;
+	line-height: 1.3;
+	text-transform: uppercase;
+	color: var(--ec-ink);
+}
+
+.ec-col__title sup {
+	text-transform: lowercase;
+	font-size: 0.65em;
+}
+
+.ec-stack {
+	width: 72%;
+	margin: 0 auto;
+}
+
+.ec-box {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 30px;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	color: var(--ec-ink);
+	cursor: pointer;
+	transition: filter 0.12s;
+}
+
+.ec-box:hover,
+.ec-box:focus-visible {
+	filter: brightness(0.94);
+	outline: none;
+}
+
+.ec-box:focus-visible {
+	box-shadow: inset 0 0 0 3px var(--ec-ink);
+}
+
+.ec-box--enq { background: var(--ec-enq); }
+.ec-box--join { background: var(--ec-join); }
+.ec-box--not { background: var(--ec-not); }
+
+/* Only shown on narrow screens, where the left label column is hidden. */
+.ec-box__tag {
+	display: none;
+}
+
+.ec-col__rate {
+	height: var(--ec-rate-h);
+	margin: var(--ec-rate-gap) 10px 0;
+	border-top: 3px double var(--ec-ink);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: clamp(22px, 2.3vw, 32px);
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	color: var(--ec-ink);
+}
+
+/* Thin connector from the Joined box down to the Conversion %, with
+   left-pointing arrowheads at both ends, as in the printed version. */
+.ec-bracket {
+	position: absolute;
+	left: 86%;
+	width: 7%;
+	top: calc(var(--ec-pad) + var(--ec-head-h) + var(--ec-row-h) * 1.5);
+	height: calc(var(--ec-row-h) * 1.5 + var(--ec-rate-gap) + var(--ec-rate-h) / 2);
+	border: 1.5px solid var(--ec-arrow);
+	border-left: 0;
+	pointer-events: none;
+}
+
+.ec-bracket::before,
+.ec-bracket::after {
+	content: "";
+	position: absolute;
+	left: -2px;
+	border: 5px solid transparent;
+	border-right: 7px solid var(--ec-arrow);
+	border-left: 0;
+}
+
+.ec-bracket::before { top: -6px; }
+.ec-bracket::after { bottom: -6px; }
+
+.ec-empty {
+	padding: 48px 16px;
+	text-align: center;
+	color: var(--ec-ink-2);
+	background: var(--ec-card);
+	border-radius: 18px;
+}
+
+/* ── side panel ───────────────────────────────────────────────────── */
+
+.ec-side {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	padding-top: 0;
+}
+
+.ec-summary,
+.ec-rate-card {
+	background: var(--ec-card);
+	border: 1.5px solid var(--ec-card-line);
+	border-radius: 14px;
+}
+
+.ec-summary {
+	padding: 14px 16px 12px;
+}
+
+.ec-summary__title,
+.ec-rate-card__label {
+	text-align: center;
+	font-weight: 800;
+	font-size: 16px;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: var(--ec-ink);
+}
+
+.ec-bars {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	margin-top: 10px;
+}
+
+.ec-bar {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.ec-bar[data-ec-drill] {
+	cursor: pointer;
+}
+
+.ec-bar__value {
+	font-weight: 800;
+	font-size: 20px;
+	font-variant-numeric: tabular-nums;
+	margin-bottom: 4px;
+}
+
+.ec-bar__track {
+	width: 100%;
+	height: 150px;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	border-bottom: 1.5px solid var(--ec-ink);
+}
+
+.ec-bar__fill {
+	width: 68%;
+	min-height: 2px;
+	border-radius: 3px 3px 0 0;
+	transition: height 0.3s ease;
+}
+
+.ec-bar:hover .ec-bar__fill,
+.ec-bar:focus-visible .ec-bar__fill {
+	filter: brightness(0.93);
+}
+
+.ec-bar__fill--all { background: var(--ec-enq); }
+.ec-bar__fill--joined { background: var(--ec-join); }
+.ec-bar__fill--not_joined { background: var(--ec-not); }
+
+.ec-bar__label {
+	margin-top: 6px;
+	font-size: 12px;
+	line-height: 1.2;
+	text-align: center;
+	color: var(--ec-ink-2);
+}
+
+/* Down arrow from the summary to the overall rate. */
+.ec-flow {
+	position: relative;
+	height: 34px;
+}
+
+.ec-flow::before {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: 4px;
+	bottom: 8px;
+	border-left: 1.5px solid var(--ec-arrow);
+}
+
+.ec-flow::after {
+	content: "";
+	position: absolute;
+	left: calc(50% - 5px);
+	bottom: 2px;
+	border: 5.5px solid transparent;
+	border-top: 7px solid var(--ec-arrow);
+	border-bottom: 0;
+}
+
+.ec-rate-card {
+	padding: 16px 12px 18px;
+	border-width: 2px;
+	border-color: #d8bfa8;
+}
+
+.ec-rate-card__value {
+	text-align: center;
+	font-size: 46px;
+	font-weight: 800;
+	line-height: 1.1;
+	margin-top: 8px;
+	font-variant-numeric: tabular-nums;
+	color: var(--ec-ink);
+}
+
+.ec-note {
+	margin: 16px 0 0;
+	font-size: 13px;
+	color: var(--ec-ink-2);
+	text-align: center;
+}
+
+/* ── narrow screens ───────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+	.ec-board {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.ec-labels,
+	.ec-bracket {
+		display: none;
+	}
+
+	.ec-segments {
+		grid-auto-flow: row;
+		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+	}
+
+	.ec-box,
+	.ec-col__rate {
+		flex-direction: column;
+		line-height: 1.1;
+	}
+
+	.ec-box__tag {
+		display: block;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		margin-bottom: 2px;
+	}
+
+	.ec-stack {
+		width: 84%;
+	}
+
+	.ec-side {
+		max-width: 420px;
+		width: 100%;
+		margin: 0 auto;
+	}
+}
+
+@media (max-width: 600px) {
+	.ec-canvas {
+		padding: 16px 12px;
+	}
+
+	.ec-segments {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 10px;
+	}
+
+	.ec-root {
+		--ec-head-h: 130px;
+		--ec-row-h: 70px;
+	}
+
+	.ec-box {
+		font-size: 24px;
+	}
+}

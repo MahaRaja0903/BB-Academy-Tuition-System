@@ -10,6 +10,7 @@ Everything is scoped to a date range (the page defaults to the current month).
 
 import frappe
 from frappe.utils import (
+	add_days,
 	cint,
 	date_diff,
 	flt,
@@ -59,6 +60,10 @@ STUDENT_FIELDS = [
 	"father_mobile_number",
 	"mother_name",
 	"mother_mobile_number",
+	"guardian_name",
+	"guardian_mobile_number",
+	"guardian_occupation",
+	"relation_with_guardian",
 	"preferred_mobile_number",
 	"area",
 	"street_name",
@@ -318,6 +323,25 @@ def _get_attendance(student, from_date, to_date, holidays):
 				"remarks": row.remarks or "",
 			}
 		)
+	# Student-wise holidays: one entry per day, skipping days already covered
+	# by a school holiday or carrying an attendance record.
+	taken = set(holiday_map) | {str(r.attendance_date) for r in rows}
+	for sh in frappe.db.sql(
+		"""
+		SELECT from_date, to_date, reason
+		FROM `tabStudent Holiday`
+		WHERE student = %(student)s AND from_date <= %(to_date)s AND to_date >= %(from_date)s
+		""",
+		{"student": student, "from_date": from_date, "to_date": to_date},
+		as_dict=True,
+	):
+		d = max(getdate(sh.from_date), getdate(from_date))
+		end = min(getdate(sh.to_date), getdate(to_date))
+		while d <= end:
+			if str(d) not in taken:
+				days.append({"date": d, "status": "Holiday", "remarks": f"Student Holiday — {sh.reason}"})
+			d = add_days(d, 1)
+
 	for key, holiday in holiday_map.items():
 		days.append(
 			{

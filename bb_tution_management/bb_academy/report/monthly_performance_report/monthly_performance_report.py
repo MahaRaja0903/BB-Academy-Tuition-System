@@ -3,7 +3,7 @@
 
 """One row per student for a month, pivoted across the performance categories.
 
-Leaving the Category filter blank puts Study, Test, both subject tests and
+Leaving the Category filter blank puts Study, Class, Test, both subject tests and
 Behaviour side by side, which is the view a monthly parent/staff review wants.
 Picking one category narrows the columns to just that category's grades.
 
@@ -23,6 +23,10 @@ RESULT_COLUMNS = {
 		"Completed": "study_completed",
 		"Incomplete": "study_incomplete",
 		SKIP_RESULT: "study_skipped",
+	},
+	"Class": {
+		"Attended": "class_attended",
+		SKIP_RESULT: "class_skipped",
 	},
 	"Test": {
 		"Full Mark": "test_full",
@@ -56,6 +60,11 @@ CATEGORY_COLUMNS = {
 		{"fieldname": "study_completed", "label": "Completed", "fieldtype": "Int", "width": 95},
 		{"fieldname": "study_incomplete", "label": "Incomplete", "fieldtype": "Int", "width": 100},
 		{"fieldname": "study_skipped", "label": "Skipped", "fieldtype": "Int", "width": 85},
+	],
+	"Class": [
+		{"fieldname": "class_days", "label": "Class Days", "fieldtype": "Int", "width": 95},
+		{"fieldname": "class_attended", "label": "Attended", "fieldtype": "Int", "width": 90},
+		{"fieldname": "class_skipped", "label": "Skipped", "fieldtype": "Int", "width": 85},
 	],
 	"Test": [
 		{"fieldname": "test_days", "label": "Tests", "fieldtype": "Int", "width": 75},
@@ -253,6 +262,7 @@ def _get_data(filters, categories):
 def _prefix(category):
 	return {
 		"Study": "study",
+		"Class": "class",
 		"Test": "test",
 		"Maths Test": "maths",
 		"Accounts Test": "accounts",
