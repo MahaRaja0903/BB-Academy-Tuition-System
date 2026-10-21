@@ -184,36 +184,90 @@ class FeesReport {
 			.then((r) => {
 				const rows = r.message || [];
 				const money = (v) => format_currency(flt(v), frappe.defaults.get_default("currency"), 0);
-				const body = rows.length
-					? `<table class="table table-bordered table-condensed fr-table">
+				const uniq = (list) => [...new Set(list.filter(Boolean))].sort();
+				const render = (list) =>
+					list.length
+						? `<table class="table table-bordered table-condensed fr-table">
 						<thead><tr>
-							<th>#</th><th>${__("Student")}</th><th>${__("Standard")}</th><th>${__("Batch")}</th>
-							<th>${__("Fee")}</th><th>${__("Period")}</th><th>${__("Status")}</th>
+							<th>#</th><th>${__("Student")}</th><th>${__("Standard")}</th><th>${__("Batch")}</th><th>${__("Gender")}</th>
+							<th>${__("Fee")}</th><th>${__("Period")}</th><th>${__("Status")}</th><th>${__("Payment Date")}</th>
 							<th class="text-right">${__("Paid")}</th><th class="text-right">${__("Pending")}</th>
 						</tr></thead>
-						<tbody>${rows
+						<tbody>${list
 							.map(
 								(d, i) => `<tr>
 								<td>${i + 1}</td>
 								<td><a href="/app/student/${encodeURIComponent(d.student)}">${frappe.utils.escape_html(d.student_name || d.student)}</a></td>
 								<td>${frappe.utils.escape_html(d.standard || "")}</td>
 								<td>${frappe.utils.escape_html(d.batch || "")}</td>
+								<td>${frappe.utils.escape_html(d.gender || "")}</td>
 								<td>${d.fee}</td>
 								<td>${d.period}</td>
 								<td>${frappe.utils.escape_html(d.status || "")}</td>
+								<td>${d.paid_date ? frappe.datetime.str_to_user(d.paid_date) : ""}</td>
 								<td class="text-right">${money(d.paid)}</td>
 								<td class="text-right">${money(d.pending)}</td>
 							</tr>`
 							)
 							.join("")}</tbody>
 					</table>`
-					: `<div class="text-muted text-center" style="padding:20px">${__("No records")}</div>`;
+						: `<div class="text-muted text-center" style="padding:20px">${__("No records")}</div>`;
+
+				const refresh = () => {
+					const standard = d.get_value("standard");
+					const gender = d.get_value("gender");
+					let batch = d.get_value("batch");
+					// Batch choices follow the selected Standard.
+					const batches = uniq(rows.filter((x) => !standard || x.standard === standard).map((x) => x.batch));
+					d.set_df_property("batch", "options", ["", ...batches]);
+					if (batch && !batches.includes(batch)) {
+						batch = "";
+						d.set_value("batch", "");
+					}
+					d.fields_dict.body.$wrapper.html(
+						render(
+							rows.filter(
+								(x) =>
+									(!standard || x.standard === standard) &&
+									(!batch || x.batch === batch) &&
+									(!gender || x.gender === gender)
+							)
+						)
+					);
+				};
+
 				const d = new frappe.ui.Dialog({
 					title: `${sec.card || sec.title} • ${card.label} (${this._period_label(section)})`,
 					size: "extra-large",
-					fields: [{ fieldtype: "HTML", fieldname: "body" }],
+					fields: [
+						{
+							fieldtype: "Select",
+							fieldname: "standard",
+							label: __("Standard"),
+							options: ["", ...uniq(rows.map((x) => x.standard))],
+							change: () => refresh(),
+						},
+						{ fieldtype: "Column Break" },
+						{
+							fieldtype: "Select",
+							fieldname: "batch",
+							label: __("Batch"),
+							options: ["", ...uniq(rows.map((x) => x.batch))],
+							change: () => refresh(),
+						},
+						{ fieldtype: "Column Break" },
+						{
+							fieldtype: "Select",
+							fieldname: "gender",
+							label: __("Gender"),
+							options: ["", ...uniq(rows.map((x) => x.gender))],
+							change: () => refresh(),
+						},
+						{ fieldtype: "Section Break" },
+						{ fieldtype: "HTML", fieldname: "body" },
+					],
 				});
-				d.fields_dict.body.$wrapper.html(body);
+				refresh();
 				d.show();
 			});
 	}

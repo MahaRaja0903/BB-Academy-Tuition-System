@@ -64,8 +64,14 @@ def lessons_for(standard=None, subject=None, txt=None, include=None):
 		params["standard"] = standard
 		conditions.append("l.standard = %(standard)s")
 	if subject:
-		params["subject"] = subject
-		conditions.append("l.subject = %(subject)s")
+		# A list narrows to any of several subjects — a class that covered more
+		# than one.
+		if isinstance(subject, (list, tuple)):
+			params["subject"] = tuple(subject)
+			conditions.append("l.subject IN %(subject)s")
+		else:
+			params["subject"] = subject
+			conditions.append("l.subject = %(subject)s")
 	if txt:
 		params["txt"] = f"%{txt}%"
 		conditions.append("l.lesson_name LIKE %(txt)s")
@@ -100,7 +106,7 @@ def lessons_for(standard=None, subject=None, txt=None, include=None):
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
 def lesson_link_query(doctype, txt, searchfield, start, page_len, filters):
-	"""Link-field search for `lesson`, narrowed to the form's standard/subject."""
+	"""Link-field search for `lesson`, narrowed to the form's standard and subject(s)."""
 	filters = filters or {}
 	rows = lessons_for(filters.get("standard"), filters.get("subject"), txt)
 	start = cint(start)

@@ -11,6 +11,7 @@
   "student_name",
   "rejoined_date",
   "discontinued_date",
+  "discontinue_reason_category",
   "discontinued_reason"
  ],
  "fields": [
@@ -42,6 +43,12 @@
    "label": "Discontinued Date"
   },
   {
+   "fieldname": "discontinue_reason_category",
+   "fieldtype": "Link",
+   "label": "Discontinue Reason Category",
+   "options": "Discontinue Reason"
+  },
+  {
    "fieldname": "discontinued_reason",
    "fieldtype": "Small Text",
    "label": "Discontinued Reason"
@@ -50,7 +57,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-16 20:01:59.470952",
+ "modified": "2026-10-15 13:33:47.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Rejoin Log",

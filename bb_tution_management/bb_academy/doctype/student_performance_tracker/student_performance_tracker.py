@@ -5,13 +5,16 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from bb_tution_management.bb_academy.syllabus import doc_syllabus, sync_subjects
 from bb_tution_management.bb_academy.performance_config import (
 	CATEGORIES,
 	CATEGORY_RESULTS,
 	REASON_REQUIRED_RESULTS,
 	SKIP_RESULT,
 	category_config,
+	combination_key,
 	default_pass_marks,
+	is_multi_session,
 	slug,
 )
 
@@ -27,6 +30,17 @@ class StudentPerformanceTracker(Document):
 			date=self.date,
 			category=slug(self.category),
 		)
+		# A batch sits several Tests a day, one per Subject + Lesson + Portion
+		# combination — the combination key keeps each student's rows apart.
+		if is_multi_session(self.category):
+			self.test_key = combination_key(doc_syllabus(self))
+			self.name += f"-{self.test_key}"
+			# A Test whose combination was edited later keeps its old name, so a
+			# new Test on that old combination needs a name of its own. A row that
+			# really is the same combination keeps colliding, as it should.
+			taken = frappe.db.get_value("Student Performance Tracker", self.name, "test_key")
+			if taken and taken != self.test_key:
+				self.name += "-" + frappe.generate_hash(length=4)
 
 	def validate(self):
 		self.validate_category()
@@ -36,6 +50,7 @@ class StudentPerformanceTracker(Document):
 		self.clear_unused_fields()
 		self.validate_marks()
 		self.validate_behaviour_reasons()
+		self.validate_test_combination()
 
 	def validate_category(self):
 		if self.category not in CATEGORIES:
@@ -106,8 +121,11 @@ class StudentPerformanceTracker(Document):
 
 		if not cfg["uses_syllabus"]:
 			self.subject = None
+			self.subjects = []
 			self.lessons = []
 			self.portions = []
+		else:
+			sync_subjects(self)
 		if not cfg["uses_questions"]:
 			self.total_questions = 0
 		if not cfg["uses_marks"]:
@@ -146,4 +164,39 @@ class StudentPerformanceTracker(Document):
 				f"Select at least one Behaviour Reason describing what the student did "
 				f"to be marked {self.result}.",
 				title="Reason Required",
+			)
+
+	def validate_test_combination(self):
+		"""One Test row per student per combination per day."""
+		if not is_multi_session(self.category):
+			self.test_key = None
+			return
+
+		blocks = doc_syllabus(self)
+		if len(blocks) > 1:
+			frappe.throw(
+				"A Test covers one subject. Record the next subject as a separate Test.",
+				title="One Subject Per Test",
+			)
+
+		self.test_key = combination_key(blocks)
+		if not (self.is_new() or self.has_value_changed("test_key")):
+			return
+
+		duplicate = frappe.db.get_value(
+			"Student Performance Tracker",
+			{
+				"student": self.student,
+				"date": self.date,
+				"category": self.category,
+				"test_key": self.test_key,
+				"name": ["!=", self.name or ""],
+			},
+			"name",
+		)
+		if duplicate:
+			frappe.throw(
+				f"{self.student_name or self.student} already has this Test "
+				f"(same Subject, Lesson and Portion) on {self.date}: {duplicate}.",
+				title="Test Already Recorded",
 			)

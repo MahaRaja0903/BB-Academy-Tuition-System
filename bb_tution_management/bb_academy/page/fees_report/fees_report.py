@@ -14,7 +14,7 @@ Year / month of a row:
     its second April in the next one.
 
 Which rows count:
-  * Paid                          -> paid
+  * Paid                          -> paid (rows with ₹0 actually paid are left out)
   * Not Paid / Partial / Reserved -> pending (to be collected) for Active students,
                                      including months that are not due yet, so
                                      picking an upcoming month shows what is
@@ -70,11 +70,11 @@ def _ledger_rows():
 	return frappe.db.sql(
 		"""
 		select
-			s.name as student, s.student_name, s.status as student_status,
+			s.name as student, s.student_name, s.status as student_status, s.gender,
 			s.standard, s.admission_date, s.monthly_fee, s.starting_payment,
 			s.yearly_fees_student, s.scholarship_student, s.current_batch,
 			ay.start_date as ay_start,
-			d.month, d.status, d.date, d.amount_need_to_pay, d.amount_paid, d.pending
+			d.month, d.status, d.date, d.pending_amount_paid_date, d.amount_need_to_pay, d.amount_paid, d.pending
 		from `tabStudent` s
 		inner join `tabStudent Payment Detail` d
 			on d.parent = s.name and d.parenttype = 'Student' and d.parentfield = 'payment_details'
@@ -127,6 +127,9 @@ def _entries():
 
 		paid = flt(r.amount_paid)
 		if r.status in PAID_STATUSES:
+			# Nothing was actually collected on a ₹0 "Paid" row, so it is left out.
+			if not paid:
+				continue
 			pending = 0.0
 		elif r.status in PENDING_STATUSES:
 			if r.student_status != "Active":
@@ -157,6 +160,8 @@ def _entries():
 				student_name=r.student_name,
 				standard=r.standard,
 				batch=r.current_batch,
+				gender=r.gender,
+				paid_date=max(filter(None, (r.date, r.pending_amount_paid_date)), default=None) if paid else None,
 				status=r.status,
 			)
 		)
@@ -232,6 +237,8 @@ def get_breakdown(section, kind, year=None, month=None):
 				"student_name": e.student_name,
 				"standard": e.standard,
 				"batch": e.batch,
+				"gender": e.gender,
+				"paid_date": e.paid_date,
 				"fee": _("Starting Payment") if e.section == "starting" else _(MONTH_NAMES[e.month - 1]),
 				"period": f"{MONTH_NAMES[e.month - 1][:3]} {e.year}",
 				"status": e.status,
@@ -239,5 +246,9 @@ def get_breakdown(section, kind, year=None, month=None):
 				"pending": e.pending,
 			}
 		)
-	rows.sort(key=lambda r: (-r["pending"], r["student_name"] or ""))
+	if kind == "paid":
+		# Oldest payment first; rows without a date go last.
+		rows.sort(key=lambda r: (not r["paid_date"], str(r["paid_date"] or ""), r["student_name"] or ""))
+	else:
+		rows.sort(key=lambda r: (-r["pending"], r["student_name"] or ""))
 	return rows

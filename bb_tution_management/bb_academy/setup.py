@@ -10,6 +10,20 @@ def setup_bb_academy():
 	create_roles()
 	setup_attendance_manager_permissions()
 	seed_performance_masters()
+	seed_discontinue_reasons()
+
+
+def seed_discontinue_reasons():
+	"""Default categories for the Student "Discontinue Reason Category" field."""
+	if not frappe.db.exists("DocType", "Discontinue Reason"):
+		return
+
+	from bb_tution_management.bb_academy.doctype.discontinue_reason.discontinue_reason import (
+		create_default_discontinue_reasons,
+	)
+
+	create_default_discontinue_reasons()
+	frappe.db.commit()
 
 
 # Doctypes the Attendance screens read but never write. The Attendance

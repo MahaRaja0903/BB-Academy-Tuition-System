@@ -20,10 +20,18 @@ from frappe.utils import (
 	today,
 )
 
+from bb_tution_management.bb_academy.syllabus import (
+	lesson_titles,
+	syllabus_lessons,
+	syllabus_of,
+	syllabus_text,
+)
 from bb_tution_management.bb_academy.performance_config import (
 	CATEGORIES,
 	CATEGORY_RESULTS,
 	LOW_RESULTS,
+	REASON_REQUIRED_RESULTS,
+	SKIP_RESULT,
 	category_config,
 )
 
@@ -183,8 +191,9 @@ def get_student_profile(student, from_date=None, to_date=None):
 	behaviour = (
 		_get_behaviour_incidents(student, from_date, to_date)
 		if can_performance
-		else {"incidents": [], "reason_counts": []}
+		else _empty_behaviour()
 	)
+	tests = _get_test_breakdown(student, from_date, to_date) if can_performance else _empty_tests()
 
 	return {
 		"student": {
@@ -197,8 +206,9 @@ def get_student_profile(student, from_date=None, to_date=None):
 		"attendance": attendance,
 		"performance": performance,
 		"behaviour": behaviour,
+		"tests": tests,
 		"timeline": _get_timeline(student, from_date, to_date, can_attendance, can_performance),
-		"highlights": _build_highlights(details, attendance, performance, behaviour),
+		"highlights": _build_highlights(details, attendance, performance, behaviour, tests),
 	}
 
 
@@ -218,6 +228,20 @@ def _empty_attendance():
 		"days": [],
 		"monthly": [],
 	}
+
+
+def _empty_behaviour():
+	return {
+		"incidents": [],
+		"reason_counts": [],
+		"by_result": [
+			{"result": r, "days": 0, "reasons": []} for r in REASON_REQUIRED_RESULTS
+		],
+	}
+
+
+def _empty_tests():
+	return {"failures": [], "by_subject": [], "total_failed": 0, "total_sat": 0}
 
 
 def _empty_performance():
@@ -454,23 +478,32 @@ def _get_performance(student, from_date, to_date):
 
 
 def _get_behaviour_incidents(student, from_date, to_date):
-	"""Every Bad/Worst day with what the student actually did."""
+	"""Every Discipline/Critical day with what the student actually did.
+
+	`by_result` splits the reasons per grade, so a parent sees which mistakes
+	were only a discipline matter and which were serious enough to be Critical.
+	"""
 	rows = frappe.db.sql(
 		"""
 		SELECT p.name, p.date, p.result, p.remarks
 		FROM `tabStudent Performance Tracker` p
 		WHERE p.student = %(student)s
 			AND p.category = 'Behaviour'
-			AND p.result IN ('Bad', 'Worst')
+			AND p.result IN %(results)s
 			AND p.date BETWEEN %(from_date)s AND %(to_date)s
 		ORDER BY p.date DESC
 		""",
-		{"student": student, "from_date": from_date, "to_date": to_date},
+		{
+			"student": student,
+			"results": tuple(REASON_REQUIRED_RESULTS),
+			"from_date": from_date,
+			"to_date": to_date,
+		},
 		as_dict=True,
 	)
 
 	if not rows:
-		return {"incidents": [], "reason_counts": []}
+		return _empty_behaviour()
 
 	reason_rows = frappe.db.sql(
 		"""
@@ -484,10 +517,18 @@ def _get_behaviour_incidents(student, from_date, to_date):
 	)
 
 	by_parent = {}
-	tally = {}
 	for row in reason_rows:
 		by_parent.setdefault(row.parent, []).append(row.behaviour_reason)
-		tally[row.behaviour_reason] = tally.get(row.behaviour_reason, 0) + 1
+
+	tally = {}
+	per_result = {r: {"days": 0, "tally": {}, "last_date": None} for r in REASON_REQUIRED_RESULTS}
+	for row in rows:
+		bucket = per_result.setdefault(row.result, {"days": 0, "tally": {}, "last_date": None})
+		bucket["days"] += 1
+		bucket["last_date"] = bucket["last_date"] or row.date
+		for reason in by_parent.get(row.name, []):
+			tally[reason] = tally.get(reason, 0) + 1
+			bucket["tally"][reason] = bucket["tally"].get(reason, 0) + 1
 
 	incidents = [
 		{
@@ -499,12 +540,108 @@ def _get_behaviour_incidents(student, from_date, to_date):
 		for row in rows
 	]
 
-	reason_counts = [
+	return {
+		"incidents": incidents,
+		"reason_counts": _sorted_tally(tally),
+		"by_result": [
+			{
+				"result": result,
+				"days": bucket["days"],
+				"last_date": bucket["last_date"],
+				"reasons": _sorted_tally(bucket["tally"]),
+			}
+			for result, bucket in per_result.items()
+		],
+	}
+
+
+def _sorted_tally(tally):
+	return [
 		{"reason": reason, "count": count}
 		for reason, count in sorted(tally.items(), key=lambda kv: (-kv[1], kv[0]))
 	]
 
-	return {"incidents": incidents, "reason_counts": reason_counts}
+
+def _get_test_breakdown(student, from_date, to_date):
+	"""Subject-wise test record: how many tests were sat and failed in each
+	subject, plus every failed paper with what it covered.
+
+	A test can cover several subjects; it counts towards each of them. Skipped
+	papers are left out — the student did not sit them.
+	"""
+	rows = frappe.db.sql(
+		"""
+		SELECT p.name, p.date, p.result, p.subject, p.marks_obtained, p.total_marks,
+			p.pass_marks, p.remarks
+		FROM `tabStudent Performance Tracker` p
+		WHERE p.student = %(student)s
+			AND p.category = 'Test'
+			AND IFNULL(p.result, '') NOT IN ('', %(skip)s)
+			AND p.date BETWEEN %(from_date)s AND %(to_date)s
+		ORDER BY p.date DESC
+		""",
+		{"student": student, "skip": SKIP_RESULT, "from_date": from_date, "to_date": to_date},
+		as_dict=True,
+	)
+
+	if not rows:
+		return _empty_tests()
+
+	syllabus = syllabus_of("Student Performance Tracker", [row.name for row in rows])
+	titles = lesson_titles(
+		[name for blocks in syllabus.values() for name in syllabus_lessons(blocks)]
+	)
+
+	subjects = {}
+	failures = []
+	for row in rows:
+		blocks = syllabus.get(row.name, [])
+		names = [b["subject"] for b in blocks if b["subject"]] or [row.subject or "No Subject"]
+		failed = row.result == "Fail"
+
+		for subject in names:
+			bucket = subjects.setdefault(
+				subject,
+				{"subject": subject, "sat": 0, "failed": 0, "marks_obtained": 0.0, "total_marks": 0.0},
+			)
+			bucket["sat"] += 1
+			bucket["failed"] += 1 if failed else 0
+			# Marks of a multi-subject paper cannot be split, so they only feed
+			# the average of a single-subject paper.
+			if len(names) == 1 and row.total_marks:
+				bucket["marks_obtained"] += flt(row.marks_obtained)
+				bucket["total_marks"] += flt(row.total_marks)
+
+		if failed:
+			failures.append(
+				{
+					"date": row.date,
+					"subjects": names,
+					"covered": syllabus_text(blocks, titles),
+					"marks_obtained": flt(row.marks_obtained) if row.total_marks else None,
+					"total_marks": flt(row.total_marks) or None,
+					"pass_marks": flt(row.pass_marks) or None,
+					"remarks": row.remarks or "",
+				}
+			)
+
+	by_subject = []
+	for bucket in subjects.values():
+		bucket["passed"] = bucket["sat"] - bucket["failed"]
+		bucket["fail_rate"] = _pct(bucket["failed"], bucket["sat"])
+		bucket["percentage"] = (
+			_pct(bucket["marks_obtained"], bucket["total_marks"]) if bucket["total_marks"] else None
+		)
+		by_subject.append(bucket)
+	# Weakest subject first — that is the conversation to have.
+	by_subject.sort(key=lambda b: (-b["failed"], -b["fail_rate"], b["subject"]))
+
+	return {
+		"failures": failures,
+		"by_subject": by_subject,
+		"total_failed": len(failures),
+		"total_sat": len(rows),
+	}
 
 
 def _get_timeline(student, from_date, to_date, can_attendance=True, can_performance=True, limit=40):
@@ -515,15 +652,7 @@ def _get_timeline(student, from_date, to_date, can_attendance=True, can_performa
 	"""
 	performance = [] if not can_performance else frappe.db.sql(
 		"""
-		SELECT
-			p.date, p.category, p.result, p.subject, p.marks_obtained, p.total_marks,
-			(
-				SELECT GROUP_CONCAT(l.lesson_name ORDER BY li.idx SEPARATOR ', ')
-				FROM `tabLesson Item` li
-				INNER JOIN `tabLesson` l ON l.name = li.lesson
-				WHERE li.parenttype = 'Student Performance Tracker'
-					AND li.parentfield = 'lessons' AND li.parent = p.name
-			) AS lessons
+		SELECT p.name, p.date, p.category, p.result, p.marks_obtained, p.total_marks
 		FROM `tabStudent Performance Tracker` p
 		WHERE p.student = %(student)s AND p.date BETWEEN %(from_date)s AND %(to_date)s
 		ORDER BY p.date DESC
@@ -547,9 +676,17 @@ def _get_timeline(student, from_date, to_date, can_attendance=True, can_performa
 		as_dict=True,
 	)
 
+	# A class can cover several subjects; the line names each with its lessons.
+	syllabus = syllabus_of("Student Performance Tracker", [row.name for row in performance])
+	titles = lesson_titles(
+		[name for blocks in syllabus.values() for name in syllabus_lessons(blocks)]
+	)
+
 	events = []
 	for row in performance:
-		detail = " · ".join(filter(None, [row.subject, row.lessons]))
+		detail = syllabus_text(
+			[dict(b, portions=[]) for b in syllabus.get(row.name, [])], titles
+		)
 		if row.total_marks:
 			detail = " · ".join(filter(None, [detail, f"{flt(row.marks_obtained):g}/{flt(row.total_marks):g}"]))
 		events.append(
@@ -579,7 +716,7 @@ def _get_timeline(student, from_date, to_date, can_attendance=True, can_performa
 	return events[:limit]
 
 
-def _build_highlights(details, attendance, performance, behaviour):
+def _build_highlights(details, attendance, performance, behaviour, tests):
 	"""Three-to-five plain sentences summarising the range.
 
 	This is the part a parent actually reads, so it is written as statements
@@ -647,12 +784,24 @@ def _build_highlights(details, attendance, performance, behaviour):
 				}
 			)
 
+	weak = [b for b in tests["by_subject"] if b["failed"]]
+	if weak:
+		highlights.append(
+			{
+				"tone": "bad",
+				"icon": "fa-times-circle",
+				"text": "Failed tests in "
+				+ ", ".join(f"{b['subject']} ({b['failed']} of {b['sat']})" for b in weak[:3])
+				+ ".",
+			}
+		)
+
 	incidents = behaviour["incidents"]
 	if incidents:
 		top = ", ".join(r["reason"] for r in behaviour["reason_counts"][:3])
 		highlights.append(
 			{
-				"tone": "bad" if any(i["result"] == "Worst" for i in incidents) else "warn",
+				"tone": "bad" if any(i["result"] == "Critical" for i in incidents) else "warn",
 				"icon": "fa-exclamation-triangle",
 				"text": f"{len(incidents)} behaviour concern(s) recorded" + (f" — mostly {top}." if top else "."),
 			}

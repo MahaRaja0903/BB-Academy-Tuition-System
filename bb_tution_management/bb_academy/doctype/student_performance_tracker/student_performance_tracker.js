@@ -11,48 +11,47 @@ const CATEGORY_RESULTS = {
 	Study: ["Excellent", "Completed", "Incomplete", "Skipped"],
 	Class: ["Attended", "Skipped"],
 	Test: ["Full Mark", "Pass Mark", "Fail", "Skipped"],
-	"Maths Test": ["Full Mark", "Pass Mark", "Fail", "Skipped"],
-	"Accounts Test": ["Full Mark", "Pass Mark", "Fail", "Skipped"],
+	"H.W": ["Done", "Not Done", "Skipped"],
 	Behaviour: ["Good", "Discipline", "Critical"],
 };
 
 // A Table MultiSelect has no set_value; emptying the grid is how you clear it.
-function clearLessons(frm) {
-	if (!frm.doc.lessons?.length) return;
-	frm.clear_table("lessons");
-	frm.refresh_field("lessons");
+function clearTable(frm, fieldname) {
+	if (!frm.doc[fieldname]?.length) return;
+	frm.clear_table(fieldname);
+	frm.refresh_field(fieldname);
+}
+
+function pickedSubjects(frm) {
+	return (frm.doc.subjects || []).map((row) => row.subject).filter(Boolean);
 }
 
 frappe.ui.form.on("Student Performance Tracker", {
 	setup(frm) {
 		// Only subjects offered for the student's standard — a Subject with no
 		// Standard Applicable rows is offered to every standard.
-		frm.set_query("subject", () => ({
+		frm.set_query("subjects", () => ({
 			query: SUBJECT_QUERY,
 			filters: { standard: frm.doc.standard },
 		}));
 
-		// Lessons are mapped to one subject of one standard, so both narrow the
-		// list. A Table MultiSelect has no grid, so the query goes on the field
-		// itself — the three-argument set_query is for child tables only and
-		// throws here, which takes the whole form render down with it. The
+		// Lessons are mapped to one subject of one standard, so the standard and
+		// the picked subjects narrow the list. A Table MultiSelect has no grid, so
+		// the query goes on the field itself — the three-argument set_query is for
+		// child tables only and throws here, which takes the whole form render
+		// down with it. The
 		// control drops what is already picked from its own dropdown, so the
 		// same lesson cannot be added twice.
 		frm.set_query("lessons", () => ({
 			query: LESSON_QUERY,
-			filters: { standard: frm.doc.standard, subject: frm.doc.subject },
+			filters: { standard: frm.doc.standard, subject: pickedSubjects(frm) },
 		}));
 	},
 
 	standard(frm) {
-		// The old pick may not be offered for the new standard.
-		if (frm.doc.subject) frm.set_value("subject", "");
-		clearLessons(frm);
-	},
-
-	subject(frm) {
-		// A lesson belongs to its subject; keeping it would mislabel the row.
-		clearLessons(frm);
+		// The old picks may not be offered for the new standard.
+		clearTable(frm, "subjects");
+		clearTable(frm, "lessons");
 	},
 
 	category(frm) {

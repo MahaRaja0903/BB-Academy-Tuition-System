@@ -102,8 +102,7 @@ class Student(Document):
 			"amount": 500,
 			"valid_till": valid_till,
 		})
-		coupon.insert(ignore_permissions=True)
-		coupon.submit()  # on_submit auto-appends to student's coupon_code_details
+		coupon.insert(ignore_permissions=True)  # after_insert appends to student's coupon_code_details
 
 	def populate_payment_details(self):
 		"""Auto-populate payment_details months based on academic year and admission date.
@@ -397,6 +396,7 @@ class Student(Document):
 				"student_name": self.student_name,
 				"rejoined_date": self.rejoined_date,
 				"discontinued_date": doc_before.discontinued__date,
+				"discontinue_reason_category": doc_before.discontinue_reason_category,
 				"discontinued_reason": doc_before.discontinued_reason
 			})
 			rejoin_log.insert(ignore_permissions=True)
@@ -404,6 +404,7 @@ class Student(Document):
 			frappe.msgprint(_("Student Rejoin Log created successfully."))
 			
 			self.discontinued__date = None
+			self.discontinue_reason_category = None
 			self.discontinued_reason = None
 
 	def set_preferred_whatsapp_number(self):

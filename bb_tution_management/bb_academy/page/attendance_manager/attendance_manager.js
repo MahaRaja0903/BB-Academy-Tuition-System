@@ -136,6 +136,15 @@ class AttendanceManager {
                     () => this.revert_status_selection($tr, old_status),
                     { title: 'Mark Late', primary_label: 'Mark Late', default_reason: lp_reason, description: desc }
                 );
+            } else if (status === 'Absent') {
+                let old_status = $tr.attr('data-current-status') || '';
+                let name = $tr.find('.att-student-name').first().text().trim() || student;
+                this.confirm_absent(
+                    name,
+                    !this.second_round && !old_status ? 1 : 0,
+                    () => this.mark_attendance(student, status, $input),
+                    () => this.revert_status_selection($tr, old_status)
+                );
             } else {
                 this.mark_attendance(student, status, $input);
             }
@@ -772,10 +781,46 @@ class AttendanceManager {
             return;
         }
 
+        if(status === 'Absent') {
+            // Only a student with no first-round mark yet gets a new row, and
+            // the absent WhatsApp alert fires on insert -- count just those.
+            let sending = this.second_round ? 0 : students.filter(id => {
+                let s = (this.raw_students || []).find(x => x.student_id === id);
+                return s && !s.today_status;
+            }).length;
+            this.confirm_absent(
+                `${students.length} selected student(s)`,
+                sending,
+                () => this.submit_bulk_attendance(students, std, batch, date, status)
+            );
+            return;
+        }
+
         frappe.confirm(
             `Mark <b>${students.length}</b> selected student(s) as <b>${status}</b>` +
                 (this.second_round ? ' for the <b>second attendance</b>' : '') + '?',
             () => this.submit_bulk_attendance(students, std, batch, date, status)
+        );
+    }
+
+    // Guards against a stray tap on Absent. The "Student Absent Whats App
+    // Message" WhatsApp Notification fires on Before Insert, so a message only
+    // goes out for a student whose first-round mark is being created now --
+    // changing an existing mark, or the second round, sends nothing.
+    confirm_absent(label, sending_count, on_confirm, on_cancel) {
+        let note = sending_count
+            ? `<div style="margin-top: 10px; color: #842029; font-weight: bold;">
+                   <i class="fa fa-whatsapp"></i> A WhatsApp absent message will be sent to
+                   ${sending_count > 1 ? `<b>${sending_count}</b> students` : 'the student'}.
+               </div>`
+            : `<div style="margin-top: 10px; color: var(--text-muted);">
+                   <i class="fa fa-info-circle"></i> No WhatsApp message will be sent.
+               </div>`;
+        frappe.confirm(
+            `Mark <b>${frappe.utils.escape_html(label)}</b> as <b>Absent</b>` +
+                (this.second_round ? ' for the <b>second attendance</b>' : '') + '?' + note,
+            on_confirm,
+            on_cancel
         );
     }
 

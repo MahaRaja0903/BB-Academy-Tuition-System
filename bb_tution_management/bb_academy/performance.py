@@ -5,8 +5,9 @@ Gender / date filters, same holiday short-circuit, same "one call loads the
 whole screen" payload — so the two pages behave identically to the teacher.
 
 The one structural difference: performance is graded per *category*
-(Study, Test, the standard's subject test, Behaviour), and only students the
-attendance register already marked Present that day are listed.
+(Study, Class, Test, H.W, Behaviour), and only students the attendance register
+already marked Present that day are listed. Test is graded per *test*: a batch
+can sit several on one day, one per Subject + Lesson + Portion combination.
 """
 
 import json
@@ -15,6 +16,18 @@ import frappe
 from frappe.utils import cint, flt, get_first_day, get_last_day, getdate, today
 
 from bb_tution_management.bb_academy.attendance import get_day_context, get_holiday_details
+from bb_tution_management.bb_academy.syllabus import (
+	doc_syllabus,
+	has_syllabus,
+	lesson_titles,
+	parse_syllabus,
+	set_syllabus,
+	syllabus_lessons,
+	syllabus_of,
+	syllabus_text,
+	validate_subject,
+	validate_syllabus,
+)
 from bb_tution_management.bb_tution_management.doctype.lesson.lesson import (
 	lesson_docname,
 	lessons_for,
@@ -36,23 +49,21 @@ from bb_tution_management.bb_academy.performance_config import (
 	category_config,
 	default_pass_marks,
 	derive_test_result,
+	is_multi_session,
 	slug,
-	test_category_for_standard,
 )
 
-# The setup fields that live directly on the session row. `lessons` and
-# `portions` are child tables and are read and written separately.
+# The setup fields that live directly on the session row. The syllabus
+# (subjects, lessons, portions) is child tables, read and written via syllabus.py.
 SESSION_FIELDS = (
 	"subject",
+	"test_key",
 	"total_questions",
 	"total_marks",
 	"pass_marks",
 	"no_session",
 	"no_session_reason",
 )
-
-LESSON_PARENTFIELD = "lessons"
-PORTION_PARENTFIELD = "portions"
 
 
 # ---------------------------------------------------------------------------
@@ -78,63 +89,6 @@ def _validate_result(category, result):
 		)
 
 
-def _validate_subject(subject, standard):
-	"""Keep the PWA honest about the Subject master the dropdown is built from."""
-	if not subject:
-		return
-
-	if not frappe.db.exists("Subject", subject):
-		frappe.throw(f"{subject} is not in the Subject master.", title="Unknown Subject")
-
-	if standard and subject not in subjects_for_standard(standard):
-		frappe.throw(
-			f"{subject} is not offered for {standard}. "
-			f"Add {standard} to the subject's Standard Applicable list first.",
-			title="Subject Not Offered",
-		)
-
-
-def _validate_lessons(names, standard, subject):
-	"""Every lesson must belong to the standard and subject being graded —
-	otherwise a stale pick left over from a subject switch would be saved
-	silently. Duplicates are rejected here rather than stored twice."""
-	if not names:
-		return
-
-	seen = set()
-	for name in names:
-		if name in seen:
-			frappe.throw(f"{name} is picked twice.", title="Duplicate Lesson")
-		seen.add(name)
-
-	rows = {
-		r.name: r
-		for r in frappe.get_all(
-			"Lesson",
-			filters={"name": ["in", list(seen)]},
-			fields=["name", "standard", "subject"],
-		)
-	}
-
-	for name in names:
-		row = rows.get(name)
-		if not row:
-			frappe.throw(f"{name} is not in the Lesson master.", title="Unknown Lesson")
-
-		if standard and row.standard != standard:
-			frappe.throw(f"{name} is not mapped to {standard}.", title="Lesson Not Mapped")
-		if subject and row.subject != subject:
-			frappe.throw(f"{name} is not mapped to {subject}.", title="Lesson Not Mapped")
-
-
-def _validate_portions(names):
-	unknown = [p for p in names if not frappe.db.exists("Portion", p)]
-	if unknown:
-		frappe.throw(
-			f"{', '.join(unknown)} is not in the Portion master.", title="Unknown Portion"
-		)
-
-
 def _parse_list(value):
 	"""Accept a JSON string (what frappe-ui sends) or an already-decoded list."""
 	if not value:
@@ -146,72 +100,6 @@ def _parse_list(value):
 	return [v for v in value if v]
 
 
-def _set_lessons(doc, names):
-	doc.set(LESSON_PARENTFIELD, [])
-	for name in names:
-		doc.append(LESSON_PARENTFIELD, {"lesson": name})
-
-
-def _lessons_of(doctype, parents):
-	"""parent name -> its lesson list, in the order they were picked."""
-	if not parents:
-		return {}
-
-	rows = frappe.db.sql(
-		"""
-		SELECT `parent`, `lesson`
-		FROM `tabLesson Item`
-		WHERE parenttype = %(doctype)s AND parentfield = %(parentfield)s AND parent IN %(parents)s
-		ORDER BY idx ASC
-		""",
-		{
-			"doctype": doctype,
-			"parentfield": LESSON_PARENTFIELD,
-			"parents": tuple(parents),
-		},
-		as_dict=True,
-	)
-
-	result = {}
-	for row in rows:
-		result.setdefault(row.parent, []).append(row.lesson)
-	return result
-
-
-def _set_portions(doc, names):
-	doc.set(PORTION_PARENTFIELD, [])
-	for name in names:
-		doc.append(PORTION_PARENTFIELD, {"portion": name})
-
-
-def _portions_of(doctype, parents):
-	"""parent name -> its portion list, in the order they were picked."""
-	if not parents:
-		return {}
-
-	# `portion` is a reserved word in MariaDB (application-time periods), so the
-	# column has to be quoted even in a plain SELECT.
-	rows = frappe.db.sql(
-		"""
-		SELECT `parent`, `portion`
-		FROM `tabPortion Item`
-		WHERE parenttype = %(doctype)s AND parentfield = %(parentfield)s AND parent IN %(parents)s
-		ORDER BY idx ASC
-		""",
-		{
-			"doctype": doctype,
-			"parentfield": PORTION_PARENTFIELD,
-			"parents": tuple(parents),
-		},
-		as_dict=True,
-	)
-
-	result = {}
-	for row in rows:
-		result.setdefault(row.parent, []).append(row.portion)
-	return result
-
-
 def _session_name(performance_date, standard, batch, category):
 	return "SPS-{date}-{standard}-{batch}-{category}".format(
 		date=getdate(performance_date),
@@ -221,24 +109,119 @@ def _session_name(performance_date, standard, batch, category):
 	)
 
 
-def _get_session(performance_date, standard, batch, category):
-	name = _session_name(performance_date, standard, batch, category)
-	if not frappe.db.exists("Student Performance Session", name):
-		return None
-
+def _load_session(name):
 	session = frappe.db.get_value(
 		"Student Performance Session",
 		name,
 		["name", "date", "standard", "batch", "category", *SESSION_FIELDS],
 		as_dict=True,
 	)
-	session["lessons"] = _lessons_of("Student Performance Session", [name]).get(name, [])
-	session["portions"] = _portions_of("Student Performance Session", [name]).get(name, [])
+	if not session:
+		return None
+	session["syllabus"] = syllabus_of("Student Performance Session", [name]).get(name, [])
 	return session
 
 
+def _get_session(performance_date, standard, batch, category, session_name=None):
+	"""The setup row the day's grades hang off.
+
+	Study / Class / H.W / Behaviour have one per batch per day. A Test has one
+	per combination, so the caller names which (`session_name`); without one,
+	only the day's "No Test" row can come back.
+	"""
+	if is_multi_session(category):
+		if session_name:
+			session = _load_session(session_name)
+			if (
+				not session
+				or session.category != category
+				or getdate(session.date) != getdate(performance_date)
+				or session.standard != standard
+				or session.batch != batch
+			):
+				frappe.throw(
+					"That Test is not set for this batch on this date. Reload and pick it again.",
+					title="Test Not Found",
+				)
+			return session
+
+		name = _session_name(performance_date, standard, batch, category)
+		if cint(frappe.db.get_value("Student Performance Session", name, "no_session")):
+			return _load_session(name)
+		return None
+
+	name = _session_name(performance_date, standard, batch, category)
+	if not frappe.db.exists("Student Performance Session", name):
+		return None
+	return _load_session(name)
+
+
+def _require_test(session, category):
+	"""A Test grade must belong to one Test — the combination is what it scored."""
+	if is_multi_session(category) and (not session or cint(session.get("no_session"))):
+		frappe.throw(
+			"Add the Test first — pick its Subject, Lesson and Portion — then grade it.",
+			title="Pick a Test",
+		)
+
+
+def _row_filters(student, performance_date, category, session):
+	"""How one student's row for this category is found: by date for the
+	once-a-day categories, by the Test it belongs to for Test."""
+	if is_multi_session(category):
+		return {"student": student, "category": category, "session": session.name if session else ""}
+	return {"student": student, "date": getdate(performance_date), "category": category}
+
+
+def _list_tests(performance_date, standard, batch, category="Test"):
+	"""Every Test set for this batch on this date, oldest first, with how many
+	students each has graded so far."""
+	names = frappe.get_all(
+		"Student Performance Session",
+		filters={
+			"date": getdate(performance_date),
+			"standard": standard,
+			"batch": batch,
+			"category": category,
+			"no_session": 0,
+		},
+		order_by="creation asc",
+		pluck="name",
+	)
+	if not names:
+		return []
+
+	syllabus = syllabus_of("Student Performance Session", names)
+	titles = lesson_titles(
+		[lesson for blocks in syllabus.values() for lesson in syllabus_lessons(blocks)]
+	)
+	graded = dict(
+		frappe.db.sql(
+			"""
+			SELECT session, COUNT(name) FROM `tabStudent Performance Tracker`
+			WHERE session IN %(names)s GROUP BY session
+			""",
+			{"names": tuple(names)},
+		)
+	)
+
+	tests = []
+	for name in names:
+		row = frappe.db.get_value(
+			"Student Performance Session",
+			name,
+			["name", "subject", "test_key", "total_marks", "pass_marks"],
+			as_dict=True,
+		)
+		row["syllabus"] = syllabus.get(name, [])
+		row["label"] = syllabus_text(row["syllabus"], titles) or row.subject or name
+		row["graded"] = cint(graded.get(name))
+		tests.append(row)
+	return tests
+
+
 def _session_payload(doc):
-	"""The session as the PWA reads it back, child tables flattened to names."""
+	"""The session as the PWA reads it back, the syllabus regrouped into blocks."""
 	return {
 		"name": doc.name,
 		"date": doc.date,
@@ -246,9 +229,15 @@ def _session_payload(doc):
 		"batch": doc.batch,
 		"category": doc.category,
 		**{field: doc.get(field) for field in SESSION_FIELDS},
-		"lessons": [row.lesson for row in (doc.lessons or [])],
-		"portions": [row.portion for row in (doc.portions or [])],
+		"syllabus": doc_syllabus(doc),
 	}
+
+
+def _delete_no_session_row(performance_date, standard, batch, category):
+	"""Adding a Test is the teacher saying a test was held after all."""
+	name = _session_name(performance_date, standard, batch, category)
+	if cint(frappe.db.get_value("Student Performance Session", name, "no_session")):
+		frappe.delete_doc("Student Performance Session", name, ignore_permissions=True)
 
 
 def _guard_session_planned(session, category, performance_date):
@@ -298,12 +287,8 @@ def _blank_monthly_counts(category):
 
 @frappe.whitelist()
 def get_performance_meta(standard=None):
-	"""Category option lists, so the PWA never drifts from the server's rules.
-
-	`standard` narrows the subject test to the one that standard actually sits —
-	Accounts Test for Commerce, Maths Test for everyone else.
-	"""
-	names = categories_for_standard(standard) if standard else CATEGORIES
+	"""Category option lists, so the PWA never drifts from the server's rules."""
+	names = categories_for_standard(standard)
 
 	return {
 		"categories": [
@@ -314,7 +299,6 @@ def get_performance_meta(standard=None):
 			}
 			for category in names
 		],
-		"subject_test": test_category_for_standard(standard) if standard else None,
 		"reason_required_results": REASON_REQUIRED_RESULTS,
 		"present_statuses": PRESENT_STATUSES,
 		"skip_result": SKIP_RESULT,
@@ -373,7 +357,7 @@ def get_portions(include=None):
 
 
 @frappe.whitelist()
-def get_performance_students(standard, batch, category, performance_date, gender=None):
+def get_performance_students(standard, batch, category, performance_date, gender=None, session_name=None):
 	if not frappe.has_permission("Student Performance Tracker", "read"):
 		frappe.throw("No permission to read performance records")
 
@@ -390,6 +374,7 @@ def get_performance_students(standard, batch, category, performance_date, gender
 			"students": [],
 			"summary": {},
 			"session": None,
+			"tests": [],
 			"total_students": 0,
 			"attendance_marked": 0,
 		}
@@ -450,7 +435,13 @@ def get_performance_students(standard, batch, category, performance_date, gender
 		as_dict=True,
 	)
 
-	session = _get_session(date_obj, standard, batch, category)
+	multi = is_multi_session(category)
+	tests = _list_tests(date_obj, standard, batch, category) if multi else []
+	if multi and session_name and session_name not in {t.name for t in tests}:
+		# The Test was removed or edited away by someone else — fall back to
+		# "pick a Test" instead of erroring the whole screen.
+		session_name = None
+	session = _get_session(date_obj, standard, batch, category, session_name)
 	cfg = category_config(category)
 
 	summary = {result: 0 for result in CATEGORY_RESULTS[category]}
@@ -464,34 +455,45 @@ def get_performance_students(standard, batch, category, performance_date, gender
 			"students": [],
 			"summary": summary,
 			"session": session,
+			"tests": tests,
 			"category": category,
 			"config": cfg,
 			"results": CATEGORY_RESULTS[category],
+			"lesson_titles": lesson_titles(syllabus_lessons(session["syllabus"] if session else [])),
 			"total_students": total_students,
 			"attendance_marked": attendance_marked,
 		}
 
 	student_ids = [s.name for s in students]
 
+	# A Test's rows are the ones graded against that Test; with no Test picked
+	# yet there is nothing to show against.
+	row_scope = "AND session = %(session)s" if multi else ""
 	records = frappe.db.sql(
-		"""
+		f"""
 		SELECT
 			`name`, `student`, `result`, `skipped`, `subject`,
 			`total_questions`, `total_marks`, `pass_marks`, `marks_obtained`, `remarks`
 		FROM `tabStudent Performance Tracker`
 		WHERE date = %(date)s AND category = %(category)s AND student IN %(students)s
+			{row_scope}
 		""",
-		{"date": date_obj, "category": category, "students": tuple(student_ids)},
+		{
+			"date": date_obj,
+			"category": category,
+			"students": tuple(student_ids),
+			"session": session.name if session else "",
+		},
 		as_dict=True,
 	)
 	record_map = {r.student: r for r in records}
 	record_names = [r.name for r in records]
 
-	portion_map = _portions_of("Student Performance Tracker", record_names)
-	row_lesson_map = _lessons_of("Student Performance Tracker", record_names)
-	lesson_titles = _lesson_titles(
-		[name for names in row_lesson_map.values() for name in names]
-		+ (list(session["lessons"]) if session else [])
+	row_syllabus_map = syllabus_of("Student Performance Tracker", record_names)
+	session_syllabus = session["syllabus"] if session else []
+	titles = lesson_titles(
+		[name for blocks in row_syllabus_map.values() for name in syllabus_lessons(blocks)]
+		+ syllabus_lessons(session_syllabus)
 	)
 
 	reason_map = {}
@@ -551,12 +553,10 @@ def get_performance_students(standard, batch, category, performance_date, gender
 			and s.date_of_birth.day == date_obj.day
 		)
 
-		row_lessons = row_lesson_map.get(record.name) if record else None
-		if not row_lessons:
-			row_lessons = list(session["lessons"]) if session else []
-		row_portions = portion_map.get(record.name) if record else None
-		if not row_portions:
-			row_portions = list(session["portions"]) if session else []
+		# A row that never had its own syllabus shows what the batch was set up to cover.
+		row_syllabus = row_syllabus_map.get(record.name) if record else None
+		if not row_syllabus:
+			row_syllabus = session_syllabus
 
 		result_students.append(
 			{
@@ -571,10 +571,7 @@ def get_performance_students(standard, batch, category, performance_date, gender
 				"result": record.result if record else None,
 				"skipped": cint(record.skipped) if record else 0,
 				"marks_obtained": flt(record.marks_obtained) if record else None,
-				"subject": (record.subject if record else None) or (session.subject if session else None),
-				"lessons": row_lessons,
-				"lesson_titles": [lesson_titles.get(n, n) for n in row_lessons],
-				"portions": row_portions,
+				"syllabus": row_syllabus,
 				"total_questions": cint(record.total_questions)
 				if record
 				else cint(session.total_questions if session else 0),
@@ -594,28 +591,14 @@ def get_performance_students(standard, batch, category, performance_date, gender
 		"students": result_students,
 		"summary": summary,
 		"session": session,
+		"tests": tests,
 		"category": category,
 		"config": cfg,
 		"results": CATEGORY_RESULTS[category],
+		"lesson_titles": titles,
 		"total_students": total_students,
 		"attendance_marked": attendance_marked,
 	}
-
-
-def _lesson_titles(names):
-	"""Lesson docname -> the bare lesson title.
-
-	Lesson names carry their subject and standard so they stay unique; the PWA
-	shows only the title, which is all the teacher needs in a crowded row.
-	"""
-	names = [n for n in set(names) if n]
-	if not names:
-		return {}
-
-	rows = frappe.get_all(
-		"Lesson", filters={"name": ["in", names]}, fields=["name", "lesson_name"]
-	)
-	return {r.name: r.lesson_name for r in rows}
 
 
 # ---------------------------------------------------------------------------
@@ -629,6 +612,7 @@ def save_performance_session(
 	batch,
 	category,
 	performance_date,
+	syllabus=None,
 	subject=None,
 	lessons=None,
 	portions=None,
@@ -636,24 +620,36 @@ def save_performance_session(
 	total_marks=None,
 	pass_marks=None,
 	apply_to_all=0,
+	session_name=None,
 ):
 	"""Store the setup that every student of this batch inherits for the day.
 
-	`apply_to_all` pushes the new setup onto the rows already graded today —
-	without it, only rows saved from now on pick it up.
+	`syllabus` is one block per subject the class covered, each with its own
+	lessons and portions. `apply_to_all` pushes the new setup onto the rows
+	already graded today — without it, only rows saved from now on pick it up.
+
+	For Test, each call is one test: `session_name` edits an existing one,
+	leaving it out adds a new one. The same Subject + Lesson + Portion
+	combination cannot be added twice for a batch on one day.
 	"""
 	if not frappe.has_permission("Student Performance Session", "create"):
 		frappe.throw("No permission to save the performance setup")
 
 	_validate_category(category)
 	_guard_writable(performance_date, standard, batch)
-	_validate_subject(subject, standard)
 
-	lesson_names = _parse_list(lessons)
-	_validate_lessons(lesson_names, standard, subject)
+	blocks = parse_syllabus(syllabus, subject, lessons, portions) or []
+	validate_syllabus(blocks, standard)
 
-	portion_names = _parse_list(portions)
-	_validate_portions(portion_names)
+	multi = is_multi_session(category)
+	if multi:
+		if len(blocks) > 1:
+			frappe.throw(
+				"A Test covers one subject. Save this one, then add another Test for the next subject.",
+				title="One Subject Per Test",
+			)
+		if not blocks or not blocks[0]["subject"]:
+			frappe.throw("Pick the Subject this Test is on.", title="Subject Required")
 
 	date_obj = getdate(performance_date)
 	total_marks = flt(total_marks)
@@ -663,14 +659,19 @@ def save_performance_session(
 		pass_marks = default_pass_marks(total_marks)
 
 	values = {
-		"subject": subject,
 		"total_questions": cint(total_questions),
 		"total_marks": total_marks,
 		"pass_marks": pass_marks,
 	}
 
-	name = _session_name(date_obj, standard, batch, category)
-	if frappe.db.exists("Student Performance Session", name):
+	if multi:
+		existing = _get_session(date_obj, standard, batch, category, session_name) if session_name else None
+		name = existing.name if existing else None
+		_delete_no_session_row(date_obj, standard, batch, category)
+	else:
+		name = _session_name(date_obj, standard, batch, category)
+
+	if name and frappe.db.exists("Student Performance Session", name):
 		doc = frappe.get_doc("Student Performance Session", name)
 	else:
 		doc = frappe.new_doc("Student Performance Session")
@@ -679,16 +680,18 @@ def save_performance_session(
 		doc.batch = batch
 		doc.category = category
 
+	old_key = doc.get("test_key")
 	doc.update(values)
 	# Entering a setup is the teacher saying the session did happen, so it
 	# cancels an earlier "No Study / No Test" for the day.
 	doc.no_session = 0
-	_set_lessons(doc, lesson_names)
-	_set_portions(doc, portion_names)
+	set_syllabus(doc, blocks)
 	doc.save()
 
 	updated = 0
-	if cint(apply_to_all):
+	# A Test's combination is what its rows were graded on, so editing it moves
+	# every graded row with it, asked or not.
+	if cint(apply_to_all) or (multi and old_key and old_key != doc.test_key):
 		updated = _apply_session_to_students(doc)
 
 	return {
@@ -706,28 +709,25 @@ def _apply_session_to_students(session):
 	would leave the batch half-updated.
 	"""
 	cfg = category_config(session.category)
-	session_lessons = [row.lesson for row in (session.lessons or [])]
-	session_portions = [row.portion for row in (session.portions or [])]
+	session_syllabus = doc_syllabus(session)
 
-	names = frappe.get_all(
-		"Student Performance Tracker",
-		filters={
+	if is_multi_session(session.category):
+		filters = {"session": session.name}
+	else:
+		filters = {
 			"date": session.date,
 			"category": session.category,
 			"standard": session.standard,
 			"batch": session.batch,
-		},
-		pluck="name",
-	)
+		}
+	names = frappe.get_all("Student Performance Tracker", filters=filters, pluck="name")
 
 	for name in names:
 		doc = frappe.get_doc("Student Performance Tracker", name)
 		doc.session = session.name
 
 		if cfg["uses_syllabus"]:
-			doc.subject = session.subject
-			_set_lessons(doc, session_lessons)
-			_set_portions(doc, session_portions)
+			set_syllabus(doc, session_syllabus)
 		if cfg["uses_questions"]:
 			doc.total_questions = session.total_questions
 		if cfg["uses_marks"]:
@@ -785,6 +785,17 @@ def set_no_session(standard, batch, category, performance_date, no_session=1, re
 			)
 
 	name = _session_name(date_obj, standard, batch, category)
+
+	if is_multi_session(category):
+		if not flag:
+			# The "No Test" row carries nothing else, so undoing it removes it.
+			_delete_no_session_row(date_obj, standard, batch, category)
+			return {"status": "success", "session": None}
+		# Nothing was graded (checked above), so the Tests set up for the day
+		# were never held — drop them along with the flag going up.
+		for test in _list_tests(date_obj, standard, batch, category):
+			frappe.delete_doc("Student Performance Session", test.name)
+
 	if frappe.db.exists("Student Performance Session", name):
 		doc = frappe.get_doc("Student Performance Session", name)
 	else:
@@ -802,14 +813,26 @@ def set_no_session(standard, batch, category, performance_date, no_session=1, re
 
 
 @frappe.whitelist()
-def clear_performance_session(standard, batch, category, performance_date):
-	"""Delete the batch setup for a day. The graded rows keep their own copy."""
+def clear_performance_session(standard, batch, category, performance_date, session_name=None):
+	"""Delete the batch setup for a day. The graded rows keep their own copy.
+
+	A Test with graded rows is refused instead — its rows are only findable
+	through it."""
 	if not frappe.has_permission("Student Performance Session", "delete"):
 		frappe.throw("No permission to clear the performance setup")
 
 	_validate_category(category)
-	name = _session_name(performance_date, standard, batch, category)
-	if frappe.db.exists("Student Performance Session", name):
+	if is_multi_session(category):
+		session = _get_session(performance_date, standard, batch, category, session_name)
+		name = session.name if session else None
+		if name and frappe.db.count("Student Performance Tracker", {"session": name}):
+			frappe.throw(
+				"Students are already graded on this Test. Clear their grades first.",
+				title="Test Has Grades",
+			)
+	else:
+		name = _session_name(performance_date, standard, batch, category)
+	if name and frappe.db.exists("Student Performance Session", name):
 		frappe.delete_doc("Student Performance Session", name)
 
 	return {"status": "success"}
@@ -829,8 +852,8 @@ def _apply_values(doc, category, session, values):
 		batch setup.
 
 		The middle step is what makes a per-student override stick: re-tapping a
-		grade button sends no subject/lessons/portions, and falling straight
-		through to the batch setup would silently undo the manual change.
+		grade button sends no marks or totals, and falling straight through to
+		the batch setup would silently undo the manual change.
 		"""
 		if values.get(field) not in (None, ""):
 			return values[field]
@@ -842,20 +865,18 @@ def _apply_values(doc, category, session, values):
 		return None
 
 	if cfg["uses_syllabus"]:
-		doc.subject = pick("subject")
-
-		# Lessons and portions follow the same precedence, but a child table
-		# needs the "was it sent at all" test doing by hand — an empty list is a
-		# real instruction to clear what the row holds.
-		if values.get("lessons") is not None:
-			_set_lessons(doc, _parse_list(values["lessons"]))
-		elif not doc.get(LESSON_PARENTFIELD) and session:
-			_set_lessons(doc, session.get("lessons") or [])
-
-		if values.get("portions") is not None:
-			_set_portions(doc, _parse_list(values["portions"]))
-		elif not doc.get(PORTION_PARENTFIELD) and session:
-			_set_portions(doc, session.get("portions") or [])
+		# The same precedence for the syllabus, but child tables need the "was it
+		# sent at all" test doing by hand — an empty list is a real instruction to
+		# clear what the row holds. Re-tapping a grade sends nothing, so a
+		# per-student syllabus survives it.
+		if is_multi_session(category):
+			# A Test row always carries its Test's combination — that is what
+			# the student was scored on.
+			set_syllabus(doc, session.get("syllabus") or [])
+		elif values.get("syllabus") is not None:
+			set_syllabus(doc, values["syllabus"])
+		elif not has_syllabus(doc) and session:
+			set_syllabus(doc, session.get("syllabus") or [])
 
 	if cfg["uses_questions"]:
 		doc.total_questions = cint(pick("total_questions"))
@@ -879,14 +900,14 @@ def _apply_values(doc, category, session, values):
 
 
 def _upsert_tracker(student, performance_date, category, session, values, standard=None, batch=None):
-	"""Create or update the single row for this student+date+category.
+	"""Create or update the single row for this student+date+category (+Test).
 
 	The document name is deterministic, so two teachers saving the same student
 	at once collide on the primary key instead of writing two rows: the loser
 	rolls back its insert and updates the winner's row.
 	"""
 	date_obj = getdate(performance_date)
-	filters = {"student": student, "date": date_obj, "category": category}
+	filters = _row_filters(student, date_obj, category, session)
 
 	name = frappe.db.get_value("Student Performance Tracker", filters, "name")
 	if name:
@@ -965,6 +986,7 @@ def save_student_performance(
 	marks_obtained=None,
 	behaviour_reasons=None,
 	remarks=None,
+	syllabus=None,
 	subject=None,
 	lessons=None,
 	portions=None,
@@ -974,6 +996,7 @@ def save_student_performance(
 	skipped=None,
 	standard=None,
 	batch=None,
+	session_name=None,
 ):
 	_validate_category(category)
 
@@ -998,8 +1021,9 @@ def save_student_performance(
 			title="Student Not Present",
 		)
 
-	session = _get_session(performance_date, standard, batch, category)
+	session = _get_session(performance_date, standard, batch, category, session_name)
 	_guard_session_planned(session, category, performance_date)
+	_require_test(session, category)
 	cfg = category_config(category)
 
 	# Numbers arrive over HTTP as strings; a cleared input arrives as "".
@@ -1036,28 +1060,17 @@ def save_student_performance(
 			)
 
 	_validate_result(category, result)
-	_validate_subject(subject, standard)
 
-	lesson_names = None
-	if lessons is not None:
-		lesson_names = _parse_list(lessons)
-		_validate_lessons(
-			lesson_names, standard, subject or (session.subject if session else None)
-		)
-
-	portion_names = None
-	if portions is not None:
-		portion_names = _parse_list(portions)
-		_validate_portions(portion_names)
+	blocks = parse_syllabus(syllabus, subject, lessons, portions)
+	if blocks is not None:
+		validate_syllabus(blocks, standard)
 
 	values = {
 		"result": result,
 		"marks_obtained": marks_obtained,
 		"behaviour_reasons": behaviour_reasons,
 		"remarks": remarks,
-		"subject": subject,
-		"lessons": lesson_names,
-		"portions": portion_names,
+		"syllabus": blocks,
 		"total_questions": total_questions,
 		"total_marks": total_marks,
 		"pass_marks": pass_marks,
@@ -1073,14 +1086,16 @@ def save_student_performance(
 		"marks_obtained": flt(doc.marks_obtained),
 		"remarks": doc.remarks or "",
 		"behaviour_reasons": [r.behaviour_reason for r in (doc.behaviour_reasons or [])],
-		"lessons": [r.lesson for r in (doc.lessons or [])],
-		"portions": [r.portion for r in (doc.portions or [])],
+		"syllabus": doc_syllabus(doc),
+		"session": doc.session,
 		**_monthly_stats(student, performance_date, category),
 	}
 
 
 @frappe.whitelist()
-def clear_student_performance(student, performance_date, category, standard=None, batch=None):
+def clear_student_performance(
+	student, performance_date, category, standard=None, batch=None, session_name=None
+):
 	"""Drop one student's grade for a day, putting the row back to Pending.
 
 	Un-ticking "Skip Test / Study" has to land somewhere, and the honest place is
@@ -1104,9 +1119,11 @@ def clear_student_performance(student, performance_date, category, standard=None
 	batch = batch or (stu.attendance_batch if stu.attendance_batch_set else stu.current_batch)
 	_guard_writable(performance_date, standard, batch)
 
+	session = _get_session(performance_date, standard, batch, category, session_name)
+	_require_test(session, category)
 	name = frappe.db.get_value(
 		"Student Performance Tracker",
-		{"student": student, "date": getdate(performance_date), "category": category},
+		_row_filters(student, performance_date, category, session),
 		"name",
 	)
 	if name:
@@ -1130,7 +1147,7 @@ def _instead_options(category, standard):
 
 
 @frappe.whitelist()
-def get_student_entry(student, performance_date, category, standard=None, batch=None):
+def get_student_entry(student, performance_date, category, standard=None, batch=None, session_name=None):
 	"""One student's row for a day in some other category, for the skip modal.
 
 	Falls back to that category's batch setup, so a Test the student sat instead
@@ -1149,39 +1166,49 @@ def get_student_entry(student, performance_date, category, standard=None, batch=
 
 	standard = standard or stu.standard
 	batch = batch or (stu.attendance_batch if stu.attendance_batch_set else stu.current_batch)
-	session = _get_session(performance_date, standard, batch, category)
 
-	name = frappe.db.get_value(
-		"Student Performance Tracker",
-		{"student": student, "date": getdate(performance_date), "category": category},
-		"name",
-	)
+	# A Test sat instead has to be one of the day's Tests — the modal lists them
+	# and opens on the first unless one is picked.
+	tests = []
+	if is_multi_session(category):
+		tests = _list_tests(performance_date, standard, batch, category)
+		if session_name not in {t.name for t in tests}:
+			session_name = tests[0].name if tests else None
+	session = _get_session(performance_date, standard, batch, category, session_name)
+
+	name = None
+	if session or not is_multi_session(category):
+		name = frappe.db.get_value(
+			"Student Performance Tracker",
+			_row_filters(student, performance_date, category, session),
+			"name",
+		)
 	if name:
 		doc = frappe.get_doc("Student Performance Tracker", name)
 		return {
 			"exists": True,
 			"result": doc.result,
 			"skipped": cint(doc.skipped),
-			"subject": doc.subject,
-			"lessons": [r.lesson for r in (doc.lessons or [])],
-			"portions": [r.portion for r in (doc.portions or [])],
+			"syllabus": doc_syllabus(doc),
 			"total_marks": flt(doc.total_marks),
 			"pass_marks": flt(doc.pass_marks),
 			"marks_obtained": flt(doc.marks_obtained),
 			"no_session": cint(session.get("no_session")) if session else 0,
+			"tests": tests,
+			"session_name": session.name if session else None,
 		}
 
 	return {
 		"exists": False,
 		"result": None,
 		"skipped": 0,
-		"subject": session.get("subject") if session else None,
-		"lessons": session.get("lessons") if session else [],
-		"portions": session.get("portions") if session else [],
+		"syllabus": session.get("syllabus") if session else [],
 		"total_marks": flt(session.get("total_marks")) if session else 0,
 		"pass_marks": flt(session.get("pass_marks")) if session else 0,
 		"marks_obtained": None,
 		"no_session": cint(session.get("no_session")) if session else 0,
+		"tests": tests,
+		"session_name": session.name if session else None,
 	}
 
 
@@ -1191,6 +1218,7 @@ def skip_student_performance(
 	performance_date,
 	category,
 	remarks,
+	syllabus=None,
 	subject=None,
 	lessons=None,
 	portions=None,
@@ -1200,6 +1228,8 @@ def skip_student_performance(
 	instead_total_marks=None,
 	standard=None,
 	batch=None,
+	session_name=None,
+	instead_session_name=None,
 ):
 	"""Skip one student out of `category`, and optionally record what they did
 	instead — a Study grade or a Test score — in that category's own row.
@@ -1213,11 +1243,13 @@ def skip_student_performance(
 		category,
 		skipped=1,
 		remarks=remarks,
+		syllabus=syllabus,
 		subject=subject,
 		lessons=lessons,
 		portions=portions,
 		standard=standard,
 		batch=batch,
+		session_name=session_name,
 	)
 
 	if not instead_category:
@@ -1252,11 +1284,13 @@ def skip_student_performance(
 		total_marks=instead_total_marks,
 		pass_marks=default_pass_marks(instead_total_marks) if instead_total_marks else None,
 		remarks=f"In place of {category}: {remarks.strip()}",
+		syllabus=syllabus,
 		subject=subject,
 		lessons=lessons,
 		portions=portions,
 		standard=standard,
 		batch=batch,
+		session_name=instead_session_name,
 	)
 	res["instead"] = {
 		"category": instead_category,
@@ -1277,6 +1311,7 @@ def save_bulk_performance(
 	behaviour_reasons=None,
 	marks_obtained=None,
 	remarks=None,
+	session_name=None,
 ):
 	_validate_category(category)
 	_validate_result(category, result)
@@ -1308,8 +1343,9 @@ def save_bulk_performance(
 		)
 	)
 
-	session = _get_session(date_obj, standard, batch, category)
+	session = _get_session(date_obj, standard, batch, category, session_name)
 	_guard_session_planned(session, category, date_obj)
+	_require_test(session, category)
 	values = {
 		"result": result,
 		"marks_obtained": marks_obtained,
@@ -1365,6 +1401,44 @@ def add_behaviour_reason(reason_name, severity="Both", description=None):
 
 
 @frappe.whitelist()
+def add_subject(subject_name, standard):
+	"""Add a subject for this standard straight from the PWA, for the same reason
+	as `add_lesson`: a class on a subject the master does not offer yet should
+	not send the teacher off the screen mid-marking.
+
+	A subject already in the master is reused — if it is not offered to this
+	standard yet, the standard is added to its Standard Applicable list."""
+	subject_name = (subject_name or "").strip()
+	if not subject_name:
+		frappe.throw("Subject cannot be blank")
+	if not standard:
+		frappe.throw("Pick the Standard the subject is taught in first.")
+
+	if frappe.db.exists("Subject", subject_name):
+		if subject_name in subjects_for_standard(standard):
+			return subject_name
+		if not frappe.has_permission("Subject", "write"):
+			frappe.throw("No permission to add a subject")
+		doc = frappe.get_doc("Subject", subject_name)
+		doc.append("standard_applicable", {"standard": standard})
+		doc.save()
+		return doc.name
+
+	if not frappe.has_permission("Subject", "create"):
+		frappe.throw("No permission to add a subject")
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Subject",
+			"subject_name": subject_name,
+			"standard_applicable": [{"standard": standard}],
+		}
+	).insert()
+
+	return doc.name
+
+
+@frappe.whitelist()
 def add_lesson(lesson_name, subject, standard, lesson_order=None):
 	"""Add to the Lesson master straight from the PWA, for the same reason
 	`add_behaviour_reason` exists: the lesson taught today is often not in the
@@ -1378,7 +1452,7 @@ def add_lesson(lesson_name, subject, standard, lesson_order=None):
 	if not subject or not standard:
 		frappe.throw("Pick the Subject and Standard the lesson belongs to first.")
 
-	_validate_subject(subject, standard)
+	validate_subject(subject, standard)
 
 	name = lesson_docname(lesson_name, subject, standard)
 	if frappe.db.exists("Lesson", name):

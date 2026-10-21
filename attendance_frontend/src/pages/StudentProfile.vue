@@ -267,7 +267,7 @@
         <h3 class="prof-card-title"><i class="fa fa-star"></i> Performance</h3>
 
         <p v-if="!performance.total_entries" class="prof-muted">
-          Nothing was recorded for Study, Class, Test, Maths Test or Behaviour in this period.
+          Nothing was recorded for Study, Class, Test, H.W or Behaviour in this period.
         </p>
 
         <div v-else class="prof-perf-grid">
@@ -314,16 +314,35 @@
         </div>
       </section>
 
-      <!-- ===== Behaviour detail ===== -->
+      <!-- ===== Behaviour breakdown ===== -->
       <section v-if="behaviour.incidents.length" class="prof-card">
         <h3 class="prof-card-title prof-tone-bad">
-          <i class="fa fa-exclamation-triangle"></i> Behaviour Concerns
+          <i class="fa fa-exclamation-triangle"></i> Behaviour Mistakes
         </h3>
 
-        <div class="prof-reason-tally">
-          <span v-for="r in behaviour.reason_counts" :key="r.reason" class="prof-reason-chip">
-            {{ r.reason }} <b>{{ r.count }}</b>
-          </span>
+        <div class="prof-break-grid">
+          <div
+            v-for="grp in behaviour.by_result"
+            :key="grp.result"
+            class="prof-break-card"
+            :data-result="grp.result"
+          >
+            <div class="prof-break-head">
+              <span class="prof-pill" :data-result="grp.result">{{ grp.result }}</span>
+              <span class="prof-break-count">
+                <b>{{ grp.days }}</b> day(s)
+              </span>
+            </div>
+            <p v-if="!grp.days" class="prof-muted">No {{ grp.result.toLowerCase() }} issues recorded.</p>
+            <ul v-else class="prof-break-list">
+              <li v-for="r in grp.reasons" :key="r.reason">
+                <span>{{ r.reason }}</span>
+                <b>{{ r.count }}×</b>
+              </li>
+              <li v-if="!grp.reasons.length" class="prof-muted">No reason recorded</li>
+            </ul>
+            <p v-if="grp.last_date" class="prof-break-foot">Last on {{ prettyDate(grp.last_date) }}</p>
+          </div>
         </div>
 
         <table class="prof-table">
@@ -343,6 +362,65 @@
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <!-- ===== Test breakdown by subject ===== -->
+      <section v-if="tests.total_sat" class="prof-card">
+        <h3 class="prof-card-title" :class="{ 'prof-tone-bad': tests.total_failed }">
+          <i class="fa fa-pencil-square-o"></i> Tests by Subject
+          <span class="prof-card-sub">
+            Failed {{ tests.total_failed }} of {{ tests.total_sat }} test(s)
+          </span>
+        </h3>
+
+        <table class="prof-table prof-subject-table">
+          <thead>
+            <tr><th>Subject</th><th>Tests</th><th>Passed</th><th>Failed</th><th>Score</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="sub in tests.by_subject" :key="sub.subject" :class="{ 'is-concern': sub.failed }">
+              <td><b>{{ sub.subject }}</b></td>
+              <td>{{ sub.sat }}</td>
+              <td class="prof-text-good">{{ sub.passed }}</td>
+              <td :class="{ 'prof-text-bad': sub.failed }">{{ sub.failed }}</td>
+              <td>
+                <span
+                  v-if="sub.percentage !== null"
+                  class="prof-perf-score-sub"
+                  :class="`prof-band-${bandKey(sub.percentage)}`"
+                >{{ sub.percentage }}%</span>
+                <span v-else class="prof-muted">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <template v-if="tests.failures.length">
+          <h4 class="prof-subhead">Failed Tests</h4>
+          <table class="prof-table">
+            <thead>
+              <tr><th>Date</th><th>Subject</th><th>Covered</th><th>Marks</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(f, i) in tests.failures" :key="i">
+                <td class="prof-nowrap">{{ prettyDate(f.date) }}</td>
+                <td>{{ f.subjects.join(', ') }}</td>
+                <td>
+                  {{ f.covered || '—' }}
+                  <em v-if="f.remarks"> — {{ f.remarks }}</em>
+                </td>
+                <td class="prof-nowrap">
+                  <template v-if="f.total_marks">
+                    <b class="prof-text-bad">{{ formatNumber(f.marks_obtained) }}</b>/{{ formatNumber(f.total_marks) }}
+                    <span v-if="f.pass_marks" class="prof-muted"> (pass {{ formatNumber(f.pass_marks) }})</span>
+                  </template>
+                  <span v-else class="prof-muted">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
+        <p v-else class="prof-muted">No failed tests in this period.</p>
       </section>
 
       <!-- ===== Recent activity ===== -->
@@ -400,6 +478,8 @@ const RESULT_TONES = {
   'Full Mark': 'good',
   'Pass Mark': 'mid',
   Fail: 'bad',
+  Done: 'good',
+  'Not Done': 'bad',
   Good: 'good',
   Discipline: 'mid',
   Critical: 'bad',
@@ -440,7 +520,12 @@ const student = computed(() => profile.value?.student || {})
 const range = computed(() => profile.value?.range || {})
 const attendance = computed(() => profile.value?.attendance || {})
 const performance = computed(() => profile.value?.performance || { categories: [], total_entries: 0 })
-const behaviour = computed(() => profile.value?.behaviour || { incidents: [], reason_counts: [] })
+const behaviour = computed(
+  () => profile.value?.behaviour || { incidents: [], reason_counts: [], by_result: [] }
+)
+const tests = computed(
+  () => profile.value?.tests || { failures: [], by_subject: [], total_failed: 0, total_sat: 0 }
+)
 
 const recordedCategories = computed(() =>
   performance.value.categories.filter((c) => c.entries > 0)
@@ -1319,6 +1404,71 @@ watch([fromDate, toDate], () => {
 }
 
 .student-profile .prof-pill[data-result='Critical'] { background: var(--bg-red); color: var(--text-on-red); }
+
+/* ---- behaviour / test breakdown ---- */
+.student-profile .prof-break-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.student-profile .prof-break-card {
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--prof-warn);
+  border-radius: var(--prof-radius-sm);
+  padding: 12px 14px;
+}
+
+.student-profile .prof-break-card[data-result='Critical'] { border-left-color: var(--prof-bad); }
+
+.student-profile .prof-break-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.student-profile .prof-break-count { font-size: 12.5px; color: var(--text-muted); }
+.student-profile .prof-break-count b { font-size: 18px; color: var(--heading-color); }
+.student-profile .prof-break-list { list-style: none; margin: 0; padding: 0; }
+
+.student-profile .prof-break-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding: 3px 0;
+}
+
+.student-profile .prof-break-list li b { font-variant-numeric: tabular-nums; }
+.student-profile .prof-break-foot { font-size: 11px; color: var(--text-muted); margin: 8px 0 0; }
+
+.student-profile .prof-card-sub {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.student-profile .prof-subhead {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 18px 0 6px;
+}
+
+.student-profile .prof-subject-table td { font-variant-numeric: tabular-nums; }
+.student-profile .prof-subject-table tr.is-concern td:first-child { box-shadow: inset 3px 0 0 var(--prof-bad); }
+.student-profile .prof-text-good { color: var(--prof-good); font-weight: 600; }
+.student-profile .prof-text-bad { color: var(--prof-bad); font-weight: 700; }
+.student-profile .prof-perf-score-sub.prof-band-excellent,
+.student-profile .prof-perf-score-sub.prof-band-good { color: var(--prof-good); font-weight: 700; }
+.student-profile .prof-perf-score-sub.prof-band-fair { color: var(--prof-warn); font-weight: 700; }
+.student-profile .prof-perf-score-sub.prof-band-poor { color: var(--prof-bad); font-weight: 700; }
 
 /* ---- timeline ---- */
 .student-profile .prof-timeline { list-style: none; margin: 0; padding: 0; }

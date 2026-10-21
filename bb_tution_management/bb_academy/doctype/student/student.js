@@ -54,6 +54,10 @@ frappe.ui.form.on("Student", {
 				};
 			}
 		});
+
+		frm.set_query("discontinue_reason_category", function() {
+			return { filters: { disabled: 0 } };
+		});
 	},
 	standard(frm) {
 		if (frm.doc.standard) {

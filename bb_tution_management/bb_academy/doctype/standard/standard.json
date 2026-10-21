@@ -14,7 +14,6 @@
   "academic_order",
   "starting_payment",
   "default_batch",
-  "test_category",
   "is_active",
   "whatsapp_group_link"
  ],
@@ -73,13 +72,6 @@
    "options": "Batch"
   },
   {
-   "description": "The subject test the Performance Manager offers for this standard. Leave blank and the Commerce standards get Accounts Test, everyone else Maths Test.",
-   "fieldname": "test_category",
-   "fieldtype": "Select",
-   "label": "Subject Test",
-   "options": "\nMaths Test\nAccounts Test"
-  },
-  {
    "fieldname": "whatsapp_group_link",
    "fieldtype": "Data",
    "label": "WhatsApp Group Link"
@@ -87,7 +79,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-12 10:00:00.000000",
+ "modified": "2026-10-15 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Standard",

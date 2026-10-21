@@ -48,6 +48,7 @@ export const NAV_GROUPS = [
     children: [
       { name: 'AttendanceReports', label: 'Reports', icon: 'fa-list-alt' },
       { name: 'StudentMistakes', label: 'Mistakes', icon: 'fa-exclamation-triangle' },
+      { name: 'PendingCalls', label: 'Pending Calls', icon: 'fa-phone' },
     ],
   },
 ]

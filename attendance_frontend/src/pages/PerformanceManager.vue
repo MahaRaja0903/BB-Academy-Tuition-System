@@ -53,7 +53,7 @@
       </div>
 
       <div v-if="config.usesSkip" class="perf-panel-actions">
-        <!-- "No Study" / "No Test" / "No Maths Test" — the day management
+        <!-- "No Study" / "No Test" / "No H.W" — the day management
              planned nothing for this batch. Reads back as the same button,
              pressed, so one control both sets and undoes it. -->
         <button
@@ -72,99 +72,48 @@
       </div>
     </div>
 
+    <!-- Test picker: a batch can sit several Tests a day, one per Subject +
+         Lesson + Portion combination. Each is graded on its own. -->
+    <div v-if="config.multiSession && standard && batch && !noSession && !holiday" class="perf-test-picker">
+      <span class="perf-test-picker-label"><i class="fa fa-list-ol"></i> Today's Tests</span>
+      <div class="perf-chip-picker">
+        <button
+          v-for="(t, i) in tests"
+          :key="t.name"
+          type="button"
+          class="perf-chip"
+          :class="{ active: testName === t.name }"
+          :title="t.label"
+          @click="pickTest(t.name)"
+        >
+          <strong>{{ i + 1 }}.</strong> {{ t.label }}
+          <span class="perf-test-count">{{ t.graded }}</span>
+        </button>
+        <button
+          type="button"
+          class="perf-chip perf-chip-new"
+          :class="{ active: !testName }"
+          @click="pickTest('')"
+        >
+          <i class="fa fa-plus"></i> New Test
+        </button>
+      </div>
+    </div>
+
     <!-- Batch setup: entered once, inherited by every student graded after it -->
     <div v-if="config.usesSyllabus && standard && batch && !noSession" class="perf-setup-card">
       <button type="button" class="perf-setup-head" @click="setupOpen = !setupOpen">
         <span class="perf-setup-title">
-          <i class="fa fa-sliders"></i> {{ category }} Setup for the whole batch
+          <i class="fa fa-sliders"></i>
+          <template v-if="config.multiSession">{{ testName ? 'Test Setup' : 'New Test — Subject, Lesson & Portion' }}</template>
+          <template v-else>{{ category }} Setup for the whole batch</template>
         </span>
         <span class="perf-setup-summary">{{ setupSummary }}</span>
         <i class="fa" :class="setupOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
       </button>
 
       <div v-if="setupOpen" class="perf-setup-body">
-        <div class="perf-setup-grid">
-          <div class="perf-field">
-            <label for="perf-subject">Subject</label>
-            <select id="perf-subject" class="form-control" v-model="setup.subject">
-              <option value="">Select Subject</option>
-              <option v-for="s in subjectOptions(setup.subject)" :key="s" :value="s">{{ s }}</option>
-            </select>
-            <small v-if="!subjects.length" class="perf-field-hint">
-              No subject is mapped to {{ standard }} yet — add one in the Subject master.
-            </small>
-          </div>
-          <div class="perf-field perf-field-lesson">
-            <label for="perf-lesson-search">Lesson</label>
-            <small v-if="!setup.subject" class="perf-field-hint">
-              Pick a Subject first — a lesson belongs to one subject of one standard.
-            </small>
-            <div v-else class="perf-picker">
-              <div class="perf-tag-row">
-                <span v-for="name in setup.lessons" :key="name" class="perf-tag">
-                  {{ lessonTitle(name) }}
-                  <button
-                    type="button"
-                    class="perf-tag-x"
-                    :title="`Remove ${lessonTitle(name)}`"
-                    @click="removeLesson(setup.lessons, name)"
-                  >
-                    <i class="fa fa-times"></i>
-                  </button>
-                </span>
-                <small v-if="!setup.lessons.length" class="perf-field-hint">
-                  No lesson picked yet — pick as many as the class covered.
-                </small>
-              </div>
-              <div class="perf-inline-add">
-                <input
-                  id="perf-lesson-search"
-                  type="text"
-                  class="form-control"
-                  placeholder="Search a lesson, or type a new one to add it"
-                  v-model="lessonSearch"
-                  @keyup.enter="addLesson"
-                />
-                <button
-                  type="button"
-                  class="perf-btn perf-btn-secondary perf-btn-compact"
-                  :disabled="!lessonSearch.trim() || addingLesson"
-                  @click="addLesson"
-                >
-                  <i class="fa fa-plus"></i> Add
-                </button>
-              </div>
-              <ul class="perf-option-list">
-                <li v-for="l in setupLessonPicks" :key="l.name">
-                  <button type="button" @click="pickLesson(setup.lessons, l.name)">
-                    <i class="fa fa-plus-circle"></i> {{ l.lesson_name }}
-                  </button>
-                </li>
-                <li v-if="!setupLessonPicks.length" class="perf-option-empty">
-                  {{ lessonEmptyText(lessons, setup.lessons, lessonSearch) }}
-                </li>
-              </ul>
-            </div>
-            <small v-if="lessonError" class="perf-modal-error">{{ lessonError }}</small>
-          </div>
-          <div class="perf-field perf-field-wide">
-            <label>Portion</label>
-            <div class="perf-chip-picker">
-              <button
-                v-for="p in portionOptions"
-                :key="p.name"
-                type="button"
-                class="perf-chip"
-                :class="{ active: setup.portions.includes(p.name) }"
-                @click="togglePortion(setup.portions, p.name)"
-              >
-                {{ p.portion_name }}
-              </button>
-              <small v-if="!portionOptions.length" class="perf-field-hint">
-                The Portion master is empty — add 1M, 2M … in the Portion master.
-              </small>
-            </div>
-          </div>
+        <div v-if="config.usesQuestions || config.usesMarks" class="perf-setup-grid perf-setup-totals">
           <div v-if="config.usesQuestions" class="perf-field">
             <label for="perf-questions">Total Number of Questions</label>
             <input
@@ -207,14 +156,45 @@
           <strong>Fail</strong>. Tapping a grade always overrides it.
         </p>
 
+        <SyllabusEditor
+          class="perf-setup-syllabus"
+          :blocks="setup.syllabus"
+          :standard="standard"
+          :subjects="subjects"
+          :portion-options="portionOptions"
+          :reload-subjects="loadSubjects"
+          :reload-portions="loadPortions"
+          :single="config.multiSession"
+          allow-add
+          id-prefix="perf-setup"
+        />
+
+        <p v-if="config.multiSession" class="perf-setup-hint">
+          <i class="fa fa-info-circle"></i>
+          One Test is one Subject with its Lessons and Portions. For another subject or a
+          different lesson / portion, add a New Test — the same combination cannot be added twice
+          on one day.
+        </p>
+
         <div class="perf-setup-actions">
-          <label class="perf-switch">
+          <label v-if="!config.multiSession || testName" class="perf-switch">
             <input type="checkbox" v-model="applyToAll" />
-            <span>Also update the {{ gradedCount }} student(s) already graded today</span>
+            <span>
+              Also update the {{ gradedCount }} student(s) already graded
+              {{ config.multiSession ? 'on this Test' : 'today' }}
+            </span>
           </label>
           <p v-if="setupError" class="perf-modal-error">{{ setupError }}</p>
+          <button
+            v-if="config.multiSession && testName && !gradedCount"
+            class="perf-btn perf-btn-secondary"
+            :disabled="setupSaving"
+            @click="removeTest"
+          >
+            <i class="fa fa-trash"></i> Remove Test
+          </button>
           <button class="perf-btn perf-btn-primary" :disabled="setupSaving" @click="saveSetup">
-            {{ setupSaving ? 'Saving…' : 'Save Setup' }}
+            {{ setupSaving ? 'Saving…' : config.multiSession && !testName ? 'Add Test' : 'Save Setup' }}
           </button>
         </div>
       </div>
@@ -357,6 +337,18 @@
         >
           <i class="fa fa-undo"></i> {{ category }} was held after all — undo
         </button>
+      </div>
+    </div>
+
+    <!-- Test picked yet? Marks always belong to one Test -->
+    <div v-else-if="needsTest" class="perf-holiday-card perf-noclass-card">
+      <div class="perf-holiday-icon"><i class="fa fa-file-text-o"></i></div>
+      <div class="perf-holiday-content">
+        <h4>Add a Test to start</h4>
+        <p class="perf-holiday-note">
+          Pick the Subject, Lesson and Portion above and press <strong>Add Test</strong>, or choose
+          one of today's Tests. Marks are entered for that Test only.
+        </p>
       </div>
     </div>
 
@@ -553,18 +545,32 @@
           Pick what the student did from the master list. At least one is required.
         </p>
 
+        <div v-if="reasonOptions.length" class="perf-reason-search">
+          <i class="fa fa-search"></i>
+          <input
+            type="text"
+            class="form-control"
+            placeholder="Search by reason or number"
+            v-model="reasonModal.search"
+          />
+          <span class="perf-reason-selected-count">{{ reasonModal.selected.size }} selected</span>
+        </div>
+
         <div class="perf-reason-list">
-          <label v-for="r in reasonOptions" :key="r.name" class="perf-reason-item">
+          <label v-for="r in filteredReasonOptions" :key="r.name" class="perf-reason-item">
+            <span class="perf-reason-sno">{{ r.sno }}.</span>
             <input
               type="checkbox"
               :checked="reasonModal.selected.has(r.name)"
               @change="toggleReason(r.name)"
             />
             <span>{{ r.reason_name }}</span>
-            <em v-if="r.severity !== 'Both'">{{ r.severity }}</em>
           </label>
           <p v-if="!reasonOptions.length" class="perf-modal-warn">
             The Behaviour Reason master list is empty — add the first one below.
+          </p>
+          <p v-else-if="!filteredReasonOptions.length" class="perf-reason-empty">
+            No reason matches “{{ reasonModal.search }}”.
           </p>
         </div>
 
@@ -714,7 +720,7 @@
           </small>
         </template>
 
-        <template v-if="config.usesSyllabus">
+        <template v-if="config.usesSyllabus && !config.multiSession">
           <p class="perf-modal-sub perf-modal-sub-tight">
             <i class="fa fa-book"></i>
             This starts from what the batch was set up to cover. Change it to what
@@ -722,66 +728,13 @@
             saved on this student's row only.
           </p>
 
-          <label class="perf-modal-label">Subject</label>
-          <select class="form-control" v-model="skipModal.subject">
-            <option value="">Select Subject</option>
-            <option v-for="sub in subjectOptions(skipModal.subject)" :key="sub" :value="sub">
-              {{ sub }}
-            </option>
-          </select>
-
-          <label class="perf-modal-label">Lesson</label>
-          <small v-if="!skipModal.subject" class="perf-field-hint">
-            Pick a Subject first — a lesson belongs to one subject of one standard.
-          </small>
-          <div v-else class="perf-picker">
-            <div class="perf-tag-row">
-              <span v-for="name in skipModal.lessons" :key="name" class="perf-tag">
-                {{ lessonTitle(name, skipLessons) }}
-                <button
-                  type="button"
-                  class="perf-tag-x"
-                  :title="`Remove ${lessonTitle(name, skipLessons)}`"
-                  @click="removeLesson(skipModal.lessons, name)"
-                >
-                  <i class="fa fa-times"></i>
-                </button>
-              </span>
-              <small v-if="!skipModal.lessons.length" class="perf-field-hint">
-                No lesson picked yet.
-              </small>
-            </div>
-            <input
-              type="text"
-              class="form-control"
-              placeholder="Search a lesson"
-              v-model="skipLessonSearch"
-            />
-            <ul class="perf-option-list">
-              <li v-for="l in skipLessonPicks" :key="l.name">
-                <button type="button" @click="pickLesson(skipModal.lessons, l.name)">
-                  <i class="fa fa-plus-circle"></i> {{ l.lesson_name }}
-                </button>
-              </li>
-              <li v-if="!skipLessonPicks.length" class="perf-option-empty">
-                {{ lessonEmptyText(skipLessons, skipModal.lessons, skipLessonSearch) }}
-              </li>
-            </ul>
-          </div>
-
-          <label class="perf-modal-label">Portion</label>
-          <div class="perf-chip-picker">
-            <button
-              v-for="pt in portionOptions"
-              :key="pt.name"
-              type="button"
-              class="perf-chip"
-              :class="{ active: skipModal.portions.includes(pt.name) }"
-              @click="togglePortion(skipModal.portions, pt.name)"
-            >
-              {{ pt.portion_name }}
-            </button>
-          </div>
+          <SyllabusEditor
+            :blocks="skipModal.syllabus"
+            :standard="standard"
+            :subjects="subjects"
+            :portion-options="portionOptions"
+            id-prefix="perf-skip"
+          />
         </template>
 
         <template v-if="skipModal.instead === 'Study'">
@@ -801,6 +754,18 @@
         </template>
 
         <template v-else-if="skipModal.instead">
+          <template v-if="skipModal.insteadTests.length">
+            <label class="perf-modal-label">Which Test? <span class="perf-required">*</span></label>
+            <select
+              class="form-control"
+              :value="skipModal.insteadTest"
+              @change="pickInstead(skipModal.instead, $event.target.value)"
+            >
+              <option v-for="t in skipModal.insteadTests" :key="t.name" :value="t.name">
+                {{ t.label }}
+              </option>
+            </select>
+          </template>
           <label class="perf-modal-label">{{ skipModal.instead }} Marks <span class="perf-required">*</span></label>
           <div class="perf-marks-pair">
             <input
@@ -855,67 +820,14 @@
           These start from the batch setup. Anything changed here applies to this student only.
         </p>
 
-        <template v-if="config.usesSyllabus">
-          <label class="perf-modal-label">Subject</label>
-          <select class="form-control" v-model="detailModal.subject">
-            <option value="">Select Subject</option>
-            <option v-for="s in subjectOptions(detailModal.subject)" :key="s" :value="s">
-              {{ s }}
-            </option>
-          </select>
-
-          <label class="perf-modal-label">Lesson</label>
-          <small v-if="!detailModal.subject" class="perf-field-hint">
-            Pick a Subject first — a lesson belongs to one subject of one standard.
-          </small>
-          <div v-else class="perf-picker">
-            <div class="perf-tag-row">
-              <span v-for="name in detailModal.lessons" :key="name" class="perf-tag">
-                {{ lessonTitle(name, detailLessons) }}
-                <button
-                  type="button"
-                  class="perf-tag-x"
-                  :title="`Remove ${lessonTitle(name, detailLessons)}`"
-                  @click="removeLesson(detailModal.lessons, name)"
-                >
-                  <i class="fa fa-times"></i>
-                </button>
-              </span>
-              <small v-if="!detailModal.lessons.length" class="perf-field-hint">
-                No lesson picked yet.
-              </small>
-            </div>
-            <input
-              type="text"
-              class="form-control"
-              placeholder="Search a lesson"
-              v-model="detailLessonSearch"
-            />
-            <ul class="perf-option-list">
-              <li v-for="l in detailLessonPicks" :key="l.name">
-                <button type="button" @click="pickLesson(detailModal.lessons, l.name)">
-                  <i class="fa fa-plus-circle"></i> {{ l.lesson_name }}
-                </button>
-              </li>
-              <li v-if="!detailLessonPicks.length" class="perf-option-empty">
-                {{ lessonEmptyText(detailLessons, detailModal.lessons, detailLessonSearch) }}
-              </li>
-            </ul>
-          </div>
-
-          <label class="perf-modal-label">Portion</label>
-          <div class="perf-chip-picker">
-            <button
-              v-for="p in portionOptions"
-              :key="p.name"
-              type="button"
-              class="perf-chip"
-              :class="{ active: detailModal.portions.includes(p.name) }"
-              @click="togglePortion(detailModal.portions, p.name)"
-            >
-              {{ p.portion_name }}
-            </button>
-          </div>
+        <template v-if="config.usesSyllabus && !config.multiSession">
+          <SyllabusEditor
+            :blocks="detailModal.syllabus"
+            :standard="standard"
+            :subjects="subjects"
+            :portion-options="portionOptions"
+            id-prefix="perf-detail"
+          />
         </template>
 
         <template v-if="config.usesQuestions">
@@ -964,15 +876,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, nextTick, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import { serverToday, loadServerToday, formatDate, addDays } from '@/data/serverDate'
+import { lessonTitle, rememberLessonTitles } from '@/data/lessons'
+import SyllabusEditor from '@/components/SyllabusEditor.vue'
 
 // Mirrors bb_academy/performance_config.py — the server validates against its
 // own copy, so any change here needs the same change there.
-//
-// "Maths Test" and "Accounts Test" are the same test under the name the
-// standard actually sits it under; `categoryOptions` offers exactly one of them.
 const TEST_RESULTS = [
   { value: 'Full Mark', icon: 'fa-trophy', tone: 'good' },
   { value: 'Pass Mark', icon: 'fa-check-circle', tone: 'mid' },
@@ -1016,27 +927,23 @@ const CATEGORY_CONFIG = {
     usesReasons: false,
     usesSkip: true,
     skipLabel: 'Skip Test',
+    // Several Tests a day, one per Subject + Lesson + Portion combination.
+    multiSession: true,
     results: TEST_RESULTS,
   },
-  'Maths Test': {
-    icon: 'fa-calculator',
+  // Home work on the subject / lesson / portion set for the batch.
+  'H.W': {
+    icon: 'fa-pencil-square-o',
     usesSyllabus: true,
     usesQuestions: false,
-    usesMarks: true,
+    usesMarks: false,
     usesReasons: false,
     usesSkip: true,
-    skipLabel: 'Skip Test',
-    results: TEST_RESULTS,
-  },
-  'Accounts Test': {
-    icon: 'fa-inr',
-    usesSyllabus: true,
-    usesQuestions: false,
-    usesMarks: true,
-    usesReasons: false,
-    usesSkip: true,
-    skipLabel: 'Skip Test',
-    results: TEST_RESULTS,
+    skipLabel: 'Skip H.W',
+    results: [
+      { value: 'Done', icon: 'fa-check-circle', tone: 'good' },
+      { value: 'Not Done', icon: 'fa-times-circle', tone: 'bad' },
+    ],
   },
   Behaviour: {
     icon: 'fa-smile-o',
@@ -1054,14 +961,11 @@ const CATEGORY_CONFIG = {
   },
 }
 
-// Every standard sits Study, Class, Test and Behaviour; the subject test is whichever
-// one the Standard master names (Accounts Test for Commerce).
-const SHARED_CATEGORIES = ['Study', 'Class', 'Test']
-const SUBJECT_TESTS = ['Maths Test', 'Accounts Test']
+// Every standard sits the same categories.
+const CATEGORIES = ['Study', 'Class', 'Test', 'H.W', 'Behaviour']
 // What a skipped student can be recorded as having done instead — mirrors
 // INSTEAD_CATEGORIES in bb_academy/performance.py.
 const INSTEAD_CATEGORIES = ['Study', 'Test']
-const DEFAULT_SUBJECT_TEST = 'Maths Test'
 
 // Half the paper passes — the same rule bb_academy/performance_config.py applies.
 function halfOf(total) {
@@ -1075,17 +979,8 @@ const standards = ref([])
 const batches = ref([])
 // Subject master, narrowed to the picked standard.
 const subjects = ref([])
-// Lesson master, narrowed to the standard + the subject the setup card holds.
-const lessons = ref([])
-// The same list for the per-student modal, which can be on another subject.
-const detailLessons = ref([])
-// And again for the skip modal, where the subject is whatever the student did
-// instead of the planned session.
-const skipLessons = ref([])
 // Portion master — the same 1M / 2M / 5M list for every standard.
 const portionOptions = ref([])
-// Which subject test this standard sits. Server-decided, so the two never drift.
-const subjectTest = ref(DEFAULT_SUBJECT_TEST)
 const standard = ref('')
 const batch = ref('')
 const gender = ref('')
@@ -1097,6 +992,11 @@ const summary = ref({})
 // The batch setup row for the loaded date/category. It also carries the
 // "No Study / No Test" flag, so the screen reads both off one object.
 const session = ref(null)
+// Test only: the day's Tests, and which one is being graded ('' = adding a new one).
+const tests = ref([])
+const testName = ref('')
+// Set when the filters change, so the latest Test opens instead of an empty form.
+let autoPickTest = true
 const holiday = ref(null)
 // Set when this date is a holiday a class was taken on anyway. The server then
 // treats the day as ordinary, so `holiday` comes back null and this is what
@@ -1119,33 +1019,12 @@ const selected = reactive(new Set())
 
 const setupOpen = ref(false)
 const setup = reactive({
-  subject: '',
-  lessons: [],
-  portions: [],
+  // One block per subject the class covered: { subject, lessons, portions }.
+  syllabus: [],
   total_questions: 0,
   total_marks: 0,
   pass_marks: 0,
 })
-// One box does both jobs: it filters the list below, and its text is what the
-// Add button pushes into the Lesson master.
-const lessonSearch = ref('')
-const detailLessonSearch = ref('')
-const skipLessonSearch = ref('')
-const addingLesson = ref(false)
-const lessonError = ref('')
-
-// Raised while a load writes Subject and Lesson in the same tick. Without it the
-// "subject changed, so the lessons no longer apply" rule below would fire on
-// our own write and drop the lessons we just loaded.
-let syncingSyllabus = false
-
-function syncSyllabus(apply) {
-  syncingSyllabus = true
-  apply()
-  nextTick(() => {
-    syncingSyllabus = false
-  })
-}
 const applyToAll = ref(false)
 const setupSaving = ref(false)
 const setupError = ref('')
@@ -1160,6 +1039,7 @@ const reasonModal = reactive({
   selected: new Set(),
   remarks: '',
   newReason: '',
+  search: '',
   adding: false,
   saving: false,
   error: '',
@@ -1183,9 +1063,7 @@ const specialModal = reactive({
 const skipModal = reactive({
   open: false,
   student: null,
-  subject: '',
-  lessons: [],
-  portions: [],
+  syllabus: [],
   // What the student did in place of the skipped session: '' (nothing),
   // 'Study' or 'Test'. It is saved as a real row in that category.
   instead: '',
@@ -1194,6 +1072,9 @@ const skipModal = reactive({
   insteadTotal: '',
   insteadExists: false,
   insteadLoading: false,
+  // A Test sat instead belongs to one of the day's Tests.
+  insteadTests: [],
+  insteadTest: '',
   remarks: '',
   saving: false,
   error: '',
@@ -1202,9 +1083,7 @@ const skipModal = reactive({
 const detailModal = reactive({
   open: false,
   student: null,
-  subject: '',
-  lessons: [],
-  portions: [],
+  syllabus: [],
   total_questions: 0,
   total_marks: 0,
   pass_marks: 0,
@@ -1237,14 +1116,8 @@ const subjectsResource = createResource({
 const addReasonResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.add_behaviour_reason',
 })
-const metaResource = createResource({
-  url: 'bb_tution_management.bb_academy.performance.get_performance_meta',
-})
-const lessonsResource = createResource({
-  url: 'bb_tution_management.bb_academy.performance.get_lessons',
-})
-const detailLessonsResource = createResource({
-  url: 'bb_tution_management.bb_academy.performance.get_lessons',
+const clearSessionResource = createResource({
+  url: 'bb_tution_management.bb_academy.performance.clear_performance_session',
 })
 const skipResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.skip_student_performance',
@@ -1252,14 +1125,8 @@ const skipResource = createResource({
 const entryResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.get_student_entry',
 })
-const skipLessonsResource = createResource({
-  url: 'bb_tution_management.bb_academy.performance.get_lessons',
-})
 const portionsResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.get_portions',
-})
-const addLessonResource = createResource({
-  url: 'bb_tution_management.bb_academy.performance.add_lesson',
 })
 const clearResource = createResource({
   url: 'bb_tution_management.bb_academy.performance.clear_student_performance',
@@ -1276,14 +1143,21 @@ const removeSpecialClassResource = createResource({
 
 const config = computed(() => CATEGORY_CONFIG[category.value] || CATEGORY_CONFIG.Study)
 
-// "No Study" / "No Test" / "No Maths Test" / "No Accounts Test" — the button
-// is named after whichever category is on screen.
+// "No Study" / "No Test" / "No H.W" — the button is named after whichever
+// category is on screen.
 const noSessionLabel = computed(() => `No ${category.value}`)
 const noSession = computed(() => !!session.value?.no_session)
 const columnCount = computed(() => (config.value.usesMarks ? 5 : 4))
 
-// The standard sits exactly one subject test, so only that one is offered.
-const categoryOptions = computed(() => [...SHARED_CATEGORIES, subjectTest.value, 'Behaviour'])
+const categoryOptions = CATEGORIES
+
+// A Test grade must belong to a Test, so nothing is listed until one is picked.
+const needsTest = computed(() => !!config.value.multiSession && !testName.value)
+
+// Which Test the save calls act on; undefined for the once-a-day categories.
+function sessionParam() {
+  return config.value.multiSession ? testName.value || undefined : undefined
+}
 
 // Skipping one session usually means the student did the other: a skipped
 // Study was a Test sat, a skipped Test was spent studying.
@@ -1306,56 +1180,49 @@ const fullMarkFrom = computed(() => {
 
 const gradedCount = computed(() => students.value.filter((s) => s.result).length)
 
-function lessonTitle(name, pool) {
-  // The setup card and the per-student modal each load their own list and can
-  // sit on different subjects, so a name is looked up in both before giving up.
-  const hit = [pool, lessons.value, detailLessons.value, skipLessons.value]
-    .filter(Boolean)
-    .map((p) => p.find((l) => l.name === name))
-    .find(Boolean)
-  // A lesson neither list carries still has to read as something; the docname
-  // carries the title, so it is the honest fallback.
-  return hit ? hit.lesson_name : name
+// The syllabus helpers below copy a block list rather than share it, so editing
+// a student's copy in a modal never leaks into the batch setup (or back).
+function cloneSyllabus(blocks) {
+  return (blocks || []).map((b) => ({
+    subject: b.subject || '',
+    lessons: [...(b.lessons || [])],
+    portions: [...(b.portions || [])],
+  }))
 }
 
-// What the picker offers: the master minus everything already picked, narrowed
-// by whatever is typed in the search box.
-function lessonPicks(pool, picked, query) {
-  const q = (query || '').trim().toLowerCase()
-  return pool.filter(
-    (l) => !picked.includes(l.name) && (!q || l.lesson_name.toLowerCase().includes(q))
-  )
+function hasContent(b) {
+  return b.subject || b.lessons.length || b.portions.length
 }
 
-function lessonEmptyText(pool, picked, query) {
-  if (!pool.length) return 'No lesson is mapped to this subject yet — type one above and add it.'
-  if ((query || '').trim()) return 'No lesson matches — type the full title above to add it.'
-  if (picked.length >= pool.length) return 'Every lesson for this subject is already picked.'
-  return 'No lesson left to pick.'
+// What goes to the server: the blocks the teacher actually filled in.
+function syllabusPayload(blocks) {
+  return JSON.stringify(cloneSyllabus(blocks).filter(hasContent))
 }
-
-const setupLessonPicks = computed(() =>
-  lessonPicks(lessons.value, setup.lessons, lessonSearch.value)
-)
-
-const detailLessonPicks = computed(() =>
-  lessonPicks(detailLessons.value, detailModal.lessons, detailLessonSearch.value)
-)
-
-const skipLessonPicks = computed(() =>
-  lessonPicks(skipLessons.value, skipModal.lessons, skipLessonSearch.value)
-)
 
 function portionTitle(name) {
   const hit = portionOptions.value.find((p) => p.name === name)
   return hit ? hit.portion_name : name
 }
 
+// "Maths: Algebra / Ratio (2M) • Science: Light" — every subject with what it covered.
+function syllabusLine(blocks) {
+  return (blocks || [])
+    .map((b) => {
+      let text = (b.lessons || []).map(lessonTitle).join(' / ')
+      if (b.portions?.length) {
+        text = [text, `(${b.portions.map(portionTitle).join(' / ')})`].filter(Boolean).join(' ')
+      }
+      if (b.subject) text = text ? `${b.subject}: ${text}` : b.subject
+      return text
+    })
+    .filter(Boolean)
+    .join(' • ')
+}
+
 const setupSummary = computed(() => {
   const parts = []
-  if (setup.subject) parts.push(setup.subject)
-  if (setup.lessons.length) parts.push(setup.lessons.map((n) => lessonTitle(n)).join(' / '))
-  if (setup.portions.length) parts.push(setup.portions.map(portionTitle).join(' / '))
+  const covered = syllabusLine(setup.syllabus)
+  if (covered) parts.push(covered)
   if (config.value.usesQuestions && setup.total_questions) {
     parts.push(`${setup.total_questions} questions`)
   }
@@ -1477,11 +1344,21 @@ const someVisibleSelected = computed(
   () => !allVisibleSelected.value && visibleStudents.value.some((s) => selected.has(s.student_id))
 )
 
+// Serial numbers follow the full list, so a reason keeps its number while
+// the search narrows the list — staff can say "No. 7" and mean one thing.
 const reasonOptions = computed(() =>
-  behaviourReasons.value.filter(
-    (r) => r.severity === 'Both' || r.severity === reasonModal.result
-  )
+  behaviourReasons.value
+    .filter((r) => r.severity === 'Both' || r.severity === reasonModal.result)
+    .map((r, i) => ({ ...r, sno: i + 1 }))
 )
+
+const filteredReasonOptions = computed(() => {
+  const q = reasonModal.search.trim().toLowerCase()
+  if (!q) return reasonOptions.value
+  return reasonOptions.value.filter(
+    (r) => String(r.sno) === q || (r.reason_name || '').toLowerCase().includes(q)
+  )
+})
 
 function initials(name) {
   return (name || '')
@@ -1493,9 +1370,7 @@ function initials(name) {
 }
 
 function rowSyllabus(s) {
-  const portions = (s.portions || []).map(portionTitle).join(' / ')
-  const lessonNames = (s.lesson_titles?.length ? s.lesson_titles : s.lessons || []).join(' / ')
-  return [s.subject, lessonNames, portions].filter(Boolean).join(' • ')
+  return syllabusLine(s.syllabus)
 }
 
 // "Full Mark Count 4 · Fail Count 1" — one chip per grade the student actually
@@ -1505,23 +1380,6 @@ function monthlyChips(s) {
   return allResultOptions.value
     .filter((opt) => (counts[opt.value] || 0) > 0)
     .map((opt) => ({ key: opt.value, count: counts[opt.value], tone: opt.tone }))
-}
-
-function togglePortion(list, name) {
-  const at = list.indexOf(name)
-  if (at === -1) list.push(name)
-  else list.splice(at, 1)
-}
-
-function pickLesson(list, name) {
-  // The list below never offers what is already picked, so this cannot double
-  // up — but a stale click during a reload could, and the server rejects that.
-  if (!list.includes(name)) list.push(name)
-}
-
-function removeLesson(list, name) {
-  const at = list.indexOf(name)
-  if (at !== -1) list.splice(at, 1)
 }
 
 function toggleFilter(key) {
@@ -1571,96 +1429,8 @@ async function loadSubjects() {
   subjects.value = (await subjectsResource.submit({ standard: standard.value })) || []
 }
 
-async function loadMeta() {
-  // Which subject test this standard sits is the server's call, so the PWA asks
-  // rather than re-deriving it from the standard's name.
-  if (!standard.value) {
-    subjectTest.value = DEFAULT_SUBJECT_TEST
-    return
-  }
-  try {
-    const meta = await metaResource.submit({ standard: standard.value })
-    subjectTest.value = meta?.subject_test || DEFAULT_SUBJECT_TEST
-  } catch (e) {
-    subjectTest.value = DEFAULT_SUBJECT_TEST
-  }
-  // The standard just switched away from the test the screen was showing.
-  if (SUBJECT_TESTS.includes(category.value) && category.value !== subjectTest.value) {
-    category.value = subjectTest.value
-  }
-}
-
-async function loadLessons() {
-  if (!standard.value || !setup.subject) {
-    lessons.value = []
-    return
-  }
-  lessons.value =
-    (await lessonsResource.submit({
-      standard: standard.value,
-      subject: setup.subject,
-      include: setup.lessons.length ? JSON.stringify(setup.lessons) : undefined,
-    })) || []
-}
-
-async function loadDetailLessons(subject, include) {
-  if (!standard.value || !subject) {
-    detailLessons.value = []
-    return
-  }
-  detailLessons.value =
-    (await detailLessonsResource.submit({
-      standard: standard.value,
-      subject,
-      include: include?.length ? JSON.stringify(include) : undefined,
-    })) || []
-}
-
-async function loadSkipLessons(subject, include) {
-  if (!standard.value || !subject) {
-    skipLessons.value = []
-    return
-  }
-  skipLessons.value =
-    (await skipLessonsResource.submit({
-      standard: standard.value,
-      subject,
-      include: include?.length ? JSON.stringify(include) : undefined,
-    })) || []
-}
-
 async function loadPortions() {
   portionOptions.value = (await portionsResource.submit()) || []
-}
-
-async function addLesson() {
-  const title = lessonSearch.value.trim()
-  if (!title || !setup.subject) return
-  addingLesson.value = true
-  lessonError.value = ''
-  try {
-    // The server hands back the existing lesson when the title is already in
-    // the master, so typing one that exists picks it rather than duplicating it.
-    const res = await addLessonResource.submit({
-      lesson_name: title,
-      subject: setup.subject,
-      standard: standard.value,
-    })
-    if (res?.name) pickLesson(setup.lessons, res.name)
-    await loadLessons()
-    lessonSearch.value = ''
-  } catch (e) {
-    lessonError.value = errorText(e, 'Failed to add lesson')
-  } finally {
-    addingLesson.value = false
-  }
-}
-
-function subjectOptions(current) {
-  // A subject saved before it was mapped to this standard (or before the Subject
-  // master existed) must stay visible, or opening the form would blank it.
-  if (current && !subjects.value.includes(current)) return [...subjects.value, current]
-  return subjects.value
 }
 
 async function loadBehaviourReasons() {
@@ -1671,6 +1441,7 @@ async function loadStudents() {
   if (!standard.value || !batch.value || !category.value || !date.value) {
     students.value = []
     session.value = null
+    tests.value = []
     holiday.value = null
     specialClass.value = null
     totalStudents.value = 0
@@ -1687,7 +1458,20 @@ async function loadStudents() {
       category: category.value,
       performance_date: date.value,
       gender: gender.value || undefined,
+      session_name: sessionParam(),
     })
+    tests.value = res.tests || []
+    if (config.value.multiSession) {
+      // The Test was removed by someone else — drop back to "New Test".
+      if (testName.value && !tests.value.some((t) => t.name === testName.value)) testName.value = ''
+      if (autoPickTest && !testName.value && tests.value.length) {
+        autoPickTest = false
+        testName.value = tests.value[tests.value.length - 1].name
+        await loadStudents()
+        return
+      }
+    }
+    autoPickTest = false
     holiday.value = res.holiday || null
     session.value = res.session || null
     specialClass.value = res.special_class || null
@@ -1695,6 +1479,7 @@ async function loadStudents() {
     summary.value = res.summary || {}
     totalStudents.value = res.total_students || 0
     attendanceMarked.value = res.attendance_marked || 0
+    rememberLessonTitles(res.lesson_titles)
     applySessionToForm(res.session)
   } catch (e) {
     saveError.value = errorText(e, 'Failed to load students')
@@ -1704,20 +1489,43 @@ async function loadStudents() {
   }
 }
 
-function applySessionToForm(session) {
-  syncSyllabus(() => {
-    setup.subject = session?.subject || ''
-    setup.lessons = [...(session?.lessons || [])]
-  })
-  lessonSearch.value = ''
+function pickTest(name) {
+  if (testName.value === name) return
+  testName.value = name
+  autoPickTest = false
+  setupError.value = ''
+  loadStudents()
+}
 
-  setup.portions = [...(session?.portions || [])]
+async function removeTest() {
+  if (!testName.value) return
+  setupError.value = ''
+  setupSaving.value = true
+  try {
+    await clearSessionResource.submit({
+      standard: standard.value,
+      batch: batch.value,
+      category: category.value,
+      performance_date: date.value,
+      session_name: testName.value,
+    })
+    testName.value = ''
+    setupNotice.value = 'Test removed.'
+    await loadStudents()
+  } catch (e) {
+    setupError.value = errorText(e, 'Failed to remove the Test')
+  } finally {
+    setupSaving.value = false
+  }
+}
+
+function applySessionToForm(session) {
+  setup.syllabus = cloneSyllabus(session?.syllabus)
   setup.total_questions = session?.total_questions || 0
   setup.total_marks = session?.total_marks || 0
   setup.pass_marks = session?.pass_marks || 0
   // Nudge the teacher into filling the setup in before grading a fresh batch.
-  setupOpen.value = config.value.usesSyllabus && !session
-  loadLessons()
+  setupOpen.value = config.value.usesSyllabus && (!session || !!session.no_session)
 }
 
 function recomputeSummary() {
@@ -1756,6 +1564,7 @@ async function setNoSession(flag, reason) {
     })
     session.value = res?.session || null
     noSessionModal.open = false
+    testName.value = 
     // The roster and the setup card both read differently either side of this,
     // so the day is reloaded rather than patched.
     await loadStudents()
@@ -1837,14 +1646,23 @@ async function saveSetup() {
       batch: batch.value,
       category: category.value,
       performance_date: date.value,
-      subject: setup.subject || undefined,
-      lessons: JSON.stringify(setup.lessons),
-      portions: JSON.stringify(setup.portions),
+      syllabus: syllabusPayload(setup.syllabus),
       total_questions: setup.total_questions || 0,
       total_marks: setup.total_marks || 0,
       pass_marks: setup.pass_marks || 0,
       apply_to_all: applyToAll.value ? 1 : 0,
+      session_name: sessionParam(),
     })
+    if (config.value.multiSession) {
+      const added = !testName.value
+      testName.value = res?.session?.name || ''
+      setupNotice.value = added
+        ? `Test added: ${syllabusLine(setup.syllabus)}. Enter the marks below.`
+        : 'Test saved.'
+      setupOpen.value = false
+      await loadStudents()
+      return
+    }
     setupNotice.value = applyToAll.value
       ? `Setup saved and applied to ${res?.updated_students || 0} student(s).`
       : 'Setup saved. Every student graded from now on picks it up.'
@@ -1889,27 +1707,29 @@ async function applyResult(student, payload, resource = saveResource) {
       category: category.value,
       standard: standard.value,
       batch: batch.value,
+      session_name: sessionParam(),
       ...payload,
       behaviour_reasons: payload.behaviour_reasons
         ? JSON.stringify(payload.behaviour_reasons)
         : undefined,
-      lessons: payload.lessons ? JSON.stringify(payload.lessons) : undefined,
-      portions: payload.portions ? JSON.stringify(payload.portions) : undefined,
+      syllabus: payload.syllabus ? syllabusPayload(payload.syllabus) : undefined,
     })
     if (res) {
+      // The grade may have landed on another Test's count.
+      if (config.value.multiSession) {
+        const t = tests.value.find((x) => x.name === testName.value)
+        if (t && !student.result && res.result) t.graded++
+      }
       student.result = res.result
       student.skipped = res.skipped || 0
       student.marks_obtained = res.marks_obtained
       student.remarks = res.remarks || ''
       student.behaviour_reasons = res.behaviour_reasons || []
-      student.portions = res.portions || []
-      student.lessons = res.lessons || []
-      student.lesson_titles = student.lessons.map((n) => lessonTitle(n))
+      student.syllabus = res.syllabus || []
       student.monthly_counts = res.monthly_counts || {}
       student.monthly_low = res.monthly_low
       student.monthly_graded = res.monthly_graded
     }
-    if (payload.subject !== undefined) student.subject = payload.subject
     if (payload.total_questions !== undefined) student.total_questions = payload.total_questions
     if (payload.total_marks !== undefined) student.total_marks = payload.total_marks
     if (payload.pass_marks !== undefined) student.pass_marks = payload.pass_marks
@@ -1964,16 +1784,12 @@ function onSkipToggle(student, checked) {
     skipModal.student = student
     // Opens on what the batch was planned to cover, which is what the teacher
     // edits down to whatever this student did instead.
-    syncSyllabus(() => {
-      skipModal.subject = student.subject || setup.subject || ''
-      skipModal.lessons = [...(student.lessons?.length ? student.lessons : setup.lessons)]
-    })
-    skipModal.portions = [...(student.portions?.length ? student.portions : setup.portions)]
-    skipLessonSearch.value = ''
+    skipModal.syllabus = cloneSyllabus(
+      student.syllabus?.length ? student.syllabus : setup.syllabus
+    )
     skipModal.remarks = student.remarks || ''
     skipModal.error = ''
     resetInstead()
-    loadSkipLessons(skipModal.subject, skipModal.lessons)
     return
   }
 
@@ -1991,11 +1807,13 @@ function resetInstead() {
   skipModal.insteadTotal = ''
   skipModal.insteadExists = false
   skipModal.insteadLoading = false
+  skipModal.insteadTests = []
+  skipModal.insteadTest = ''
 }
 
 // Opens on whatever the student already has in that category today, so
 // picking Study or Test again edits the entry instead of starting over.
-async function pickInstead(opt) {
+async function pickInstead(opt, testPick) {
   resetInstead()
   skipModal.instead = opt
   skipModal.error = ''
@@ -2009,10 +1827,15 @@ async function pickInstead(opt) {
       category: opt,
       standard: standard.value,
       batch: batch.value,
+      session_name: testPick || undefined,
     })
     if (skipModal.instead !== opt) return
+    skipModal.insteadTests = entry?.tests || []
+    skipModal.insteadTest = entry?.session_name || ''
     if (entry?.no_session) {
       skipModal.error = `No ${opt} is set for this batch today — undo "No ${opt}" first.`
+    } else if (CATEGORY_CONFIG[opt]?.multiSession && !skipModal.insteadTests.length) {
+      skipModal.error = `No ${opt} is added for this batch today — add it under ${opt} first.`
     }
     skipModal.insteadExists = !!entry?.exists && !entry?.skipped
     if (skipModal.insteadExists) {
@@ -2030,13 +1853,10 @@ async function pickInstead(opt) {
 function closeSkipModal() {
   skipModal.open = false
   skipModal.student = null
-  skipModal.subject = ''
-  skipModal.lessons = []
-  skipModal.portions = []
+  skipModal.syllabus = []
   skipModal.remarks = ''
   skipModal.error = ''
   resetInstead()
-  skipLessonSearch.value = ''
   // The checkbox has already flipped; re-render to snap it back to what is saved.
   students.value = [...students.value]
 }
@@ -2074,24 +1894,20 @@ async function confirmSkip() {
       student,
       {
         remarks,
-        subject: config.value.usesSyllabus ? skipModal.subject : undefined,
-        lessons: config.value.usesSyllabus ? skipModal.lessons : undefined,
-        portions: config.value.usesSyllabus ? skipModal.portions : undefined,
+        syllabus: config.value.usesSyllabus && !config.value.multiSession ? skipModal.syllabus : undefined,
         instead_category: instead || undefined,
         instead_result: instead === 'Study' ? skipModal.insteadResult : undefined,
         instead_marks_obtained: instead && instead !== 'Study' ? marks : undefined,
         instead_total_marks: instead && instead !== 'Study' ? total : undefined,
+        instead_session_name: skipModal.insteadTest || undefined,
       },
       skipResource
     )
     resetInstead()
     skipModal.open = false
     skipModal.student = null
-    skipModal.subject = ''
-    skipModal.lessons = []
-    skipModal.portions = []
+    skipModal.syllabus = []
     skipModal.remarks = ''
-    skipLessonSearch.value = ''
   } catch (e) {
     skipModal.error = errorText(e, 'Failed to save')
   } finally {
@@ -2109,7 +1925,12 @@ async function clearResult(student) {
       category: category.value,
       standard: standard.value,
       batch: batch.value,
+      session_name: sessionParam(),
     })
+    if (config.value.multiSession && student.result && res?.cleared) {
+      const t = tests.value.find((x) => x.name === testName.value)
+      if (t && t.graded) t.graded--
+    }
     student.result = null
     student.skipped = 0
     student.marks_obtained = null
@@ -2134,6 +1955,7 @@ function openReasonModal(result, student) {
   reasonModal.selected = new Set(student?.behaviour_reasons || [])
   reasonModal.remarks = student?.remarks || ''
   reasonModal.newReason = ''
+  reasonModal.search = ''
   reasonModal.error = ''
 }
 
@@ -2185,6 +2007,7 @@ async function confirmReasons() {
         category: category.value,
         result: reasonModal.result,
         behaviour_reasons: JSON.stringify(reasons),
+        session_name: sessionParam(),
       })
       students.value.forEach((s) => {
         if (selected.has(s.student_id)) {
@@ -2231,6 +2054,7 @@ async function bulkMark(result) {
       performance_date: date.value,
       category: category.value,
       result,
+      session_name: sessionParam(),
     })
     const saved = new Set(res?.saved || [])
     students.value.forEach((s) => {
@@ -2251,20 +2075,15 @@ async function bulkMark(result) {
 function openDetail(student) {
   detailModal.open = true
   detailModal.student = student
-  syncSyllabus(() => {
-    detailModal.subject = student.subject || setup.subject || ''
-    detailModal.lessons = [...(student.lessons?.length ? student.lessons : setup.lessons)]
-  })
-  detailLessonSearch.value = ''
-
-  detailModal.portions = [...(student.portions?.length ? student.portions : setup.portions)]
+  detailModal.syllabus = cloneSyllabus(
+    student.syllabus?.length ? student.syllabus : setup.syllabus
+  )
   detailModal.total_questions = student.total_questions || setup.total_questions || 0
   detailModal.total_marks = student.total_marks || setup.total_marks || 0
   detailModal.pass_marks = student.pass_marks || setup.pass_marks || 0
   detailModal.marks_obtained = student.marks_obtained || 0
   detailModal.remarks = student.remarks || ''
   detailModal.error = ''
-  loadDetailLessons(detailModal.subject, detailModal.lessons)
 }
 
 async function saveDetail() {
@@ -2282,9 +2101,7 @@ async function saveDetail() {
       // The result is resent unchanged: the server needs it to know which
       // category rules to validate the rest of the payload against.
       result: student.result,
-      subject: config.value.usesSyllabus ? detailModal.subject : undefined,
-      lessons: config.value.usesSyllabus ? detailModal.lessons : undefined,
-      portions: config.value.usesSyllabus ? detailModal.portions : undefined,
+      syllabus: config.value.usesSyllabus && !config.value.multiSession ? detailModal.syllabus : undefined,
       total_questions: config.value.usesQuestions ? detailModal.total_questions : undefined,
       total_marks: config.value.usesMarks ? detailModal.total_marks : undefined,
       pass_marks: config.value.usesMarks ? detailModal.pass_marks : undefined,
@@ -2309,49 +2126,12 @@ onMounted(async () => {
   loadPortions()
 })
 
-watch([standard, batch, gender, category, date], loadStudents)
-watch(standard, async () => {
-  await loadMeta()
-  await loadSubjects()
-  await loadLessons()
+watch([standard, batch, gender, category, date], () => {
+  testName.value = ''
+  autoPickTest = true
+  loadStudents()
 })
-
-// A lesson belongs to its subject, so switching subject reloads the list and
-// drops picks that no longer apply.
-watch(
-  () => setup.subject,
-  (subject, previous) => {
-    if (!syncingSyllabus && previous !== undefined && subject !== previous) {
-      setup.lessons = []
-      lessonSearch.value = ''
-    }
-    loadLessons()
-  }
-)
-
-watch(
-  () => detailModal.subject,
-  (subject, previous) => {
-    if (!detailModal.open) return
-    if (!syncingSyllabus && previous !== undefined && subject !== previous) {
-      detailModal.lessons = []
-      detailLessonSearch.value = ''
-    }
-    loadDetailLessons(subject, detailModal.lessons)
-  }
-)
-
-watch(
-  () => skipModal.subject,
-  (subject, previous) => {
-    if (!skipModal.open) return
-    if (!syncingSyllabus && previous !== undefined && subject !== previous) {
-      skipModal.lessons = []
-      skipLessonSearch.value = ''
-    }
-    loadSkipLessons(subject, skipModal.lessons)
-  }
-)
+watch(standard, loadSubjects)
 
 // Pass Marks follows the total at 50% until someone types their own value —
 // after that their number is left alone.
@@ -2510,6 +2290,52 @@ watch([resultFilter, showCompleted, search], () => {
 
 .perf-manager .perf-date-input:focus { outline: none; box-shadow: var(--highlight-shadow); }
 
+/* ---- Test picker: one chip per Test the batch sat today ---- */
+.perf-manager .perf-test-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 16px;
+  margin-bottom: var(--perf-gap);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--perf-radius);
+  box-shadow: var(--card-shadow, var(--shadow-sm));
+}
+
+.perf-manager .perf-test-picker-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--heading-color);
+}
+
+.perf-manager .perf-test-picker .perf-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.perf-manager .perf-test-count {
+  display: inline-block;
+  min-width: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--gray-100);
+  color: var(--gray-700);
+  font-size: 11px;
+  text-align: center;
+}
+
+.perf-manager .perf-chip.active .perf-test-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.perf-manager .perf-chip-new { border-style: dashed; }
+
 /* ---- batch setup card ---- */
 .perf-manager .perf-setup-card {
   background: var(--card-bg);
@@ -2563,6 +2389,10 @@ watch([resultFilter, showCompleted, search], () => {
   border-radius: var(--perf-radius-sm);
   padding: 8px 12px;
 }
+
+/* Totals (questions / marks) sit above the subject blocks, so the "Add another
+   subject" button lands right above Save Setup. */
+.perf-manager .perf-setup-totals ~ .perf-setup-syllabus { margin-top: 16px; }
 
 .perf-manager .perf-setup-actions {
   display: flex;
@@ -3464,16 +3294,45 @@ watch([resultFilter, showCompleted, search], () => {
   cursor: pointer;
 }
 
-.perf-manager .perf-reason-item em {
-  margin-left: auto;
-  font-style: normal;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
+.perf-manager .perf-reason-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.perf-manager .perf-reason-search .fa-search {
+  position: absolute;
+  left: 10px;
   color: var(--text-muted);
-  background: var(--gray-100);
-  border-radius: 4px;
-  padding: 1px 5px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.perf-manager .perf-reason-search input { flex: 1; padding-left: 28px; }
+
+.perf-manager .perf-reason-selected-count {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.perf-manager .perf-reason-sno {
+  min-width: 22px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-manager .perf-reason-empty {
+  margin: 0;
+  padding: 10px 8px;
+  font-size: 12.5px;
+  color: var(--text-muted);
 }
 
 .perf-manager .perf-reason-add { display: flex; gap: 8px; margin-top: 10px; }

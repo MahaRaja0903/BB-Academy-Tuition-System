@@ -37,17 +37,15 @@ def execute(filters=None):
 def get_columns():
 	return [
 		{"fieldname": "fee_invoice", "label": _("Fee Invoice"), "fieldtype": "Link", "options": "Fee Invoice", "width": 140},
-		{"fieldname": "student_name", "label": _("Student Name"), "fieldtype": "Data", "width": 220, "sticky": 1, "freeze": 1},
-		{"fieldname": "gender", "label": _("Gender"), "fieldtype": "Data", "width": 100},
-		{"fieldname": "standard", "label": _("Standard"), "fieldtype": "Link", "options": "Standard", "width": 120},
-		{"fieldname": "batch", "label": _("Batch"), "fieldtype": "Link", "options": "Batch", "width": 140},
-		{"fieldname": "payment_method", "label": _("Payment Method"), "fieldtype": "Data", "width": 140},
-		{"fieldname": "payment_type", "label": _("Payment Type"), "fieldtype": "Data", "width": 250},
-		{"fieldname": "payment_time", "label": _("Payment Time"), "fieldtype": "Data", "width": 180},
+		{"fieldname": "student_name", "label": _("Student Name"), "fieldtype": "Data", "width": 300, "sticky": 1, "freeze": 1},
+		{"fieldname": "standard", "label": _("Standard"), "fieldtype": "Data", "width": 140},
 		{"fieldname": "amount_paid", "label": _("Amount Paid"), "fieldtype": "Currency", "width": 140},
 		{"fieldname": "balance_amount", "label": _("Balance Amount"), "fieldtype": "Currency", "width": 150},
 		{"fieldname": "discount_amount", "label": _("Discount Amount"), "fieldtype": "Currency", "width": 140},
 		{"fieldname": "coupon_amount", "label": _("Coupon Amount"), "fieldtype": "Currency", "width": 140},
+		{"fieldname": "payment_type", "label": _("Payment Type"), "fieldtype": "Data", "width": 250},
+		{"fieldname": "payment_method", "label": _("Payment Method"), "fieldtype": "Data", "width": 140},
+		{"fieldname": "payment_time", "label": _("Payment Time"), "fieldtype": "Data", "width": 180},
 	]
 
 
@@ -174,7 +172,25 @@ def get_data(filters):
 				where fd.parent = fi.name
 					and fd.parenttype = 'Fee Invoice'
 					and fd.month != %(starting_payment)s
-			) as has_monthly_row
+			) as has_monthly_row,
+			(
+				select group_concat(distinct fd.month order by fd.idx asc separator ', ')
+				from `tabFees Invoice Details` fd
+				where fd.parent = fi.name
+					and fd.parenttype = 'Fee Invoice'
+					and exists (
+						select 1
+						from `tabFees Invoice Details` pd
+						inner join `tabFee Invoice` pfi on pfi.name = pd.parent
+						where pd.parenttype = 'Fee Invoice'
+							and pd.month = fd.month
+							and pfi.student = fi.student
+							and pfi.docstatus = 1
+							and pfi.name != fi.name
+							and pfi.creation < fi.creation
+							and pfi.invoice_date > date_sub(fi.invoice_date, interval 1 year)
+					)
+			) as balance_months
 		from `tabFee Invoice` fi
 		inner join `tabStudent` s on s.name = fi.student
 		where fi.docstatus = 1
@@ -216,9 +232,11 @@ def get_data(filters):
 				student_name=invoice.student_name,
 				fee_reason=get_fee_reason(invoice, has_starting, has_monthly),
 				has_starting_payment=int(has_starting),
+				balance_months=invoice.balance_months or "",
 				gender=invoice.gender,
-				standard=invoice.standard,
-				batch=invoice.batch,
+				# The batch has no column of its own; it rides on the standard,
+				# as in "10TH - I".
+				standard=" - ".join(filter(None, [invoice.standard, invoice.batch])),
 				payment_method=invoice.payment_method,
 				payment_type=payment_type_label,
 				payment_time=invoice.creation.strftime("%I:%M %p").lower() if invoice.creation else "",
@@ -266,8 +284,13 @@ def get_fee_reason(invoice, has_starting, has_monthly):
 def get_totals(rows):
 	totals = frappe._dict(
 		final_total=0.0,
+		final_count=len(rows),
 		balance_total=0.0,
 		balance_count=0,
+		discount_total=0.0,
+		discount_count=0,
+		coupon_total=0.0,
+		coupon_count=0,
 		mode_totals={mode: 0.0 for mode in PAYMENT_MODES},
 		mode_counts={mode: 0 for mode in PAYMENT_MODES},
 	)
@@ -278,6 +301,14 @@ def get_totals(rows):
 		if flt(row.balance_amount) > 0:
 			totals.balance_total += flt(row.balance_amount)
 			totals.balance_count += 1
+
+		if flt(row.discount_amount) > 0:
+			totals.discount_total += flt(row.discount_amount)
+			totals.discount_count += 1
+
+		if flt(row.coupon_amount) > 0:
+			totals.coupon_total += flt(row.coupon_amount)
+			totals.coupon_count += 1
 
 		for mode, amount in row.mode_amounts.items():
 			if flt(amount) > 0:
@@ -295,13 +326,23 @@ def get_summary_rows(totals):
 	a count formatted as money reads as an amount."""
 	summary = [
 		frappe._dict(
-			student_name=_("Final Total"),
+			student_name=_("Final Total (Count: {0})").format(totals.final_count),
 			amount_paid=totals.final_total,
 			is_summary=1,
 		),
 		frappe._dict(
 			student_name=_("Balance Total (Count: {0})").format(totals.balance_count),
 			balance_amount=totals.balance_total,
+			is_summary=1,
+		),
+		frappe._dict(
+			student_name=_("Discount Total (Count: {0})").format(totals.discount_count),
+			discount_amount=totals.discount_total,
+			is_summary=1,
+		),
+		frappe._dict(
+			student_name=_("Coupon Total (Count: {0})").format(totals.coupon_count),
+			coupon_amount=totals.coupon_total,
 			is_summary=1,
 		),
 	]
@@ -323,10 +364,13 @@ def get_summary_rows(totals):
 
 
 def get_report_summary(totals):
+	"""The figures behind the summary cards. Each one names the card it sits on,
+	which the report's script uses to draw a card per pair of total and count."""
 	currency = frappe.db.get_default("currency") or "INR"
 
-	def money(label, value, indicator="Blue"):
+	def money(card, label, value, indicator="Blue"):
 		return {
+			"card": card,
 			"label": label,
 			"value": value,
 			"datatype": "Currency",
@@ -334,17 +378,22 @@ def get_report_summary(totals):
 			"indicator": indicator,
 		}
 
-	def count(label, value):
-		return {"label": label, "value": value, "datatype": "Int", "indicator": "Grey"}
+	def count(card, label, value):
+		return {"card": card, "label": label, "value": value, "datatype": "Int", "indicator": "Grey"}
 
 	return [
-		money(_("Final Total"), totals.final_total, "Green"),
-		money(_("Balance Total"), totals.balance_total, "Red" if totals.balance_total else "Green"),
-		count(_("Balance Count"), totals.balance_count),
-		money(_("Cash Total"), totals.mode_totals[CASH]),
-		count(_("Cash Count"), totals.mode_counts[CASH]),
-		money(_("GPay Total"), totals.mode_totals[GPAY]),
-		count(_("GPay Count"), totals.mode_counts[GPAY]),
-		money(_("Scanner Total"), totals.mode_totals[SCANNER]),
-		count(_("Scanner Count"), totals.mode_counts[SCANNER]),
+		money("received", _("Final Total"), totals.final_total, "Green"),
+		count("received", _("Final Count"), totals.final_count),
+		money("balance", _("Balance Total"), totals.balance_total, "Red" if totals.balance_total else "Green"),
+		count("balance", _("Balance Count"), totals.balance_count),
+		money("discount", _("Discount Total"), totals.discount_total),
+		count("discount", _("Discount Count"), totals.discount_count),
+		money("coupon", _("Coupon Total"), totals.coupon_total),
+		count("coupon", _("Coupon Count"), totals.coupon_count),
+		money("cash", _("Cash Total"), totals.mode_totals[CASH]),
+		count("cash", _("Cash Count"), totals.mode_counts[CASH]),
+		money("gpay", _("GPay Total"), totals.mode_totals[GPAY]),
+		count("gpay", _("GPay Count"), totals.mode_counts[GPAY]),
+		money("scanner", _("Scanner Total"), totals.mode_totals[SCANNER]),
+		count("scanner", _("Scanner Count"), totals.mode_counts[SCANNER]),
 	]

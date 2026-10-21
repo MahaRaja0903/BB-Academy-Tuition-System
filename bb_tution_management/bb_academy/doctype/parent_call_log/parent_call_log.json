@@ -1,0 +1,192 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "allow_rename": 0,
+ "autoname": "PCL-.YYYY.-.#####",
+ "creation": "2026-10-15 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "student",
+  "student_name",
+  "standard",
+  "batch",
+  "column_break_head",
+  "called_on",
+  "called_by",
+  "spoken_to",
+  "spoken_to_name",
+  "section_break_call",
+  "categories",
+  "mistake_count",
+  "column_break_call",
+  "call_notes",
+  "section_break_mistakes",
+  "mistakes"
+ ],
+ "fields": [
+  {
+   "fieldname": "student",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Student",
+   "options": "Student",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fetch_from": "student.student_name",
+   "fieldname": "student_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Student Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "standard",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Standard",
+   "options": "Standard",
+   "read_only": 1
+  },
+  {
+   "fieldname": "batch",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Batch",
+   "options": "Batch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Now",
+   "fieldname": "called_on",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Called On",
+   "reqd": 1
+  },
+  {
+   "fieldname": "called_by",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Called By",
+   "options": "Staff",
+   "reqd": 1
+  },
+  {
+   "fieldname": "spoken_to",
+   "fieldtype": "Select",
+   "label": "Spoken To",
+   "options": "\nFather\nMother\nGuardian\nStudent\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "spoken_to_name",
+   "fieldtype": "Data",
+   "label": "Name / Number Spoken To"
+  },
+  {
+   "fieldname": "section_break_call",
+   "fieldtype": "Section Break",
+   "label": "Call"
+  },
+  {
+   "description": "The categories the parents were informed about. Each one's count starts again from zero after this call.",
+   "fieldname": "categories",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Categories Informed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mistake_count",
+   "fieldtype": "Int",
+   "label": "Mistakes Informed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_call",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "call_notes",
+   "fieldtype": "Small Text",
+   "label": "What Was Spoken",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_mistakes",
+   "fieldtype": "Section Break",
+   "label": "Mistakes Covered"
+  },
+  {
+   "fieldname": "mistakes",
+   "fieldtype": "Table",
+   "label": "Mistakes",
+   "options": "Parent Call Log Item",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-15 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "Parent Call Log",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Performance Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Attendance Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "student_name,categories",
+ "sort_field": "called_on",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "student_name",
+ "track_changes": 1
+}

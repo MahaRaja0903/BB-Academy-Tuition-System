@@ -1,5 +1,5 @@
 {
- "add_total_row": 0,
+ "add_total_row": 1,
  "add_translate_data": 0,
  "columns": [],
  "creation": "2026-08-20 17:45:13.635718",
@@ -11,7 +11,7 @@
  "idx": 0,
  "is_standard": "Yes",
  "letter_head": null,
- "modified": "2026-08-20 17:45:13.635718",
+ "modified": "2026-10-14 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Discount Report",
@@ -20,6 +20,19 @@
  "ref_doctype": "Fee Invoice",
  "report_name": "Discount Report",
  "report_type": "Script Report",
- "roles": [],
+ "roles": [
+  {
+   "role": "Administrator"
+  },
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Accountant"
+  },
+  {
+   "role": "Receptionist"
+  }
+ ],
  "timeout": 0
 }

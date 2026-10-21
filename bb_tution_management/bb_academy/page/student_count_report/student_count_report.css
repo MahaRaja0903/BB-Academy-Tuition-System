@@ -1,0 +1,166 @@
+/* Student Count Report: styled after the printed "Actual Students Count List". */
+
+.scr-root {
+	padding: 12px 0 24px;
+}
+
+.scr-empty {
+	padding: 40px 0;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.scr-sheet {
+	background: #e6f2e6;
+	border-radius: 8px;
+	padding: 20px 16px;
+	margin-bottom: 24px;
+	text-align: center;
+	color: #1f2a7a;
+}
+
+.scr-year {
+	display: inline-block;
+	border: 2px solid #1f2a7a;
+	border-radius: 6px;
+	padding: 1px 10px;
+	color: #e0006b;
+	font-weight: 700;
+	background: #fff;
+	margin-bottom: 4px;
+}
+
+.scr-title {
+	font-weight: 800;
+	font-size: 1.25rem;
+	line-height: 1.2;
+	letter-spacing: 0.02em;
+}
+
+.scr-subtitle {
+	font-weight: 800;
+	font-size: 1.15rem;
+	color: #e0006b;
+	margin-bottom: 12px;
+}
+
+.scr-scroll {
+	overflow-x: auto;
+}
+
+.scr-table {
+	width: 100%;
+	min-width: 760px;
+	border-collapse: collapse;
+	background: #e6f2e6;
+	font-size: 0.8rem;
+}
+
+.scr-table th,
+.scr-table td {
+	border: 1px solid #1f2a7a;
+	padding: 4px 6px;
+	height: 26px;
+}
+
+.scr-table th {
+	background: #fff;
+	font-weight: 700;
+	color: #1f2a7a;
+}
+
+.scr-sno {
+	width: 40px;
+	text-align: center;
+}
+
+.scr-std {
+	text-align: left;
+	white-space: nowrap;
+	min-width: 150px;
+}
+
+td.scr-std {
+	color: #c00058;
+	font-weight: 600;
+}
+
+th.scr-std {
+	color: #00a0d6 !important;
+	text-align: center;
+}
+
+.scr-n {
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	color: #1f2a7a;
+}
+
+.scr-high {
+	background: #fadcf0 !important;
+	font-weight: 700;
+}
+
+th.scr-high {
+	color: #e0006b !important;
+	font-size: 0.7rem;
+	line-height: 1.1;
+}
+
+.scr-total td {
+	background: #fadcf0;
+	font-weight: 700;
+	color: #c00058;
+	text-align: left;
+}
+
+.scr-total td.scr-n {
+	text-align: center;
+	color: #1f2a7a;
+}
+
+/* Month headers carry the sheet's colours. */
+.scr-m-apr { color: #e0006b !important; }
+.scr-m-may { color: #1a9a3a !important; }
+.scr-m-jun { color: #00a0d6 !important; }
+.scr-m-jul { color: #9a6a1a !important; }
+.scr-m-aug { color: #1f2a7a !important; }
+.scr-m-sep { color: #e0006b !important; }
+.scr-m-oct { color: #1f2a7a !important; }
+.scr-m-nov { color: #1f2a7a !important; }
+.scr-m-dec { color: #8bc34a !important; }
+.scr-m-jan { color: #c00058 !important; }
+.scr-m-feb { color: #00a0d6 !important; }
+.scr-m-mar { color: #ff8f00 !important; }
+
+@media print {
+	.navbar,
+	.page-head,
+	.page-form,
+	.page-actions,
+	.footer-powered {
+		display: none !important;
+	}
+
+	.scr-sheet {
+		page-break-after: always;
+		break-after: page;
+		margin: 0;
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+
+	.scr-sheet:last-child {
+		page-break-after: auto;
+		break-after: auto;
+	}
+
+	.scr-scroll {
+		overflow: visible;
+	}
+
+	.scr-table {
+		min-width: 0;
+	}
+}

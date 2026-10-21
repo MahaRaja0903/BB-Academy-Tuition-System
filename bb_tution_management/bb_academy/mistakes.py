@@ -32,15 +32,12 @@ LEVEL_CALL = "Call"
 LEVEL_MEETING = "Parent Meeting"
 LEVEL_CATEGORY = "Category Review"
 
-# The three buckets the monthly review is kept in. The tracker's subject tests
-# ("Maths Test", "Accounts Test") are both plain Test as far as follow-up goes.
+# The three buckets the monthly review is kept in.
 REVIEW_CATEGORIES = ["Test", "Study", "Behaviour"]
 
 _CATEGORY_BUCKET = {
 	"Study": "Study",
 	"Test": "Test",
-	"Maths Test": "Test",
-	"Accounts Test": "Test",
 	"Behaviour": "Behaviour",
 }
 

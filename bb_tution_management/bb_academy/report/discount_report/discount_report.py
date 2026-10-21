@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 
 def execute(filters=None):
+    filters = filters or {}
     columns = get_columns()
     data = get_data(filters)
     return columns, data
@@ -19,33 +20,47 @@ def get_columns():
             "width": 150
         },
         {
-            "fieldname": "student",
-            "label": _("Student"),
-            "fieldtype": "Link",
-            "options": "Student",
-            "width": 150
-        },
-        {
-            "fieldname": "student_name",
-            "label": _("Student Name"),
-            "fieldtype": "Data",
-            "width": 150
-        },
-        {
             "fieldname": "invoice_date",
             "label": _("Invoice Date"),
             "fieldtype": "Date",
             "width": 100
         },
         {
-            "fieldname": "status",
-            "label": _("Status"),
+            "fieldname": "student",
+            "label": _("Student"),
+            "fieldtype": "Link",
+            "options": "Student",
+            "width": 130
+        },
+        {
+            "fieldname": "student_name",
+            "label": _("Student Name"),
             "fieldtype": "Data",
-            "width": 100
+            "width": 180
+        },
+        {
+            "fieldname": "standard",
+            "label": _("Standard"),
+            "fieldtype": "Link",
+            "options": "Standard",
+            "width": 110
+        },
+        {
+            "fieldname": "batch",
+            "label": _("Batch"),
+            "fieldtype": "Link",
+            "options": "Batch",
+            "width": 90
+        },
+        {
+            "fieldname": "discount_months",
+            "label": _("Discount Months"),
+            "fieldtype": "Data",
+            "width": 160
         },
         {
             "fieldname": "monthly_fee",
-            "label": _("Monthly Fee"),
+            "label": _("Actual Amount"),
             "fieldtype": "Currency",
             "width": 120
         },
@@ -56,16 +71,16 @@ def get_columns():
             "width": 130
         },
         {
-            "fieldname": "coupon__code",
-            "label": _("Coupon Code"),
+            "fieldname": "discount_reason",
+            "label": _("Discount Reason"),
             "fieldtype": "Data",
-            "width": 120
+            "width": 160
         },
         {
-            "fieldname": "coupon_amount",
-            "label": _("Coupon Amount"),
-            "fieldtype": "Currency",
-            "width": 130
+            "fieldname": "discount_reason_remarks",
+            "label": _("Remarks"),
+            "fieldtype": "Data",
+            "width": 180
         },
         {
             "fieldname": "grand_total",
@@ -78,45 +93,79 @@ def get_columns():
             "label": _("Paid Amount"),
             "fieldtype": "Currency",
             "width": 120
+        },
+        {
+            "fieldname": "status",
+            "label": _("Status"),
+            "fieldtype": "Data",
+            "width": 100
         }
     ]
 
 def get_data(filters):
     conditions = get_conditions(filters)
-    
+
+    # Only manual discounts: discount_amount is applied only when Add Discount
+    # is ticked, and referral coupons are left out.
     data = frappe.db.sql(f"""
         SELECT
-            name as fee_invoice,
-            student,
-            student_name,
-            invoice_date,
-            status,
-            monthly_fee,
-            discount_amount,
-            coupon__code,
-            coupon_amount,
-            grand_total,
-            paid_amount
-        FROM
-            `tabFee Invoice`
-        WHERE
-            docstatus < 2
-            AND (discount_amount > 0 OR coupon_amount > 0)
+            fi.name as fee_invoice,
+            fi.invoice_date,
+            fi.student,
+            fi.student_name,
+            s.standard,
+            s.current_batch as batch,
+            fi.monthly_fee,
+            fi.discount_amount,
+            fi.discount_reason,
+            fi.discount_reason_remarks,
+            fi.grand_total,
+            fi.paid_amount,
+            fi.status
+        FROM `tabFee Invoice` fi
+        LEFT JOIN `tabStudent` s ON s.name = fi.student
+        WHERE fi.docstatus = 1
+            AND fi.add_discount = 1 AND fi.discount_amount > 0
             {conditions}
-        ORDER BY
-            invoice_date DESC
+        ORDER BY fi.invoice_date DESC, fi.name DESC
     """, filters, as_dict=1)
 
+    months = get_discount_months([d.fee_invoice for d in data])
+    for d in data:
+        d.discount_months = months.get(d.fee_invoice)
+
     return data
+
+def get_discount_months(invoices):
+    """The months on each invoice that carry a discount, e.g. "June, July"."""
+    if not invoices:
+        return {}
+
+    rows = frappe.db.sql("""
+        SELECT parent, GROUP_CONCAT(month ORDER BY idx SEPARATOR ', ') as months
+        FROM `tabFees Invoice Details`
+        WHERE parenttype = 'Fee Invoice' AND parentfield = 'fees_details'
+            AND discount_amount > 0 AND parent IN %(invoices)s
+        GROUP BY parent
+    """, {"invoices": invoices}, as_dict=1)
+
+    return {r.parent: r.months for r in rows}
 
 def get_conditions(filters):
     conditions = ""
     if filters.get("from_date"):
-        conditions += " AND invoice_date >= %(from_date)s"
+        conditions += " AND fi.invoice_date >= %(from_date)s"
     if filters.get("to_date"):
-        conditions += " AND invoice_date <= %(to_date)s"
+        conditions += " AND fi.invoice_date <= %(to_date)s"
     if filters.get("student"):
-        conditions += " AND student = %(student)s"
+        conditions += " AND fi.student = %(student)s"
+    if filters.get("standard"):
+        conditions += " AND s.standard = %(standard)s"
+    if filters.get("batch"):
+        conditions += " AND s.current_batch = %(batch)s"
     if filters.get("status"):
-        conditions += " AND status = %(status)s"
+        conditions += " AND fi.status = %(status)s"
+    if filters.get("discount_reason"):
+        conditions += " AND fi.discount_reason = %(discount_reason)s"
+
     return conditions

@@ -172,6 +172,10 @@ scheduler_events = {
 		"30 17 23 9 *": [
 			"bb_tution_management.bb_academy.missing_details.send_scheduled",
 		],
+		# 12:00 PM daily: WhatsApp fee reminder to students due yesterday (fee_reminder.py)
+		"0 12 * * *": [
+			"bb_tution_management.bb_academy.fee_reminder.send_scheduled",
+		],
 	},
 	"daily": [
 		"bb_tution_management.bb_academy.doctype.student.student.check_attendance_batch_expiry",

@@ -17,6 +17,15 @@ APPROVER_ROLES = ("System Manager", "Administrator")
 
 DISCONTINUED = "Discontinued"
 
+# Refund reason -> Discontinue Reason, for students discontinued by a refund.
+DISCONTINUE_REASON_FOR_REFUND = {
+	"Not Satisfied with Tuition": "Not Satisfied with Tuition",
+	"Relocating": "Family Problem / Relocated",
+	"Health Reason": "Health Issue",
+	"Timing Issue": "Batch / Timing Issue",
+	"Others": "Other",
+}
+
 
 def can_approve(user=None):
 	return bool(set(APPROVER_ROLES) & set(frappe.get_roles(user)))
@@ -100,6 +109,14 @@ class FeeRefund(Document):
 		if self.discontinue_student and student.status != DISCONTINUED:
 			self.db_set("previous_student_status", student.status)
 			student.status = DISCONTINUED
+			# The Student form requires these once the status is Discontinued.
+			student.discontinued__date = student.discontinued__date or self.refund_date
+			student.discontinue_reason_category = student.discontinue_reason_category or (
+				DISCONTINUE_REASON_FOR_REFUND.get(self.reason, "Other")
+			)
+			student.discontinued_reason = student.discontinued_reason or (
+				self.reason_remarks or self.reason or _("Fee refund {0}").format(self.name)
+			)
 
 		update_student_totals(student)
 		student.save(ignore_permissions=True)

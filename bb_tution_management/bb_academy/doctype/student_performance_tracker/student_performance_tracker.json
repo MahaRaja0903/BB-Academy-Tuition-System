@@ -17,8 +17,10 @@
   "result",
   "skipped",
   "session",
+  "test_key",
   "section_break_syllabus",
   "subject",
+  "subjects",
   "lessons",
   "portions",
   "column_break_syllabus",
@@ -80,22 +82,22 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Category",
-   "options": "Study\nClass\nTest\nMaths Test\nAccounts Test\nBehaviour",
+   "options": "Study\nClass\nTest\nH.W\nBehaviour",
    "reqd": 1
   },
   {
-   "description": "Study: Excellent / Completed / Incomplete. Class: Attended. Test, Maths Test & Accounts Test: Full Mark / Pass Mark / Fail. Behaviour: Good / Discipline / Critical. Skipped is set by the Skip Test / Study checkbox.",
+   "description": "Study: Excellent / Completed / Incomplete. Class: Attended. Test: Full Mark / Pass Mark / Fail. H.W: Done / Not Done. Behaviour: Good / Discipline / Critical. Skipped is set by the Skip checkbox.",
    "fieldname": "result",
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Result",
-   "options": "\nExcellent\nCompleted\nIncomplete\nAttended\nFull Mark\nPass Mark\nFail\nGood\nDiscipline\nCritical\nSkipped",
+   "options": "\nExcellent\nCompleted\nIncomplete\nAttended\nFull Mark\nPass Mark\nFail\nDone\nNot Done\nGood\nDiscipline\nCritical\nSkipped",
    "reqd": 1
   },
   {
    "default": "0",
-   "depends_on": "eval:['Study','Class','Test','Maths Test','Accounts Test'].includes(doc.category)",
+   "depends_on": "eval:['Study','Class','Test','H.W'].includes(doc.category)",
    "description": "The student was excused from this test / study. Remarks are then required.",
    "fieldname": "skipped",
    "fieldtype": "Check",
@@ -111,20 +113,38 @@
    "read_only": 1
   },
   {
+   "description": "Identifies this Test's Subject + Lesson + Portion combination. Set automatically — a batch cannot hold two Tests with the same combination on one day.",
+   "fieldname": "test_key",
+   "fieldtype": "Data",
+   "label": "Test Combination Key",
+   "read_only": 1,
+   "hidden": 1,
+   "search_index": 1,
+   "depends_on": "eval:doc.category=='Test'"
+  },
+  {
    "depends_on": "eval:doc.category!='Behaviour'",
    "fieldname": "section_break_syllabus",
    "fieldtype": "Section Break",
    "label": "What Was Covered"
   },
   {
-   "description": "Defaults from the batch setup; change it here to override for this student only. Only subjects offered for the student's standard are listed.",
+   "description": "Set from Subjects — the first one listed. Kept for reports that show a single subject.",
    "fieldname": "subject",
    "fieldtype": "Link",
-   "label": "Subject",
-   "options": "Subject"
+   "label": "First Subject",
+   "options": "Subject",
+   "read_only": 1
   },
   {
-   "description": "From the Lesson master — only lessons mapped to this standard and subject are listed.",
+   "description": "Every subject the class covered that day, in order — e.g. Maths and Science. A Test covers exactly one subject.",
+   "fieldname": "subjects",
+   "fieldtype": "Table MultiSelect",
+   "label": "Subjects",
+   "options": "Subject Item"
+  },
+  {
+   "description": "From the Lesson master — only lessons mapped to this standard and one of the Subjects are listed.",
    "fieldname": "lessons",
    "fieldtype": "Table MultiSelect",
    "label": "Lesson",
@@ -149,21 +169,21 @@
    "non_negative": 1
   },
   {
-   "depends_on": "eval:['Test','Maths Test','Accounts Test'].includes(doc.category)",
+   "depends_on": "eval:doc.category=='Test'",
    "fieldname": "total_marks",
    "fieldtype": "Float",
    "label": "Total Marks",
    "non_negative": 1
   },
   {
-   "depends_on": "eval:['Test','Maths Test','Accounts Test'].includes(doc.category)",
+   "depends_on": "eval:doc.category=='Test'",
    "fieldname": "pass_marks",
    "fieldtype": "Float",
    "label": "Pass Marks",
    "non_negative": 1
   },
   {
-   "depends_on": "eval:['Test','Maths Test','Accounts Test'].includes(doc.category)",
+   "depends_on": "eval:doc.category=='Test'",
    "fieldname": "marks_obtained",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -195,7 +215,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-12 10:00:00.000000",
+ "modified": "2026-10-15 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Performance Tracker",

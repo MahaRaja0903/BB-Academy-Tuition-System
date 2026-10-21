@@ -7,15 +7,13 @@ frappe.query_reports["Discount Report"] = {
 			"fieldname": "from_date",
 			"label": __("From Date"),
 			"fieldtype": "Date",
-			"default": frappe.datetime.add_months(frappe.datetime.get_today(), -1),
-			"reqd": 0
+			"default": frappe.datetime.month_start()
 		},
 		{
 			"fieldname": "to_date",
 			"label": __("To Date"),
 			"fieldtype": "Date",
-			"default": frappe.datetime.get_today(),
-			"reqd": 0
+			"default": frappe.datetime.get_today()
 		},
 		{
 			"fieldname": "student",
@@ -24,10 +22,28 @@ frappe.query_reports["Discount Report"] = {
 			"options": "Student"
 		},
 		{
+			"fieldname": "standard",
+			"label": __("Standard"),
+			"fieldtype": "Link",
+			"options": "Standard"
+		},
+		{
+			"fieldname": "batch",
+			"label": __("Batch"),
+			"fieldtype": "Link",
+			"options": "Batch"
+		},
+		{
+			"fieldname": "discount_reason",
+			"label": __("Discount Reason"),
+			"fieldtype": "Select",
+			"options": "\nSiblings\nMonth Last Few Days\nLong Absent\nOthers ( Reason Box )"
+		},
+		{
 			"fieldname": "status",
 			"label": __("Status"),
 			"fieldtype": "Select",
-			"options": "\nDraft\nUnpaid\nPartially Paid\nPaid\nCancelled"
+			"options": "\nUnpaid\nPartially Paid\nPaid"
 		}
 	]
 };

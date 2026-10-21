@@ -415,8 +415,10 @@ class FeeInvoice(Document):
 		# self.update_status()
 
 	def validate_split_up_payment(self):
-		"""A Split Up payment is the Grand Total handed over in more than one
-		form, so Cash + GPAY + Scanner has to add back up to the Grand Total.
+		"""A Split Up payment is the Paid Amount handed over in more than one
+		form, so Cash + GPAY + Scanner has to add back up to the Paid Amount.
+		A part payment leaves the rest as the balance, so this is checked
+		against what was paid now, not the Grand Total.
 
 		Any other payment method is collected in that one form, so the split
 		fields are cleared instead of being left with stale amounts.
@@ -442,7 +444,7 @@ class FeeInvoice(Document):
 				)
 
 		collected = sum(amount for _label, amount in parts)
-		grand_total = flt(self.grand_total)
+		paid_amount = flt(self.paid_amount)
 
 		breakup = " + ".join(
 			"{0} {1}".format(_(label), money(amount)) for label, amount in parts
@@ -451,23 +453,23 @@ class FeeInvoice(Document):
 		if not collected:
 			frappe.throw(
 				_("Payment Method is Split Up, so enter how the {0} was collected across Cash, GPAY and Scanner. All three are currently empty.").format(
-					money(grand_total)
+					money(paid_amount)
 				),
 				title=_("Split Up Payment"),
 			)
 
-		difference = flt(collected - grand_total, 2)
+		difference = flt(collected - paid_amount, 2)
 		if abs(difference) < 0.01:
 			return
 
 		if difference > 0:
-			gap = _("That is {0} more than the Grand Total.").format(money(difference))
+			gap = _("That is {0} more than the Paid Amount.").format(money(difference))
 		else:
-			gap = _("That is {0} short of the Grand Total.").format(money(abs(difference)))
+			gap = _("That is {0} short of the Paid Amount.").format(money(abs(difference)))
 
 		frappe.throw(
-			_("Split Up payment does not match the Grand Total.<br><br>Collected: {0} = <b>{1}</b><br>Grand Total: <b>{2}</b><br><br>{3} Change the amount collected in Cash, GPAY or Scanner so the three together come to {2}.").format(
-				breakup, money(collected), money(grand_total), gap
+			_("Split Up payment does not match the Paid Amount.<br><br>Collected: {0} = <b>{1}</b><br>Paid Amount: <b>{2}</b><br><br>{3} Change the amount collected in Cash, GPAY or Scanner so the three together come to {2}.").format(
+				breakup, money(collected), money(paid_amount), gap
 			),
 			title=_("Split Up Payment"),
 		)

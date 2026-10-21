@@ -29,7 +29,7 @@ frappe.query_reports["Monthly Performance Report"] = {
 			fieldname: "category",
 			label: "Category",
 			fieldtype: "Select",
-			options: "\nStudy\nClass\nTest\nMaths Test\nAccounts Test\nBehaviour",
+			options: "\nStudy\nClass\nTest\nH.W\nBehaviour",
 			// Blank shows every category side by side.
 		},
 		{ fieldname: "student", label: "Student", fieldtype: "Link", options: "Student" },
@@ -41,7 +41,7 @@ frappe.query_reports["Monthly Performance Report"] = {
 		// The columns that mean "something went wrong" read red so a month's
 		// problem students stand out without sorting.
 		if (
-			["study_incomplete", "test_fail", "maths_fail", "accounts_fail", "behaviour_worst"].includes(
+			["study_incomplete", "test_fail", "hw_not_done", "behaviour_critical"].includes(
 				column.fieldname
 			)
 		) {
@@ -50,7 +50,7 @@ frappe.query_reports["Monthly Performance Report"] = {
 			}
 		}
 		if (
-			["study_skipped", "class_skipped", "test_skipped", "maths_skipped", "accounts_skipped"].includes(
+			["study_skipped", "class_skipped", "test_skipped", "hw_skipped"].includes(
 				column.fieldname
 			)
 		) {
@@ -58,7 +58,7 @@ frappe.query_reports["Monthly Performance Report"] = {
 				value = `<span style="color: var(--gray-600); font-weight: 600;">${value}</span>`;
 			}
 		}
-		if (column.fieldname === "behaviour_bad" && data && data.behaviour_bad) {
+		if (column.fieldname === "behaviour_discipline" && data && data.behaviour_discipline) {
 			value = `<span style="color: var(--orange-600, #d97706); font-weight: 600;">${value}</span>`;
 		}
 		return value;

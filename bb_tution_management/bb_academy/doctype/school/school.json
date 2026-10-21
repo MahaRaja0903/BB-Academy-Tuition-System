@@ -70,7 +70,7 @@
   {
    "description": "Decimal degrees between -90 and 90, e.g. 13.041800. Leave blank if the location is not known yet.",
    "fieldname": "latitude",
-   "fieldtype": "Float",
+   "fieldtype": "Data",
    "label": "Latitude"
   },
   {
@@ -80,13 +80,13 @@
   {
    "description": "Decimal degrees between -180 and 180, e.g. 80.234100. Leave blank if the location is not known yet.",
    "fieldname": "longitude",
-   "fieldtype": "Float",
+   "fieldtype": "Data",
    "label": "Longitude"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-10 09:26:44.679701",
+ "modified": "2026-10-15 11:52:06.768010",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "School",

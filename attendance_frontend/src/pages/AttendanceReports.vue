@@ -207,8 +207,8 @@ const REPORTS = [
 ]
 
 // Categories the Monthly Performance Report can be narrowed to. Blank puts
-// Study, Class, Test, Maths Test and Behaviour side by side.
-const PERFORMANCE_CATEGORIES = ['Study', 'Class', 'Test', 'Maths Test', 'Behaviour']
+// Study, Class, Test, H.W and Behaviour side by side.
+const PERFORMANCE_CATEGORIES = ['Study', 'Class', 'Test', 'H.W', 'Behaviour']
 
 const route = useRoute()
 

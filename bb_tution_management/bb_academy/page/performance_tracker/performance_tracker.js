@@ -1,6 +1,6 @@
 // The Student Performance Manager now lives in the attendance PWA at
 // /attendance_manager/performance — it is the only build that implements the
-// per-category model (Study / Test / Maths Test / Behaviour) that
+// per-category model (Study / Class / Test / H.W / Behaviour) that
 // bb_academy/performance.py serves. This desk page kept the earlier
 // checkbox-per-category prototype and its API is gone, so it forwards on
 // instead of rendering a screen that can no longer save anything.
@@ -25,7 +25,7 @@ frappe.pages['performance-tracker'].on_page_load = function (wrapper) {
 			<h4 style="margin-bottom: 8px;">${__('The Performance Manager has moved')}</h4>
 			<p class="text-muted" style="max-width: 460px; margin: 0 auto 20px;">
 				${__(
-					'Record Study, Test, Maths Test and Behaviour from the Performance Manager — the same Standard, Batch, Gender and date filters as the Attendance Manager.'
+					'Record Study, Class, Test, H.W and Behaviour from the Performance Manager — the same Standard, Batch, Gender and date filters as the Attendance Manager.'
 				)}
 			</p>
 			<a class="btn btn-primary" href="${PERFORMANCE_MANAGER_ROUTE}">

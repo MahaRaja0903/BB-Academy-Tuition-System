@@ -14,7 +14,11 @@
   "section_break_xehp",
   "tuition_latitude",
   "column_break_anqc",
-  "tuition_longitude"
+  "tuition_longitude",
+  "section_break_pending_calls",
+  "pending_call_threshold",
+  "column_break_pending_calls",
+  "pending_calls_from"
  ],
  "fields": [
   {
@@ -54,8 +58,9 @@
   },
   {
    "fieldname": "tuition_latitude",
-   "fieldtype": "Float",
-   "label": "Tuition Latitude"
+   "fieldtype": "Data",
+   "label": "Tuition Latitude",
+   "precision": "9"
   },
   {
    "fieldname": "column_break_anqc",
@@ -63,15 +68,38 @@
   },
   {
    "fieldname": "tuition_longitude",
-   "fieldtype": "Float",
+   "fieldtype": "Data",
    "label": "Tuition Longitude"
+  },
+  {
+   "fieldname": "section_break_pending_calls",
+   "fieldtype": "Section Break",
+   "label": "Pending Call Works"
+  },
+  {
+   "default": "3",
+   "description": "A student appears on Pending Call Works once they have this many mistakes in any one category (H.W, Attendance, Test, Study, Class, Behaviour) since the last call home about it.",
+   "fieldname": "pending_call_threshold",
+   "fieldtype": "Int",
+   "label": "Mistakes Before a Call Is Due",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "column_break_pending_calls",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Mistakes before this date are never counted. Left blank, counting starts on the first day of the current month.",
+   "fieldname": "pending_calls_from",
+   "fieldtype": "Date",
+   "label": "Count Mistakes From"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-27 10:07:39.758641",
+ "modified": "2026-10-15 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "BB Academy Settings",

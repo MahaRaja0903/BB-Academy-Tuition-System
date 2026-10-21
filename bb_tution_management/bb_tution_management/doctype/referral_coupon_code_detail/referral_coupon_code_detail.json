@@ -21,12 +21,14 @@
    "options": "Referral Coupon Code"
   },
   {
+   "fetch_from": "referral_coupon_code.valid_till",
    "fieldname": "valid_till",
    "fieldtype": "Date",
    "in_list_view": 1,
    "label": "Valid Till"
   },
   {
+   "fetch_from": "referral_coupon_code.amount",
    "fieldname": "amount",
    "fieldtype": "Int",
    "in_list_view": 1,
@@ -52,7 +54,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-12 01:16:18.554738",
+ "modified": "2026-10-03 10:53:35.203587",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Referral Coupon Code Detail",

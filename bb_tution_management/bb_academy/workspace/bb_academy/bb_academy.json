@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\":\"perfShortcutHeader\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Quick Access</span>\",\"col\":12}},{\"id\":\"sc0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Student Profile\",\"col\":3}},{\"id\":\"sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Performance Manager\",\"col\":3}},{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"bbDashLink\",\"type\":\"card\",\"data\":{\"card_name\":\"Dashboard\",\"col\":4}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"0FsumFCZ5D\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}},{\"id\":\"attManagerCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance\",\"col\":4}},{\"id\":\"attReportCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance Reports\",\"col\":4}},{\"id\":\"perfManagerCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Performance\",\"col\":4}}]",
- "creation": "2026-09-27 10:31:46.166036",
+ "content": "[{\"id\":\"perfShortcutHeader\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Quick Access</span>\",\"col\":12}},{\"id\":\"sc0\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Student Profile\",\"col\":3}},{\"id\":\"sc1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Performance Manager\",\"col\":3}},{\"id\":\"sc2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Student Referral Report\",\"col\":3}},{\"id\":\"sc3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Discount Report\",\"col\":3}},{\"id\":\"fSnkMYwHpt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">BB Academy </span>\",\"col\":12}},{\"id\":\"bbDashLink\",\"type\":\"card\",\"data\":{\"card_name\":\"Dashboard\",\"col\":4}},{\"id\":\"vzt-2LkND8\",\"type\":\"card\",\"data\":{\"card_name\":\"Master Screen\",\"col\":4}},{\"id\":\"joPIs453Sv\",\"type\":\"card\",\"data\":{\"card_name\":\"Short Cut\",\"col\":4}},{\"id\":\"fHx-PN1C6Y\",\"type\":\"card\",\"data\":{\"card_name\":\"Payment\",\"col\":4}},{\"id\":\"0FsumFCZ5D\",\"type\":\"card\",\"data\":{\"card_name\":\"Report\",\"col\":4}},{\"id\":\"attManagerCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance\",\"col\":4}},{\"id\":\"attReportCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance Reports\",\"col\":4}},{\"id\":\"perfManagerCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Performance\",\"col\":4}}]",
+ "creation": "2026-10-15 13:07:30.486430",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -17,7 +17,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Dashboard",
-   "link_count": 5,
+   "link_count": 6,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -71,6 +71,16 @@
    "label": "Fee Payment Summary",
    "link_count": 0,
    "link_to": "fee-payment-summary",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Student Count Report",
+   "link_count": 0,
+   "link_to": "student-count-report",
    "link_type": "Page",
    "onboard": 0,
    "type": "Link"
@@ -364,7 +374,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Report",
-   "link_count": 4,
+   "link_count": 8,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -405,6 +415,46 @@
    "label": "Payment Report",
    "link_count": 0,
    "link_to": "Payment Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Student Referral Report",
+   "link_count": 0,
+   "link_to": "Student Referral Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Discount Report",
+   "link_count": 0,
+   "link_to": "Discount Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Student Incomplete Data Report",
+   "link_count": 0,
+   "link_to": "Student Incomplete Data Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Discontinued or Suspended Students",
+   "link_count": 0,
+   "link_to": "Discontinued or Suspended Students",
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
@@ -479,7 +529,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-30 20:28:11.972741",
+ "modified": "2026-10-15 17:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "BB Academy",
@@ -504,6 +554,22 @@
    "label": "Performance Manager",
    "type": "URL",
    "url": "/attendance_manager/performance"
+  },
+  {
+   "color": "purple",
+   "doc_view": "",
+   "label": "Student Referral Report",
+   "link_to": "Student Referral Report",
+   "report_ref_doctype": "Student",
+   "type": "Report"
+  },
+  {
+   "color": "orange",
+   "doc_view": "",
+   "label": "Discount Report",
+   "link_to": "Discount Report",
+   "report_ref_doctype": "Fee Invoice",
+   "type": "Report"
   }
  ],
  "title": "BB Academy"

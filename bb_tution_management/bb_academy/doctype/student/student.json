@@ -24,6 +24,7 @@
   "discontinued__date",
   "suspended_date",
   "column_break_kjub",
+  "discontinue_reason_category",
   "discontinued_reason",
   "suspended_reason",
   "academic_details_section",
@@ -317,6 +318,14 @@
   },
   {
    "depends_on": "eval:doc.status == \"Discontinued\"",
+   "fieldname": "discontinue_reason_category",
+   "fieldtype": "Link",
+   "label": "Discontinue Reason Category",
+   "mandatory_depends_on": "eval:doc.status == \"Discontinued\"",
+   "options": "Discontinue Reason"
+  },
+  {
+   "depends_on": "eval:doc.status == \"Discontinued\"",
    "fieldname": "discontinued_reason",
    "fieldtype": "Small Text",
    "label": "Discontinued Reason",
@@ -541,7 +550,7 @@
   {
    "description": "Decimal degrees between -90 and 90, e.g. 13.041800. Leave blank if the location is not known yet.",
    "fieldname": "latitude",
-   "fieldtype": "Float",
+   "fieldtype": "Data",
    "label": "Latitude",
    "precision": "6"
   },
@@ -552,7 +561,7 @@
   {
    "description": "Decimal degrees between -180 and 180, e.g. 80.234100. Leave blank if the location is not known yet.",
    "fieldname": "longitude",
-   "fieldtype": "Float",
+   "fieldtype": "Data",
    "label": "Longitude",
    "precision": "6"
   },
@@ -600,7 +609,7 @@
    "link_fieldname": "student"
   }
  ],
- "modified": "2026-09-28 19:05:30.936765",
+ "modified": "2026-10-15 13:33:47.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

@@ -9,6 +9,25 @@ frappe.query_reports["Student Referral Report"] = {
             "fieldtype": "Link",
             "options": "Student",
             "default": ""
+        },
+        {
+            "fieldname": "standard",
+            "label": __("Standard"),
+            "fieldtype": "Link",
+            "options": "Standard"
+        },
+        {
+            "fieldname": "batch",
+            "label": __("Batch"),
+            "fieldtype": "Link",
+            "options": "Batch"
+        },
+        {
+            "fieldname": "coupon_status",
+            "label": __("Coupon Status"),
+            "fieldtype": "Select",
+            "options": "\nHas Available Coupons\nHas Used Coupons\nHas Expired Coupons\nNo Coupons",
+            "default": ""
         }
 	]
 };

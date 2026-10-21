@@ -5,14 +5,14 @@ the monthly report all grade against the same categories. Keeping the option
 lists here (rather than only in each doctype's Select `options`) means the
 raw-SQL and bulk paths validate against exactly what the UI offers.
 
-The subject test is named after what the standard actually sits: "Maths Test"
-for most standards, "Accounts Test" for the Commerce standards. Both names are
-valid categories everywhere; which one a standard offers is decided by
-`test_category_for_standard`.
+Test is the only test category. A batch can sit several Tests on one day, one
+per Subject + Lesson + Portion combination; `combination_key` is what tells them
+apart, and the same combination cannot be set twice for a batch on one day.
 
 The PWA mirrors CATEGORIES in PerformanceManager.vue — keep the two in step.
 """
 
+import hashlib
 import re
 
 import frappe
@@ -24,13 +24,15 @@ from frappe.utils import flt
 SKIP_RESULT = "Skipped"
 
 # Behaviour is never skipped — the student was in the room either way.
-SKIPPABLE_CATEGORIES = ["Study", "Class", "Test", "Maths Test", "Accounts Test"]
+SKIPPABLE_CATEGORIES = ["Study", "Class", "Test", "H.W"]
 
-# The subject-specific test, one per standard. "Maths Test" is the default;
-# Commerce standards sit "Accounts Test" instead.
-SUBJECT_TEST_CATEGORIES = ["Maths Test", "Accounts Test"]
-DEFAULT_SUBJECT_TEST = "Maths Test"
-COMMERCE_SUBJECT_TEST = "Accounts Test"
+# The category whose sessions are keyed by their Subject + Lesson + Portion
+# combination, so one batch can hold several of them on the same day.
+MULTI_SESSION_CATEGORIES = ["Test"]
+
+# Retired categories — their rows were converted to Test by the
+# performance_single_test patch.
+RETIRED_TEST_CATEGORIES = ["Maths Test", "Accounts Test"]
 
 # category -> the grades it offers, in the order the UI renders them.
 CATEGORY_RESULTS = {
@@ -39,8 +41,8 @@ CATEGORY_RESULTS = {
 	# "Attended" only records that it happened and what it covered.
 	"Class": ["Attended", SKIP_RESULT],
 	"Test": ["Full Mark", "Pass Mark", "Fail", SKIP_RESULT],
-	"Maths Test": ["Full Mark", "Pass Mark", "Fail", SKIP_RESULT],
-	"Accounts Test": ["Full Mark", "Pass Mark", "Fail", SKIP_RESULT],
+	# Home work set on the covered subject / lesson / portion — done or not.
+	"H.W": ["Done", "Not Done", SKIP_RESULT],
 	"Behaviour": ["Good", "Discipline", "Critical"],
 }
 
@@ -63,7 +65,7 @@ REASON_REQUIRED_RESULTS = ["Discipline", "Critical"]
 
 # Results that qualify as a "mistake" / "poor performance" metric
 # Skipped is deliberately absent: an excused student has not done badly.
-LOW_RESULTS = ["Incomplete", "Fail", "Discipline", "Critical"]
+LOW_RESULTS = ["Incomplete", "Fail", "Not Done", "Discipline", "Critical"]
 
 # Only students the attendance register marks with one of these statuses are
 # listed for grading — you cannot rate a lesson a student did not sit through.
@@ -101,17 +103,11 @@ _CONFIG = {
 		"uses_reasons": False,
 		"uses_skip": True,
 	},
-	"Maths Test": {
+	"H.W": {
+		# Subject / Lesson / Portion of the home work, set once for the batch.
 		"uses_syllabus": True,
 		"uses_questions": False,
-		"uses_marks": True,
-		"uses_reasons": False,
-		"uses_skip": True,
-	},
-	"Accounts Test": {
-		"uses_syllabus": True,
-		"uses_questions": False,
-		"uses_marks": True,
+		"uses_marks": False,
 		"uses_reasons": False,
 		"uses_skip": True,
 	},
@@ -140,39 +136,39 @@ def category_config(category):
 	)
 
 
-def test_category_for_standard(standard):
-	"""Which subject test this standard sits.
+def categories_for_standard(standard=None):
+	"""The categories the Performance Manager offers. Every standard sits the
+	same ones now that the subject tests are folded into Test."""
+	return list(CATEGORIES)
 
-	Set explicitly on the Standard master; falling back to the standard's Group
-	means the Commerce standards read "Accounts Test" straight after upgrading,
-	without anyone having to touch the master first.
+
+def is_multi_session(category):
+	return category in MULTI_SESSION_CATEGORIES
+
+
+def combination_key(blocks):
+	"""A short, stable id for a Subject + Lesson + Portion combination.
+
+	Order does not matter — Lesson 1 + Lesson 2 is the same test as Lesson 2 +
+	Lesson 1 — so the picks are sorted before hashing.
 	"""
-	if not standard:
-		return DEFAULT_SUBJECT_TEST
-
-	row = frappe.db.get_value("Standard", standard, ["test_category", "group"], as_dict=True)
-	if not row:
-		return DEFAULT_SUBJECT_TEST
-
-	if row.get("test_category") in SUBJECT_TEST_CATEGORIES:
-		return row["test_category"]
-	if row.get("group") == "Commerce":
-		return COMMERCE_SUBJECT_TEST
-	return DEFAULT_SUBJECT_TEST
-
-
-def categories_for_standard(standard):
-	"""The categories the Performance Manager offers for this standard — every
-	shared one, plus the single subject test the standard actually sits."""
-	subject_test = test_category_for_standard(standard)
-	return [c for c in CATEGORIES if c not in SUBJECT_TEST_CATEGORIES or c == subject_test]
+	parts = []
+	for block in blocks or []:
+		parts.append(
+			"{}|{}|{}".format(
+				block.get("subject") or "",
+				",".join(sorted(block.get("lessons") or [])),
+				",".join(sorted(block.get("portions") or [])),
+			)
+		)
+	return hashlib.md5("#".join(sorted(parts)).encode()).hexdigest()[:10]
 
 
 def slug(value):
 	"""Make `value` safe for a document name.
 
 	Frappe rejects "/" outright and round-trips spaces awkwardly in URLs, and
-	both appear in real Standard/Batch names ("Maths Test", "10 A/B").
+	both appear in real Standard/Batch names ("H.W", "10 A/B").
 	"""
 	return re.sub(r"[^A-Za-z0-9]+", "-", str(value or "")).strip("-")
 

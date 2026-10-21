@@ -510,6 +510,35 @@
       </div>
     </div>
 
+    <!-- Absent confirmation modal -->
+    <div v-if="absentModal.open" class="att-modal-backdrop" @click.self="closeAbsentModal">
+      <div class="att-modal">
+        <h3>Mark Absent{{ secondRound ? ' (Second Attendance)' : '' }}</h3>
+        <p>
+          Mark <b>{{ absentModal.label }}</b> as <b>Absent</b>?
+        </p>
+        <p v-if="absentModal.sending" class="att-absent-whatsapp">
+          <i class="fa fa-whatsapp"></i>
+          A WhatsApp absent message will be sent to
+          {{ absentModal.sending > 1 ? `${absentModal.sending} students` : 'the student' }}.
+        </p>
+        <p v-else class="att-absent-no-whatsapp">
+          <i class="fa fa-info-circle"></i> No WhatsApp message will be sent.
+        </p>
+        <p v-if="absentModal.error" class="att-modal-error">{{ absentModal.error }}</p>
+        <div class="att-modal-actions">
+          <button class="att-btn att-btn-secondary" @click="closeAbsentModal">Cancel</button>
+          <button
+            class="att-btn att-btn-primary att-btn-danger"
+            :disabled="absentModal.saving"
+            @click="confirmAbsent"
+          >
+            {{ absentModal.saving ? 'Saving…' : 'Mark Absent' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Assign holiday modal -->
     <div v-if="holidayModal.open" class="att-modal-backdrop" @click.self="holidayModal.open = false">
       <div class="att-modal">
@@ -710,6 +739,7 @@ const specialModal = reactive({
 
 const lateEntryReasons = ref([])
 const lateModal = reactive({ open: false, student: null, reason: '', bulk: false, saving: false, error: '' })
+const absentModal = reactive({ open: false, student: null, bulk: false, label: '', sending: 0, saving: false, error: '' })
 const holidayModal = reactive({
   open: false,
   date: '',
@@ -1017,6 +1047,14 @@ function onStatusClick(student, status) {
     lateModal.error = ''
     return
   }
+  if (status === 'Absent') {
+    openAbsentModal({
+      student,
+      label: student.student_name || student.student_id,
+      sending: !secondRound.value && !student.today_status ? 1 : 0,
+    })
+    return
+  }
   applyAttendance(student, status).catch((e) => {
     saveError.value = e?.messages?.[0] || e?.message || 'Failed to save attendance'
   })
@@ -1093,6 +1131,34 @@ async function confirmLate() {
   }
 }
 
+// Guards against a stray tap on Absent. The "Student Absent Whats App Message"
+// WhatsApp Notification fires on Before Insert, so a message only goes out for
+// a student whose first-round mark is being created now -- changing an
+// existing mark, or the second round, sends nothing.
+function openAbsentModal({ student = null, bulk = false, label, sending }) {
+  Object.assign(absentModal, { open: true, student, bulk, label, sending, saving: false, error: '' })
+}
+
+function closeAbsentModal() {
+  if (absentModal.saving) return
+  absentModal.open = false
+  absentModal.student = null
+}
+
+async function confirmAbsent() {
+  absentModal.saving = true
+  absentModal.error = ''
+  try {
+    if (absentModal.bulk) await submitBulk('Absent')
+    else if (absentModal.student) await applyAttendance(absentModal.student, 'Absent')
+    absentModal.saving = false
+    closeAbsentModal()
+  } catch (e) {
+    absentModal.error = e?.messages?.[0] || e?.message || 'Failed to save attendance'
+    absentModal.saving = false
+  }
+}
+
 async function bulkMark(status) {
   if (selected.size === 0) return
   if (bulkSaving.value) return
@@ -1113,6 +1179,24 @@ async function bulkMark(status) {
     lateModal.error = ''
     return
   }
+  if (status === 'Absent') {
+    openAbsentModal({
+      bulk: true,
+      label: `${selected.size} selected student(s)`,
+      sending: secondRound.value
+        ? 0
+        : students.value.filter((s) => selected.has(s.student_id) && !s.today_status).length,
+    })
+    return
+  }
+  try {
+    await submitBulk(status)
+  } catch (e) {
+    saveError.value = e?.messages?.[0] || e?.message || 'Failed to save attendance'
+  }
+}
+
+async function submitBulk(status) {
   bulkSaving.value = true
   try {
     await saveBulkResource.submit({
@@ -1130,8 +1214,6 @@ async function bulkMark(status) {
     })
     selected.clear()
     recomputeSummary()
-  } catch (e) {
-    saveError.value = e?.messages?.[0] || e?.message || 'Failed to save attendance'
   } finally {
     bulkSaving.value = false
   }
@@ -2336,6 +2418,9 @@ watch([statusFilter, showCompleted, search, secondRound], () => {
 
 .attendance-manager .att-modal-warn { font-size: 11px; color: var(--text-on-yellow); margin-top: 6px; }
 .attendance-manager .att-modal-error { font-size: 12px; color: var(--red-600); margin-top: 8px; }
+.attendance-manager .att-absent-whatsapp { font-size: 13px; font-weight: 600; color: var(--red-600); margin-top: 8px; }
+.attendance-manager .att-absent-no-whatsapp { font-size: 13px; color: var(--text-muted, var(--gray-600)); margin-top: 8px; }
+.attendance-manager .att-btn-danger { background: var(--red-600); border-color: var(--red-600); color: #fff; }
 
 .attendance-manager .att-modal-actions {
   display: flex;
