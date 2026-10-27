@@ -510,9 +510,10 @@ def get_mistake_detail(record):
 	if rows:
 		reasons = frappe.db.sql(
 			"""
-			SELECT parent, behaviour_reason
-			FROM `tabStudent Behaviour Reason Item`
-			WHERE parenttype = 'Student Performance Tracker' AND parent IN %(parents)s
+			SELECT i.parent, COALESCE(br.reason_name, i.behaviour_reason) AS behaviour_reason
+			FROM `tabStudent Behaviour Reason Item` i
+			LEFT JOIN `tabBehaviour Reason` br ON br.name = i.behaviour_reason
+			WHERE i.parenttype = 'Student Performance Tracker' AND i.parent IN %(parents)s
 			""",
 			{"parents": tuple(r.name for r in rows)},
 			as_dict=True,

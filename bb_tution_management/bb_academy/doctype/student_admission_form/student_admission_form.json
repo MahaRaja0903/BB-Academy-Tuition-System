@@ -19,6 +19,7 @@
   "address",
   "column_break_2",
   "application_date",
+  "date_of_joining",
   "gender",
   "blood_group",
   "school_name",
@@ -58,8 +59,9 @@
   "reason_for_discounting_starting_amount",
   "reason_for_discounting_monthly_fees",
   "fees_details_section",
-  "fees__invoice_details",
   "is_yearly_payment",
+  "auto_calculate_yearly_payment",
+  "fees__invoice_details",
   "add_discount",
   "section_break_nlvl",
   "column_break_xryi",
@@ -69,6 +71,7 @@
   "total_year_payment_amount",
   "column_break_btuk",
   "yearly_fees_paid_amount",
+  "yearly_payment_due_date",
   "section_break_xvas",
   "cash",
   "column_break_ripz",
@@ -105,6 +108,12 @@
    "in_list_view": 1,
    "label": "Application Date",
    "reqd": 1
+  },
+  {
+   "description": "Expected date the student starts. The joining month's fee is worked out from this date; left empty, the Application Date is used.",
+   "fieldname": "date_of_joining",
+   "fieldtype": "Date",
+   "label": "Date of Joining"
   },
   {
    "fieldname": "column_break_1",
@@ -286,6 +295,7 @@
    "options": "A+\nA-\nB+\nB-\nAB+\nAB-\nO+\nO-\nA1\nA1+"
   },
   {
+   "depends_on": "eval:!doc.is_yearly_payment",
    "fieldname": "fees_paid_amount",
    "fieldtype": "Currency",
    "label": "Fees Paid Amount"
@@ -301,6 +311,7 @@
    "label": "Fees Details"
   },
   {
+   "depends_on": "eval:!doc.is_yearly_payment || doc.auto_calculate_yearly_payment",
    "fieldname": "fees__invoice_details",
    "fieldtype": "Table",
    "label": "Fees  Invoice Details",
@@ -310,7 +321,6 @@
    "default": "0",
    "fieldname": "is_yearly_payment",
    "fieldtype": "Check",
-   "hidden": 1,
    "label": "Is Yearly Payment"
   },
   {
@@ -321,7 +331,8 @@
   {
    "fieldname": "total_year_payment_amount",
    "fieldtype": "Currency",
-   "label": "Total Year Payment Amount"
+   "label": "Total Year Payment Amount",
+   "read_only_depends_on": "eval:doc.auto_calculate_yearly_payment == 1"
   },
   {
    "fieldname": "column_break_btuk",
@@ -368,6 +379,7 @@
   },
   {
    "default": "0",
+   "depends_on": "eval:!doc.is_yearly_payment",
    "fieldname": "add_discount",
    "fieldtype": "Check",
    "label": "Add Discount"
@@ -473,13 +485,29 @@
   {
    "fieldname": "column_break_xvje",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.is_yearly_payment == 1",
+   "description": "Works out the yearly amount from the Starting Payment and the months left in the Academic Year, with one month free for paying yearly.",
+   "fieldname": "auto_calculate_yearly_payment",
+   "fieldtype": "Check",
+   "label": "Auto Calculate Yearly Payment"
+  },
+  {
+   "depends_on": "eval:doc.is_yearly_payment && flt(doc.yearly_fees_paid_amount) < flt(doc.total_year_payment_amount)",
+   "description": "Shown when the yearly fee is not fully paid at admission. The date by which the student has to pay the balance.",
+   "fieldname": "yearly_payment_due_date",
+   "fieldtype": "Date",
+   "label": "Yearly Payment Due Date",
+   "mandatory_depends_on": "eval:doc.is_yearly_payment && flt(doc.yearly_fees_paid_amount) < flt(doc.total_year_payment_amount)"
   }
  ],
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-26 15:12:57.564968",
+ "modified": "2026-10-21 16:30:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Admission Form",

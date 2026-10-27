@@ -18,6 +18,9 @@ frappe.ui.form.on("Student Enquiry Form", {
 				};
 			}
 		});
+		frm.set_query("fee_preview_batch", function() {
+			return { filters: { is_active: 1 } };
+		});
 		frm.set_query("street", function() {
 			if (frm.doc.area) {
 				return {
@@ -122,6 +125,19 @@ frappe.ui.form.on("Student Enquiry Form", {
 		}
 
 		frm.trigger("toggle_group_field");
+		refresh_fee_preview(frm);
+	},
+	fee_preview_batch(frm) {
+		refresh_fee_preview(frm);
+	},
+	fee_preview_joining_date(frm) {
+		refresh_fee_preview(frm);
+	},
+	fee_preview_yearly(frm) {
+		refresh_fee_preview(frm);
+	},
+	academic_year(frm) {
+		refresh_fee_preview(frm);
 	},
 	enquiry_date(frm) {
 		if (frm.doc.enquiry_date && frm.doc.standard) {
@@ -130,6 +146,7 @@ frappe.ui.form.on("Student Enquiry Form", {
 	},
 	standard(frm) {
 		frm.set_value("group", "");
+		refresh_fee_preview(frm);
 		if (frm.doc.standard) {
 			frm.trigger("set_academic_year");
 			frm.trigger("toggle_group_field");
@@ -182,3 +199,77 @@ frappe.ui.form.on("Student Enquiry Form", {
 		});
 	}
 });
+
+// The fee quote for the parents. Worked out on the server by the Admission
+// Form's own rules, so what is quoted here is what the admission will bill.
+let fee_preview_timer = null;
+
+function refresh_fee_preview(frm) {
+	// Picking a standard also sets the academic year; ask the server once.
+	clearTimeout(fee_preview_timer);
+	fee_preview_timer = setTimeout(() => {
+		frappe.call({
+			method: "bb_tution_management.bb_academy.doctype.student_enquiry_form.student_enquiry_form.get_fee_preview",
+			args: {
+				standard: frm.doc.standard,
+				batch: frm.doc.fee_preview_batch,
+				academic_year: frm.doc.academic_year,
+				joining_date: frm.doc.fee_preview_joining_date || frm.doc.enquiry_date,
+				yearly: frm.doc.fee_preview_yearly
+			},
+			callback(r) {
+				let p = r.message || {};
+				let values = {
+					fee_preview_starting_payment: p.starting_payment || 0,
+					fee_preview_monthly_fee: p.monthly_fee || 0,
+					fee_preview_first_payment: p.first_payment || 0,
+					fee_preview_yearly_total: p.yearly_total || 0,
+					fee_preview_yearly_savings: p.yearly_savings || 0
+				};
+				// Only touch the fields that moved, so opening a saved enquiry
+				// does not mark it dirty.
+				Object.keys(values).forEach(field => {
+					if (flt(frm.doc[field]) !== flt(values[field])) frm.set_value(field, values[field]);
+				});
+				render_fee_breakdown(frm, p);
+			}
+		});
+	}, 300);
+}
+
+function render_fee_breakdown(frm, p) {
+	let wrapper = frm.get_field("fee_preview_breakdown").$wrapper;
+	if (p.message || !(p.rows || []).length) {
+		wrapper.html(p.message ? `<p class="text-muted">${frappe.utils.escape_html(p.message)}</p>` : "");
+		return;
+	}
+
+	let fmt = value => format_currency(value);
+	let body = p.rows.map(row => `
+		<tr>
+			<td>${__(row.month)}</td>
+			<td class="text-right">${fmt(row.amount_need_to_pay)}</td>
+			<td class="text-muted">${frappe.utils.escape_html(row.remarks || "")}</td>
+		</tr>`).join("");
+
+	let total_label = frm.doc.fee_preview_yearly ? __("Total Yearly Payment") : __("Amount to Pay at Joining");
+	let total = frm.doc.fee_preview_yearly ? p.yearly_total : p.first_payment;
+	let footer = `<tr><th>${total_label}</th><th class="text-right">${fmt(total)}</th><th></th></tr>`;
+	if (frm.doc.fee_preview_yearly && p.yearly_savings) {
+		footer += `<tr class="text-success"><th>${__("Saved by Paying Yearly")}</th><th class="text-right">${fmt(p.yearly_savings)}</th><th></th></tr>`;
+	}
+	if (!frm.doc.fee_preview_yearly) {
+		footer += `<tr><td>${__("Then every month")}</td><td class="text-right">${fmt(p.monthly_fee)}</td><td></td></tr>`;
+	}
+
+	let notes = (p.notes || []).map(n => `<p class="text-muted small">${frappe.utils.escape_html(n)}</p>`).join("");
+
+	wrapper.html(`
+		<table class="table table-bordered table-sm">
+			<thead><tr><th>${__("Month")}</th><th class="text-right">${__("Amount")}</th><th>${__("Remarks")}</th></tr></thead>
+			<tbody>${body}</tbody>
+			<tfoot>${footer}</tfoot>
+		</table>
+		${notes}
+	`);
+}

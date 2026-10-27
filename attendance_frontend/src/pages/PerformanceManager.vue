@@ -524,9 +524,13 @@
                 <div v-if="s.skipped && s.remarks" class="perf-skip-msg">
                   <i class="fa fa-info-circle"></i> {{ s.remarks }}
                 </div>
+                <div v-for="(e, i) in s.skipped ? s.instead || [] : []" :key="i" class="perf-skip-msg">
+                  <i class="fa" :class="CATEGORY_CONFIG[e.category]?.icon || 'fa-book'"></i>
+                  {{ insteadLine(e) }}
+                </div>
 
                 <div v-if="s.behaviour_reasons.length" class="perf-reason-msg">
-                  <i class="fa fa-exclamation-circle"></i> {{ s.behaviour_reasons.join(', ') }}
+                  <i class="fa fa-exclamation-circle"></i> {{ s.behaviour_reasons.map(reasonLabel).join(', ') }}
                 </div>
               </td>
             </tr>
@@ -550,7 +554,7 @@
           <input
             type="text"
             class="form-control"
-            placeholder="Search by reason or number"
+            placeholder="Search by reason, description or number"
             v-model="reasonModal.search"
           />
           <span class="perf-reason-selected-count">{{ reasonModal.selected.size }} selected</span>
@@ -564,7 +568,10 @@
               :checked="reasonModal.selected.has(r.name)"
               @change="toggleReason(r.name)"
             />
-            <span>{{ r.reason_name }}</span>
+            <span class="perf-reason-text">
+              <span>{{ r.reason_name }}</span>
+              <small v-if="r.matchedDescription" class="perf-reason-desc">{{ r.description }}</small>
+            </span>
           </label>
           <p v-if="!reasonOptions.length" class="perf-modal-warn">
             The Behaviour Reason master list is empty — add the first one below.
@@ -701,18 +708,18 @@
           <label class="perf-modal-label">What did the student do instead?</label>
           <div class="perf-chip-picker">
             <button
-              v-for="opt in ['', ...insteadOptions]"
+              v-for="opt in insteadChoices"
               :key="opt || 'nothing'"
               type="button"
               class="perf-chip"
               :class="{ active: skipModal.instead === opt }"
               @click="pickInstead(opt)"
             >
-              {{ opt || 'Nothing' }}
+              {{ insteadLabel(opt) }}
             </button>
           </div>
           <small v-if="skipModal.insteadLoading" class="perf-field-hint">
-            <i class="fa fa-spinner fa-spin"></i> Loading {{ skipModal.instead }}…
+            <i class="fa fa-spinner fa-spin"></i> Loading {{ insteadLabel(skipModal.instead) }}…
           </small>
           <small v-else-if="skipModal.insteadExists" class="perf-field-hint">
             {{ skipModal.student?.student_name }} already has a {{ skipModal.instead }} entry today —
@@ -720,7 +727,8 @@
           </small>
         </template>
 
-        <template v-if="config.usesSyllabus && !config.multiSession">
+        <template v-if="skipSyllabusEditable">
+          <label class="perf-modal-label">Subject, Lesson &amp; Portion studied</label>
           <p class="perf-modal-sub perf-modal-sub-tight">
             <i class="fa fa-book"></i>
             This starts from what the batch was set up to cover. Change it to what
@@ -755,7 +763,10 @@
 
         <template v-else-if="skipModal.instead">
           <template v-if="skipModal.insteadTests.length">
-            <label class="perf-modal-label">Which Test? <span class="perf-required">*</span></label>
+            <label class="perf-modal-label">
+              {{ skipModal.instead === category ? 'Which other Test?' : 'Which Test?' }}
+              <span class="perf-required">*</span>
+            </label>
             <select
               class="form-control"
               :value="skipModal.insteadTest"
@@ -766,6 +777,9 @@
               </option>
             </select>
           </template>
+          <small v-if="insteadTestSyllabus" class="perf-field-hint">
+            <i class="fa fa-book"></i> {{ insteadTestSyllabus }}
+          </small>
           <label class="perf-modal-label">{{ skipModal.instead }} Marks <span class="perf-required">*</span></label>
           <div class="perf-marks-pair">
             <input
@@ -1165,6 +1179,49 @@ const insteadOptions = computed(() =>
   config.value.usesSkip ? INSTEAD_CATEGORIES.filter((c) => c !== category.value) : []
 )
 
+// Skipping a Study or a Test always means the student did the other (or, for a
+// Test, sat another one) — there is no "Nothing". Class and H.W can still be
+// skipped with nothing in their place.
+const insteadRequired = computed(() => INSTEAD_CATEGORIES.includes(category.value))
+const insteadChoices = computed(() => {
+  // A day can hold several Tests, so a skipped Test can be another Test sat.
+  const opts = config.value.multiSession && config.value.usesSkip
+    ? [...insteadOptions.value, category.value]
+    : insteadOptions.value
+  return insteadRequired.value ? opts : ['', ...opts]
+})
+
+function insteadLabel(opt) {
+  if (!opt) return 'Nothing'
+  return opt === category.value ? `Another ${opt}` : opt
+}
+
+// What was studied in place of the session is picked here; a Test sat instead
+// carries its own Subject / Lesson / Portion.
+const skipSyllabusEditable = computed(
+  () => config.value.usesSyllabus && (!config.value.multiSession || skipModal.instead === 'Study')
+)
+
+const insteadTestSyllabus = computed(() => {
+  const t = skipModal.insteadTests.find((x) => x.name === skipModal.insteadTest)
+  return t ? syllabusLine(t.syllabus) || t.label : ''
+})
+
+// "Studied instead: Maths: Algebra (2M) — Completed"
+// "Wrote Test instead: Maths: Ratio (5M) — 8 / 10, Pass Mark"
+function insteadLine(e) {
+  const what = syllabusLine(e.syllabus)
+  if (e.category === 'Study') {
+    return ['Studied instead', what].filter(Boolean).join(': ') + (e.result ? ` — ${e.result}` : '')
+  }
+  const head = e.category === category.value ? `Wrote another ${e.category}` : `Wrote ${e.category} instead`
+  const score = e.marks_obtained !== null && e.marks_obtained !== undefined
+    ? `${e.marks_obtained} / ${e.total_marks || 0}`
+    : ''
+  const tail = [score, e.result].filter(Boolean).join(', ')
+  return [head, what].filter(Boolean).join(': ') + (tail ? ` — ${tail}` : '')
+}
+
 // The grade buttons stay three wide; Skipped is set by its own checkbox, but it
 // still needs a KPI card and a stat chip of its own.
 const allResultOptions = computed(() =>
@@ -1344,6 +1401,15 @@ const someVisibleSelected = computed(
   () => !allVisibleSelected.value && visibleStudents.value.some((s) => selected.has(s.student_id))
 )
 
+// Rows hold the reason's record name; long reasons are named by a truncated
+// form, so show the full text from the master where we have it.
+const reasonLabels = computed(
+  () => new Map(behaviourReasons.value.map((r) => [r.name, r.reason_name]))
+)
+function reasonLabel(name) {
+  return reasonLabels.value.get(name) || name
+}
+
 // Serial numbers follow the full list, so a reason keeps its number while
 // the search narrows the list — staff can say "No. 7" and mean one thing.
 const reasonOptions = computed(() =>
@@ -1355,9 +1421,20 @@ const reasonOptions = computed(() =>
 const filteredReasonOptions = computed(() => {
   const q = reasonModal.search.trim().toLowerCase()
   if (!q) return reasonOptions.value
-  return reasonOptions.value.filter(
-    (r) => String(r.sno) === q || (r.reason_name || '').toLowerCase().includes(q)
-  )
+  return reasonOptions.value
+    .filter(
+      (r) =>
+        String(r.sno) === q ||
+        (r.reason_name || '').toLowerCase().includes(q) ||
+        (r.description || '').toLowerCase().includes(q)
+    )
+    // Show the description only when it is why the reason matched.
+    .map((r) => ({
+      ...r,
+      matchedDescription:
+        !(r.reason_name || '').toLowerCase().includes(q) &&
+        (r.description || '').toLowerCase().includes(q),
+    }))
 })
 
 function initials(name) {
@@ -1790,6 +1867,7 @@ function onSkipToggle(student, checked) {
     skipModal.remarks = student.remarks || ''
     skipModal.error = ''
     resetInstead()
+    if (insteadRequired.value && insteadChoices.value.length) pickInstead(insteadChoices.value[0])
     return
   }
 
@@ -1828,6 +1906,8 @@ async function pickInstead(opt, testPick) {
       standard: standard.value,
       batch: batch.value,
       session_name: testPick || undefined,
+      // "Another Test" — the one being skipped is not on offer.
+      exclude_session: opt === category.value ? testName.value || undefined : undefined,
     })
     if (skipModal.instead !== opt) return
     skipModal.insteadTests = entry?.tests || []
@@ -1835,7 +1915,9 @@ async function pickInstead(opt, testPick) {
     if (entry?.no_session) {
       skipModal.error = `No ${opt} is set for this batch today — undo "No ${opt}" first.`
     } else if (CATEGORY_CONFIG[opt]?.multiSession && !skipModal.insteadTests.length) {
-      skipModal.error = `No ${opt} is added for this batch today — add it under ${opt} first.`
+      skipModal.error = opt === category.value
+        ? `No other ${opt} is added for this batch today — add it under ${opt} first.`
+        : `No ${opt} is added for this batch today — add it under ${opt} first.`
     }
     skipModal.insteadExists = !!entry?.exists && !entry?.skipped
     if (skipModal.insteadExists) {
@@ -1867,6 +1949,10 @@ async function confirmSkip() {
   if (!student || !remarks) return
 
   const instead = skipModal.instead
+  if (insteadRequired.value && !instead) {
+    skipModal.error = 'Pick what the student did instead.'
+    return
+  }
   const marks = skipModal.insteadMarks === '' ? null : Number(skipModal.insteadMarks)
   const total = skipModal.insteadTotal === '' ? null : Number(skipModal.insteadTotal)
   if (instead === 'Study' && !skipModal.insteadResult) {
@@ -1890,11 +1976,11 @@ async function confirmSkip() {
     // The syllabus goes with the skip: a skipped student still did something,
     // and this row is the only record of what. When that something was a
     // Study or a Test, it is also saved as a row in that category.
-    await applyResult(
+    const res = await applyResult(
       student,
       {
         remarks,
-        syllabus: config.value.usesSyllabus && !config.value.multiSession ? skipModal.syllabus : undefined,
+        syllabus: skipSyllabusEditable.value ? skipModal.syllabus : undefined,
         instead_category: instead || undefined,
         instead_result: instead === 'Study' ? skipModal.insteadResult : undefined,
         instead_marks_obtained: instead && instead !== 'Study' ? marks : undefined,
@@ -1903,6 +1989,7 @@ async function confirmSkip() {
       },
       skipResource
     )
+    student.instead = res?.instead ? [res.instead] : []
     resetInstead()
     skipModal.open = false
     skipModal.student = null
@@ -3317,6 +3404,16 @@ watch([resultFilter, showCompleted, search], () => {
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+.perf-manager .perf-reason-text { display: flex; flex-direction: column; min-width: 0; }
+
+.perf-manager .perf-reason-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .perf-manager .perf-reason-sno {

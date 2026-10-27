@@ -44,12 +44,15 @@
               class="prof-suggest-item"
               @click="selectStudent(m.name)"
             >
-              <span class="prof-suggest-name">{{ m.student_name }}</span>
+              <span class="prof-suggest-name">
+                {{ m.student_name }}
+                <span v-if="m.status !== 'Active'" class="prof-status-badge" :data-status="m.status">{{ m.status }}</span>
+              </span>
               <span class="prof-suggest-meta">{{ m.name }} · {{ m.standard }} · {{ m.current_batch }}</span>
             </button>
           </div>
           <p v-else-if="pickerOpen && query && !searching" class="prof-suggest-empty">
-            No active student matches “{{ query }}”.
+            No student matches “{{ query }}”.
           </p>
         </div>
       </div>
@@ -121,12 +124,18 @@
             {{ student.student_name }}
             <span class="prof-status-badge" :data-status="student.status">{{ student.status }}</span>
           </h2>
+          <p v-if="student.discontinued__date" class="prof-discontinued-note">
+            <i class="fa fa-info-circle"></i> Discontinued on {{ prettyDate(student.discontinued__date) }}
+          </p>
           <div class="prof-identity-line">
             <span><i class="fa fa-id-badge"></i> {{ student.name }}</span>
             <span><i class="fa fa-graduation-cap"></i> {{ student.standard }}</span>
             <span><i class="fa fa-users"></i> {{ student.batch }}</span>
             <span v-if="student.gender"><i class="fa fa-venus-mars"></i> {{ student.gender }}</span>
             <span v-if="student.age"><i class="fa fa-birthday-cake"></i> {{ student.age }} yrs</span>
+            <span v-if="student.admission_date">
+              <i class="fa fa-calendar-check-o"></i> Joined {{ prettyDate(student.admission_date) }}
+            </span>
           </div>
           <div class="prof-identity-line prof-identity-parents">
             <span v-if="student.father_name">
@@ -705,6 +714,22 @@ async function loadProfile() {
   } finally {
     loading.value = false
   }
+  fitRangeToDiscontinued()
+}
+
+// A discontinued student has nothing recorded after they left, so a range that
+// starts after that day would show an empty profile. Move it to the six months
+// leading up to the day they left; the date watcher then reloads.
+function fitRangeToDiscontinued() {
+  const left = profile.value?.student?.discontinued__date
+  if (!left) return
+  const leftOn = String(left).slice(0, 10)
+  if (fromDate.value && fromDate.value <= leftOn) return
+
+  const d = new Date(`${leftOn}T00:00:00`)
+  period.value = 'custom'
+  fromDate.value = formatDate(new Date(d.getFullYear(), d.getMonth() - 5, 1))
+  toDate.value = leftOn
 }
 
 function printProfile() {
@@ -997,6 +1022,7 @@ watch([fromDate, toDate], () => {
 .student-profile .prof-status-badge[data-status='Active'] { background: var(--bg-green); color: var(--text-on-green); }
 .student-profile .prof-status-badge[data-status='Suspended'] { background: var(--bg-orange); color: var(--text-on-orange); }
 .student-profile .prof-status-badge[data-status='Discontinued'] { background: var(--bg-red); color: var(--text-on-red); }
+.student-profile .prof-discontinued-note { margin: 4px 0 0; color: var(--text-muted, #6b7280); font-size: 0.9em; }
 
 .student-profile .prof-identity-line {
   display: flex;

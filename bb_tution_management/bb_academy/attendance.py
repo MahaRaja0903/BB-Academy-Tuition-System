@@ -487,6 +487,85 @@ def _upsert_attendance(student, student_name, standard, attendance_date, status,
         )
 
 
+def _sync_late_mistake(student, attendance_date, status, standard=None, batch=None):
+    """Keep the student's Behaviour grade in step with a Late mark.
+
+    Arriving late is a discipline mistake in its own right, so marking a
+    student Late records the Behaviour Reason flagged `is_late_mistake` on
+    that day's Behaviour row — grading it Discipline (or Critical, if that is
+    what the reason is kept for) — and the Student Mistake Record follows from
+    the tracker as for any other mistake. Correcting the mark away from Late
+    takes the reason off again, and drops the row if lateness was all it held.
+
+    Does nothing while no reason is flagged, so the behaviour is opt-in from
+    the Behaviour Reason master. Saved without permission checks: it is a side
+    effect of the attendance save the user is already permitted to make.
+    """
+    reason = frappe.db.get_value(
+        "Behaviour Reason",
+        {"is_late_mistake": 1, "disabled": 0},
+        ["name", "severity"],
+        as_dict=True,
+        order_by="display_order asc",
+    )
+    if not reason:
+        return
+
+    date_obj = getdate(attendance_date)
+    name = frappe.db.get_value(
+        "Student Performance Tracker",
+        {"student": student, "date": date_obj, "category": "Behaviour"},
+        "name",
+    )
+    doc = frappe.get_doc("Student Performance Tracker", name) if name else None
+    reasons = [r.behaviour_reason for r in (doc.behaviour_reasons if doc else [])]
+
+    if status != "Late":
+        if not doc or reason.name not in reasons:
+            return
+        reasons.remove(reason.name)
+        if not reasons:
+            doc.delete(ignore_permissions=True)
+            return
+        doc.set("behaviour_reasons", [{"behaviour_reason": r} for r in reasons])
+        doc.save(ignore_permissions=True)
+        return
+
+    if doc and reason.name in reasons:
+        return
+
+    late_result = "Critical" if reason.severity == "Critical" else "Discipline"
+
+    if doc:
+        # A Critical grade already given outranks the late mark.
+        if doc.result not in ("Discipline", "Critical"):
+            doc.result = late_result
+        doc.append("behaviour_reasons", {"behaviour_reason": reason.name})
+        doc.save(ignore_permissions=True)
+        return
+
+    doc = frappe.get_doc({
+        "doctype": "Student Performance Tracker",
+        "student": student,
+        "date": date_obj,
+        "category": "Behaviour",
+        "standard": standard,
+        "batch": batch,
+        "result": late_result,
+        "behaviour_reasons": [{"behaviour_reason": reason.name}],
+    })
+
+    save_point = "late_mistake"
+    frappe.db.savepoint(save_point)
+    try:
+        doc.insert(ignore_permissions=True)
+    except frappe.DuplicateEntryError:
+        # A teacher graded Behaviour at the same moment; fold the reason into
+        # their row instead.
+        frappe.db.rollback(save_point=save_point)
+        _sync_late_mistake(student, attendance_date, status, standard, batch)
+
+
 @frappe.whitelist()
 def save_student_attendance(student, attendance_date, status, late_reason=None, attendance_round=1):
     if not frappe.has_permission("Student Attendance", "write"):
@@ -532,6 +611,7 @@ def save_student_attendance(student, attendance_date, status, late_reason=None, 
             status=status,
             late_reason=late_reason,
         )
+        _sync_late_mistake(student, attendance_date, status, stu.standard, batch)
 
     # Return updated monthly stats
     date_obj = getdate(attendance_date)
@@ -609,6 +689,7 @@ def save_bulk_attendance(students, standard, batch, attendance_date, status, lat
                 status=status,
                 late_reason=late_reason,
             )
+            _sync_late_mistake(student, attendance_date, status, standard, batch)
         count += 1
 
     return {"status": "success", "count": count, "skipped_on_holiday": sorted(on_holiday)}

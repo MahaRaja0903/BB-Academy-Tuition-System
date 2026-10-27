@@ -215,6 +215,7 @@ scheduler_events = {
 # -----------------------------------------------------------
 
 # ignore_links_on_delete = ["Communication", "ToDo"]
+ignore_links_on_delete = ["Student Behaviour Reason Item"]
 
 # Request Events
 # ----------------

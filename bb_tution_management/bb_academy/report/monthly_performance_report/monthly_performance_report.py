@@ -253,14 +253,16 @@ def _attach_behaviour_notes(filters, rows):
 
 	reason_rows = frappe.db.sql(
 		f"""
-		SELECT p.student, i.behaviour_reason, COUNT(i.name) AS times
+		SELECT p.student, COALESCE(br.reason_name, i.behaviour_reason) AS behaviour_reason,
+			COUNT(i.name) AS times
 		FROM `tabStudent Performance Tracker` p
 		INNER JOIN `tabStudent` s ON s.name = p.student
 		INNER JOIN `tabStudent Behaviour Reason Item` i
 			ON i.parent = p.name AND i.parenttype = 'Student Performance Tracker'
+		LEFT JOIN `tabBehaviour Reason` br ON br.name = i.behaviour_reason
 		WHERE {_conditions(filters)} AND p.category = 'Behaviour'
-		GROUP BY p.student, i.behaviour_reason
-		ORDER BY times DESC, i.behaviour_reason ASC
+		GROUP BY p.student, i.behaviour_reason, br.reason_name
+		ORDER BY times DESC, behaviour_reason ASC
 		""",
 		filters,
 		as_dict=True,

@@ -311,13 +311,16 @@ def get_behaviour_reasons():
 	if not frappe.has_permission("Behaviour Reason", "read"):
 		return []
 
-	return frappe.get_all(
+	reasons = frappe.get_all(
 		"Behaviour Reason",
 		filters={"disabled": 0},
-		fields=["name", "reason_name", "severity"],
+		fields=["name", "reason_name", "severity", "display_order", "description"],
 		order_by="reason_name asc",
 		limit_page_length=0,
 	)
+	# Reasons not yet given a Display Order go after the numbered ones.
+	reasons.sort(key=lambda r: (not r.display_order, r.display_order or 0))
+	return reasons
 
 
 @frappe.whitelist()
@@ -537,6 +540,20 @@ def get_performance_students(standard, batch, category, performance_date, gender
 		if row.result in counts:
 			counts[row.result] += cint(row.entries)
 
+	instead_map = _instead_entries(
+		[r.student for r in records if cint(r.skipped)], date_obj, category
+	)
+	titles.update(
+		lesson_titles(
+			[
+				lesson
+				for entries in instead_map.values()
+				for e in entries
+				for lesson in syllabus_lessons(e["syllabus"])
+			]
+		)
+	)
+
 	result_students = []
 	for s in students:
 		record = record_map.get(s.name)
@@ -579,6 +596,7 @@ def get_performance_students(standard, batch, category, performance_date, gender
 				"pass_marks": flt(record.pass_marks) if record else flt(session.pass_marks if session else 0),
 				"behaviour_reasons": reason_map.get(record.name, []) if record else [],
 				"remarks": (record.remarks if record else "") or "",
+				"instead": instead_map.get(s.name, []) if record and cint(record.skipped) else [],
 				"monthly_counts": counts,
 				"monthly_low": sum(counts.get(r, 0) for r in LOW_RESULTS),
 				"monthly_graded": sum(counts.values()),
@@ -1141,17 +1159,72 @@ INSTEAD_CATEGORIES = ["Study", "Test"]
 
 
 def _instead_options(category, standard):
-	"""The categories a skip of `category` can point at — never itself."""
+	"""The categories a skip of `category` can point at. Itself only when the
+	day can hold several of it — a skipped Test can be another Test sat."""
 	offered = categories_for_standard(standard)
-	return [c for c in INSTEAD_CATEGORIES if c != category and c in offered]
+	return [
+		c
+		for c in INSTEAD_CATEGORIES
+		if c in offered and (c != category or is_multi_session(category))
+	]
+
+
+def _instead_remarks_prefix(category):
+	"""How the row saved in place of a skipped `category` is told apart."""
+	return f"In place of {category}:"
+
+
+def _instead_entries(student_ids, performance_date, category):
+	"""What each skipped student did in place of `category` that day — the
+	Study or Test rows the skip modal saved — keyed by student."""
+	if not student_ids:
+		return {}
+	rows = frappe.db.sql(
+		"""
+		SELECT `name`, `student`, `category`, `result`, `marks_obtained`, `total_marks`
+		FROM `tabStudent Performance Tracker`
+		WHERE date = %(date)s AND student IN %(students)s AND category IN %(categories)s
+			AND IFNULL(skipped, 0) = 0 AND remarks LIKE %(prefix)s
+		ORDER BY creation ASC
+		""",
+		{
+			"date": getdate(performance_date),
+			"students": tuple(student_ids),
+			"categories": tuple(INSTEAD_CATEGORIES),
+			"prefix": _instead_remarks_prefix(category) + "%",
+		},
+		as_dict=True,
+	)
+	syllabus = syllabus_of("Student Performance Tracker", [r.name for r in rows])
+	out = {}
+	for r in rows:
+		out.setdefault(r.student, []).append(
+			{
+				"category": r.category,
+				"result": r.result,
+				"marks_obtained": flt(r.marks_obtained) if r.marks_obtained is not None else None,
+				"total_marks": flt(r.total_marks),
+				"syllabus": syllabus.get(r.name, []),
+			}
+		)
+	return out
 
 
 @frappe.whitelist()
-def get_student_entry(student, performance_date, category, standard=None, batch=None, session_name=None):
+def get_student_entry(
+	student,
+	performance_date,
+	category,
+	standard=None,
+	batch=None,
+	session_name=None,
+	exclude_session=None,
+):
 	"""One student's row for a day in some other category, for the skip modal.
 
 	Falls back to that category's batch setup, so a Test the student sat instead
-	opens on the day's Total Marks rather than a blank paper.
+	opens on the day's Total Marks rather than a blank paper. `exclude_session`
+	leaves out the Test being skipped when the student sat another one.
 	"""
 	_validate_category(category)
 
@@ -1172,6 +1245,8 @@ def get_student_entry(student, performance_date, category, standard=None, batch=
 	tests = []
 	if is_multi_session(category):
 		tests = _list_tests(performance_date, standard, batch, category)
+		if exclude_session:
+			tests = [t for t in tests if t.name != exclude_session]
 		if session_name not in {t.name for t in tests}:
 			session_name = tests[0].name if tests else None
 	session = _get_session(performance_date, standard, batch, category, session_name)
@@ -1262,6 +1337,12 @@ def skip_student_performance(
 			title="Invalid Choice",
 		)
 
+	if instead_category == category and instead_session_name in (None, "", session_name):
+		frappe.throw(
+			f"Pick another {category} — the student cannot sit the one they skipped.",
+			title="Invalid Choice",
+		)
+
 	instead_cfg = category_config(instead_category)
 	if instead_total_marks in (None, "") or not instead_cfg["uses_marks"]:
 		instead_total_marks = None
@@ -1283,7 +1364,7 @@ def skip_student_performance(
 		marks_obtained=instead_marks_obtained if instead_cfg["uses_marks"] else None,
 		total_marks=instead_total_marks,
 		pass_marks=default_pass_marks(instead_total_marks) if instead_total_marks else None,
-		remarks=f"In place of {category}: {remarks.strip()}",
+		remarks=f"{_instead_remarks_prefix(category)} {remarks.strip()}",
 		syllabus=syllabus,
 		subject=subject,
 		lessons=lessons,
@@ -1296,6 +1377,8 @@ def skip_student_performance(
 		"category": instead_category,
 		"result": instead["result"],
 		"marks_obtained": instead["marks_obtained"],
+		"total_marks": flt(frappe.db.get_value("Student Performance Tracker", instead["name"], "total_marks")),
+		"syllabus": instead["syllabus"],
 	}
 	return res
 
@@ -1383,10 +1466,11 @@ def add_behaviour_reason(reason_name, severity="Both", description=None):
 	if not reason_name:
 		frappe.throw("Reason cannot be blank")
 
-	if frappe.db.exists("Behaviour Reason", reason_name):
-		return frappe.db.get_value(
-			"Behaviour Reason", reason_name, ["name", "reason_name", "severity"], as_dict=True
-		)
+	existing = frappe.db.get_value(
+		"Behaviour Reason", {"reason_name": reason_name}, ["name", "reason_name", "severity"], as_dict=True
+	)
+	if existing:
+		return existing
 
 	doc = frappe.get_doc(
 		{

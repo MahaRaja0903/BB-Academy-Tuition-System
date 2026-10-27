@@ -125,19 +125,90 @@ frappe.ui.form.on("Student Admission Form", {
 	application_date(frm) {
 		refresh_fee_rows(frm);
 	},
+	date_of_joining(frm) {
+		refresh_fee_rows(frm);
+	},
 
-	// A yearly student is billed one figure for the whole year, so the month by
-	// month grid has nothing to say -- same as on the Fee Invoice.
+	// A yearly student is billed one figure for the whole year. Typed in by hand
+	// the month by month grid has nothing to say -- same as on the Fee Invoice;
+	// auto calculated, the grid shows the months the figure is made up of.
 	is_yearly_payment(frm) {
 		if (frm.doc.is_yearly_payment) {
+			if (frm.doc.auto_calculate_yearly_payment) {
+				refresh_fee_rows(frm);
+				return;
+			}
 			frm.clear_table("fees__invoice_details");
 			frm.refresh_field("fees__invoice_details");
 			calculate_total_paid(frm);
 			return;
 		}
+		frm.set_value("auto_calculate_yearly_payment", 0);
 		refresh_fee_rows(frm);
+	},
+
+	auto_calculate_yearly_payment(frm) {
+		if (!frm.doc.is_yearly_payment) return;
+
+		if (frm.doc.auto_calculate_yearly_payment) {
+			if (!flt(frm.doc.monthly_fee)) {
+				frappe.msgprint(__("Monthly Fee is needed to work out the yearly payment. Assign a batch first."));
+			}
+			refresh_fee_rows(frm);
+			return;
+		}
+
+		// Back to a figure typed in by hand.
+		frm.clear_table("fees__invoice_details");
+		frm.refresh_field("fees__invoice_details");
+		frm.set_value("total_year_payment_amount", 0);
+		calculate_total_paid(frm);
+	},
+
+	yearly_fees_paid_amount(frm) {
+		if (frm.doc.auto_calculate_yearly_payment) spread_yearly_paid(frm);
 	}
 });
+
+// The yearly payment comes in as one amount; the grid shows it settling the
+// months in order, as the Student's ledger will once the admission is submitted.
+function spread_yearly_paid(frm) {
+	let remaining = flt(frm.doc.yearly_fees_paid_amount);
+	(frm.doc.fees__invoice_details || []).forEach(row => {
+		row.paid_amount = Math.min(flt(row.amount_need_to_pay), remaining);
+		remaining -= row.paid_amount;
+	});
+	frm.refresh_field("fees__invoice_details");
+	frm.set_value("fees_paid_amount", flt(frm.doc.yearly_fees_paid_amount));
+}
+
+function refresh_yearly_rows(frm) {
+	if (!flt(frm.doc.monthly_fee) || !frm.doc.academic_year) return;
+
+	frappe.call({
+		method: "bb_tution_management.bb_academy.doctype.student_admission_form.student_admission_form.get_admission_yearly_fee_rows",
+		args: {
+			academic_year: frm.doc.academic_year,
+			application_date: frm.doc.date_of_joining || frm.doc.application_date,
+			starting_payment: frm.doc.starting_payment,
+			monthly_fee: frm.doc.monthly_fee
+		},
+		callback: function(r) {
+			if (!r.message) return;
+
+			frm.clear_table("fees__invoice_details");
+			(r.message.rows || []).forEach(row => {
+				frm.add_child("fees__invoice_details", {
+					month: row.month,
+					amount_need_to_pay: row.amount_need_to_pay,
+					remarks: row.remarks
+				});
+			});
+			frm.set_value("total_year_payment_amount", r.message.total);
+			spread_yearly_paid(frm);
+		}
+	});
+}
 
 // The admission quotes exactly the months a Fee Invoice would raise for this
 // student: the starting payment, plus the month they join -- billed by the day
@@ -147,19 +218,25 @@ frappe.ui.form.on("Student Admission Form", {
 let fee_rows_timer = null;
 
 function refresh_fee_rows(frm) {
-	if (frm.doc.docstatus !== 0 || frm.doc.is_yearly_payment) return;
+	if (frm.doc.docstatus !== 0) return;
+	if (frm.doc.is_yearly_payment && !frm.doc.auto_calculate_yearly_payment) return;
 
 	// Picking a standard or a batch sets several of these fields one after the
 	// other; let them settle so the server is asked once, for the finished quote.
 	clearTimeout(fee_rows_timer);
 	fee_rows_timer = setTimeout(() => {
+		if (frm.doc.is_yearly_payment) {
+			refresh_yearly_rows(frm);
+			return;
+		}
+
 		if (!frm.doc.starting_payment && !frm.doc.monthly_fee) return;
 
 		frappe.call({
 			method: "bb_tution_management.bb_academy.doctype.student_admission_form.student_admission_form.get_admission_fee_rows",
 			args: {
 				academic_year: frm.doc.academic_year,
-				application_date: frm.doc.application_date,
+				application_date: frm.doc.date_of_joining || frm.doc.application_date,
 				starting_payment: frm.doc.starting_payment,
 				monthly_fee: frm.doc.monthly_fee
 			},

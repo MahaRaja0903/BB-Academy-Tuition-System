@@ -6,13 +6,16 @@ from calendar import monthrange
 import frappe
 from frappe.model.document import Document
 from frappe import _
-from frappe.utils import cint, flt, nowdate
+from frappe.utils import cint, flt, getdate, nowdate
 
 from bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice import (
 	MONTH_NAMES,
+	PAID_BY_STARTING_PAYMENT,
 	STARTING_PAYMENT,
+	get_academic_months,
 	get_advance_months,
 	get_join_date,
+	get_month_amount,
 	get_row_default_amount,
 	is_prorated_month,
 	should_bill_month,
@@ -40,6 +43,13 @@ EDITABLE_FEES = {
 	},
 }
 
+# A student who pays for the whole year up front is let off this many months,
+# taken from the end of the months they would otherwise be billed for.
+YEARLY_FREE_MONTHS = 1
+
+# Ledger status of a month the yearly payment lets off.
+NO_FEES = "No Fees"
+
 
 def standard_takes_group(standard):
 	"""True if the given Standard is senior enough to have a Group."""
@@ -52,6 +62,7 @@ def standard_takes_group(standard):
 
 class StudentAdmissionForm(Document):
 	def validate(self):
+		self.set_date_of_joining()
 		self.fetch_academic_year()
 		if not self.admission_number:
 			from frappe.model.naming import make_autoname
@@ -61,9 +72,88 @@ class StudentAdmissionForm(Document):
 		self.set_standard_academic_order()
 		self.validate_group()
 		self.fetch_fees()
+		self.set_yearly_fee_rows()
+		self.validate_yearly_payment_due_date()
 		self.set_fee_row_amounts()
 		self.validate_admission_number()
 		self.validate_discount_amount()
+
+	def set_date_of_joining(self):
+		"""Take the enquiry's Expected Joining Date, else the Application Date --
+		the public web form has no joining field, so this fills it in there too.
+		"""
+		if self.date_of_joining:
+			return
+		if self.student_enquiry:
+			self.date_of_joining = frappe.db.get_value(
+				"Student Enquiry Form", self.student_enquiry, "fee_preview_joining_date"
+			)
+		self.date_of_joining = self.date_of_joining or self.application_date
+
+	@property
+	def joining_date(self):
+		return self.date_of_joining or self.application_date
+
+	def set_yearly_fee_rows(self):
+		"""Work out the yearly payment and lay its breakdown out in the grid.
+
+		Always worked out again here rather than trusted from the client, so the
+		figure the admission is approved on is the one the rules give.
+		"""
+		if not self.is_yearly_payment:
+			self.auto_calculate_yearly_payment = 0
+			return
+
+		# A yearly payment carries its discount as the free month; the per-row
+		# discount is a monthly admission's, and is hidden for a yearly one.
+		self.add_discount = 0
+
+		if not self.auto_calculate_yearly_payment:
+			return
+
+		rows = self.get_yearly_fee_breakdown()
+
+		self.set("fees__invoice_details", [])
+		for row in rows:
+			self.append("fees__invoice_details", {
+				"month": row.month,
+				"amount_need_to_pay": row.amount_need_to_pay,
+				"remarks": row.remarks,
+			})
+
+		self.total_year_payment_amount = sum(flt(row.amount_need_to_pay) for row in rows)
+		if flt(self.yearly_fees_paid_amount) > flt(self.total_year_payment_amount):
+			frappe.throw(
+				_("Yearly Fees Paid Amount ({0}) cannot be more than the Total Year Payment Amount ({1}).").format(
+					self.yearly_fees_paid_amount, self.total_year_payment_amount
+				)
+			)
+
+		spread_paid_amount(self.fees__invoice_details, self.yearly_fees_paid_amount)
+		self.fees_paid_amount = flt(self.yearly_fees_paid_amount)
+
+	def validate_yearly_payment_due_date(self):
+		"""The due date is for the balance of a yearly fee left unpaid at
+		admission -- with nothing left to pay there is nothing to fall due.
+
+		Checked here rather than left to the field's mandatory_depends_on, which
+		Frappe evaluates before validate has worked out the yearly total.
+		"""
+		if not self.is_yearly_payment or flt(self.yearly_fees_paid_amount) >= flt(self.total_year_payment_amount):
+			self.yearly_payment_due_date = None
+			return
+
+		if not self.yearly_payment_due_date:
+			frappe.throw(
+				_("Yearly Payment Due Date is required when the yearly fee is not fully paid (Balance: {0}).").format(
+					flt(self.total_year_payment_amount) - flt(self.yearly_fees_paid_amount)
+				)
+			)
+
+	def get_yearly_fee_breakdown(self):
+		return get_yearly_fee_breakdown(
+			self.academic_year, self.joining_date, self.starting_payment, self.monthly_fee
+		)
 
 	def set_fee_row_amounts(self):
 		"""Fill in what each fee row is billed for, so the grid never relies on
@@ -90,7 +180,7 @@ class StudentAdmissionForm(Document):
 	def as_fee_profile(self):
 		"""This admission seen as the Student the Fee Invoice rules expect."""
 		return make_fee_profile(
-			self.academic_year, self.application_date, self.starting_payment, self.monthly_fee
+			self.academic_year, self.joining_date, self.starting_payment, self.monthly_fee
 		)
 
 	def before_submit(self):
@@ -329,7 +419,7 @@ class StudentAdmissionForm(Document):
 				"admission_number": self.admission_number,
 				"student_name": self.student_name,
 				"image": self.image,
-				"admission_date": self.application_date or frappe.utils.today(),
+				"admission_date": self.joining_date or frappe.utils.today(),
 				"academic_year": self.academic_year,
 				"standard": self.standard,
 				"group": self.group,
@@ -359,6 +449,7 @@ class StudentAdmissionForm(Document):
 				"yearly_fees_student": 1 if self.is_yearly_payment else 0,
 				"yearly_fees_amount": self.total_year_payment_amount if self.is_yearly_payment else 0,
 				"yearly_fees_pending_amount": flt(self.total_year_payment_amount) if self.is_yearly_payment else 0,
+				"yearly_fees_auto_calculated": 1 if self.is_yearly_payment and self.auto_calculate_yearly_payment else 0,
 				"status": "Active"
 			})
 
@@ -387,6 +478,10 @@ class StudentAdmissionForm(Document):
 				title=_("Student Creation Failed"),
 			)
 
+		if student.yearly_fees_auto_calculated:
+			apply_yearly_breakdown(student, self.get_yearly_fee_breakdown())
+			student.save(ignore_permissions=True)
+
 		frappe.msgprint(
 			_("Student {0} created successfully for {1}.").format(
 				frappe.bold(student.name), frappe.bold(self.student_name)
@@ -403,7 +498,7 @@ class StudentAdmissionForm(Document):
 				"admission_number": self.admission_number,
 				"student_name": self.student_name,
 				"image": self.image,
-				"admission_date": self.application_date or frappe.utils.today(),
+				"admission_date": self.joining_date or frappe.utils.today(),
 				"academic_year": self.academic_year,
 				"standard": self.standard,
 				"current_batch": self.assigned_batch,
@@ -567,6 +662,132 @@ def get_admission_fee_rows(academic_year=None, application_date=None, starting_p
 			)
 
 	return {"rows": rows, "notes": notes}
+
+
+def get_yearly_fee_breakdown(academic_year, application_date, starting_payment, monthly_fee):
+	"""The yearly payment of a new admission, month by month.
+
+	- the starting payment, as quoted for the standard;
+	- the joining month, billed by the day when they join after the cutoff;
+	- the first full month and the last month of the year, which the starting
+	  payment pays for in advance -- the same two get_advance_months gives a
+	  student who pays monthly;
+	- the months in between at the monthly fee, except the last
+	  YEARLY_FREE_MONTHS of them, which paying for the year up front lets off.
+
+	Months before the student joins are left out. Each row also carries the
+	status its month takes on the Student's payment ledger.
+	"""
+	months = get_academic_months(academic_year)
+	if not months:
+		frappe.throw(
+			_("Academic Year {0} has no start and end date, so the yearly payment cannot be worked out.").format(
+				frappe.bold(academic_year or "")
+			)
+		)
+
+	if flt(monthly_fee) <= 0:
+		frappe.throw(_("Monthly Fee is needed to work out the yearly payment. Assign a batch first."))
+
+	# Applying before the year starts is joining on its first day.
+	ay_start = getdate(frappe.get_cached_value("Academic Year", academic_year, "start_date"))
+	join_date = max(getdate(application_date or nowdate()), ay_start)
+
+	# Position in the year rather than month name, so a year that runs April to
+	# April tells its two Aprils apart.
+	join_index = (join_date.year - ay_start.year) * 12 + join_date.month - ay_start.month
+	if join_index >= len(months):
+		frappe.throw(
+			_("Application Date {0} is after Academic Year {1} ends.").format(
+				frappe.format_value(join_date, {"fieldtype": "Date"}), frappe.bold(academic_year)
+			)
+		)
+
+	student = make_fee_profile(academic_year, join_date, starting_payment, monthly_fee)
+	rows = []
+
+	def add(month, amount, remarks, status="Not Paid"):
+		rows.append(frappe._dict(month=month, amount_need_to_pay=amount, remarks=remarks, status=status))
+
+	starting = get_month_amount(student, STARTING_PAYMENT)
+	if starting:
+		add(STARTING_PAYMENT, starting, _("Starting payment"))
+
+	first_index = join_index
+	if is_prorated_month(student, months[join_index]):
+		days_in_month = monthrange(join_date.year, join_date.month)[1]
+		add(
+			months[join_index],
+			get_month_amount(student, months[join_index]),
+			_("{0} of {1} days, from {2}").format(
+				days_in_month - join_date.day + 1,
+				days_in_month,
+				frappe.format_value(join_date, {"fieldtype": "Date"}),
+			),
+		)
+		first_index += 1
+
+	last_index = len(months) - 1
+	advance = {first_index, last_index} if starting else set()
+	billable = [i for i in range(first_index, len(months)) if i not in advance]
+	free = set(billable[-YEARLY_FREE_MONTHS:]) if YEARLY_FREE_MONTHS else set()
+
+	for i in range(first_index, len(months)):
+		if i in advance:
+			add(months[i], 0, _("Covered by Starting Payment"), PAID_BY_STARTING_PAYMENT)
+		elif i in free:
+			add(months[i], 0, _("Free month for yearly payment"), NO_FEES)
+		else:
+			add(months[i], round(flt(monthly_fee)), _("Monthly fee"))
+
+	return rows
+
+
+def spread_paid_amount(rows, amount):
+	"""Settle the rows in order out of one amount paid against them all."""
+	remaining = flt(amount)
+	for row in rows:
+		row.paid_amount = min(flt(row.amount_need_to_pay), remaining)
+		remaining -= flt(row.paid_amount)
+
+
+def apply_yearly_breakdown(student, rows):
+	"""Write the yearly breakdown onto a new Student's payment ledger.
+
+	The Student already has a row for every month of the year; each takes on
+	what it is billed under the yearly payment, so a yearly student reads month
+	by month in the reports like anyone else. The money itself comes in through
+	the yearly Fee Invoices, which spread it across these rows.
+	"""
+	ledger = student.get("payment_details", [])
+	position = 0
+
+	for row in rows:
+		match = next((i for i in range(position, len(ledger)) if ledger[i].month == row.month), None)
+		if match is None:
+			continue
+		position = match + 1
+
+		entry = ledger[match]
+		entry.status = row.status
+		if row.status == PAID_BY_STARTING_PAYMENT:
+			# As the starting payment advance leaves it for a monthly student.
+			entry.amount_need_to_pay = flt(student.monthly_fee)
+			entry.pending = 0
+		else:
+			entry.amount_need_to_pay = row.amount_need_to_pay
+			entry.pending = row.amount_need_to_pay
+
+
+@frappe.whitelist()
+def get_admission_yearly_fee_rows(academic_year=None, application_date=None, starting_payment=0, monthly_fee=0):
+	"""Rows to fill the Fees Invoice Details grid with when the yearly payment
+	is auto calculated."""
+	rows = get_yearly_fee_breakdown(academic_year, application_date, starting_payment, monthly_fee)
+	return {
+		"rows": rows,
+		"total": sum(flt(row.amount_need_to_pay) for row in rows),
+	}
 
 @frappe.whitelist(allow_guest=True)
 def get_enquiry_details(enquiry_name):

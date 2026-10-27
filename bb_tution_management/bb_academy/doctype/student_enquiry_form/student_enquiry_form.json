@@ -47,6 +47,18 @@
   "column_break_kaly",
   "given_by",
   "join_pana_vandhurukingala_or_enquiry_pana_vandhurukingala",
+  "fee_details_section",
+  "fee_preview_batch",
+  "fee_preview_joining_date",
+  "fee_preview_yearly",
+  "column_break_fee_preview",
+  "fee_preview_starting_payment",
+  "fee_preview_monthly_fee",
+  "fee_preview_first_payment",
+  "fee_preview_yearly_total",
+  "fee_preview_yearly_savings",
+  "section_break_fee_preview_breakdown",
+  "fee_preview_breakdown",
   "section_break_jiuj",
   "enquiry_log"
  ],
@@ -293,6 +305,77 @@
   {
    "fieldname": "column_break_cipe",
    "fieldtype": "Column Break"
+  },
+  {
+   "collapsible": 1,
+   "description": "Pricing to show the parents. Nothing here is carried over to the Admission Form.",
+   "fieldname": "fee_details_section",
+   "fieldtype": "Section Break",
+   "label": "Fee Details"
+  },
+  {
+   "fieldname": "fee_preview_batch",
+   "fieldtype": "Link",
+   "label": "Batch",
+   "options": "Batch"
+  },
+  {
+   "default": "Today",
+   "fieldname": "fee_preview_joining_date",
+   "fieldtype": "Date",
+   "label": "Expected Joining Date"
+  },
+  {
+   "default": "0",
+   "fieldname": "fee_preview_yearly",
+   "fieldtype": "Check",
+   "label": "Pay Yearly"
+  },
+  {
+   "fieldname": "column_break_fee_preview",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fee_preview_starting_payment",
+   "fieldtype": "Currency",
+   "label": "Starting Payment",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fee_preview_monthly_fee",
+   "fieldtype": "Currency",
+   "label": "Monthly Fee",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:!doc.fee_preview_yearly",
+   "fieldname": "fee_preview_first_payment",
+   "fieldtype": "Currency",
+   "label": "Amount to Pay at Joining",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.fee_preview_yearly",
+   "fieldname": "fee_preview_yearly_total",
+   "fieldtype": "Currency",
+   "label": "Total Yearly Payment",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.fee_preview_yearly",
+   "fieldname": "fee_preview_yearly_savings",
+   "fieldtype": "Currency",
+   "label": "Saved by Paying Yearly",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_fee_preview_breakdown",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "fee_preview_breakdown",
+   "fieldtype": "HTML",
+   "label": "Fee Breakdown"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -302,7 +385,7 @@
    "link_fieldname": "student_enquiry"
   }
  ],
- "modified": "2026-09-26 15:05:53.368589",
+ "modified": "2026-10-25 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student Enquiry Form",

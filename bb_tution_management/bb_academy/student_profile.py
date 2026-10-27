@@ -55,6 +55,7 @@ STUDENT_FIELDS = [
 	"image",
 	"gender",
 	"status",
+	"discontinued__date",
 	"date_of_birth",
 	"admission_date",
 	"blood_group",
@@ -121,11 +122,15 @@ def _student_batch(student):
 
 @frappe.whitelist()
 def search_students(query=None, standard=None, batch=None, gender=None, limit=25):
-	"""Type-ahead for the profile picker: name or ID, optionally narrowed."""
+	"""Type-ahead for the profile picker: name or ID, optionally narrowed.
+
+	Discontinued (and other past) students are included -- their record still
+	matters to staff -- but listed after the active ones.
+	"""
 	if not frappe.has_permission("Student", "read"):
 		frappe.throw("No permission to read students")
 
-	conditions = ["s.status = 'Active'"]
+	conditions = ["1 = 1"]
 	params = {"limit": cint(limit) or 25}
 
 	if query:
@@ -148,10 +153,11 @@ def search_students(query=None, standard=None, batch=None, gender=None, limit=25
 
 	return frappe.db.sql(
 		f"""
-		SELECT s.name, s.student_name, s.standard, s.current_batch, s.gender, s.image
+		SELECT s.name, s.student_name, s.standard, s.current_batch, s.gender, s.image,
+			s.status, s.discontinued__date AS discontinued_date
 		FROM `tabStudent` s
 		WHERE {' AND '.join(conditions)}
-		ORDER BY TRIM(SUBSTRING_INDEX(s.student_name, '.', -1)) ASC
+		ORDER BY s.status != 'Active', TRIM(SUBSTRING_INDEX(s.student_name, '.', -1)) ASC
 		LIMIT %(limit)s
 		""",
 		params,
@@ -507,10 +513,11 @@ def _get_behaviour_incidents(student, from_date, to_date):
 
 	reason_rows = frappe.db.sql(
 		"""
-		SELECT parent, behaviour_reason
-		FROM `tabStudent Behaviour Reason Item`
-		WHERE parenttype = 'Student Performance Tracker' AND parent IN %(parents)s
-		ORDER BY idx ASC
+		SELECT i.parent, COALESCE(br.reason_name, i.behaviour_reason) AS behaviour_reason
+		FROM `tabStudent Behaviour Reason Item` i
+		LEFT JOIN `tabBehaviour Reason` br ON br.name = i.behaviour_reason
+		WHERE i.parenttype = 'Student Performance Tracker' AND i.parent IN %(parents)s
+		ORDER BY i.idx ASC
 		""",
 		{"parents": tuple(r.name for r in rows)},
 		as_dict=True,

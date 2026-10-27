@@ -31,7 +31,10 @@ Pending amount of a row:
     be stale after a batch change.
   * Not Paid starting payment rows use the row amount, else the student's
     Starting Payment.
-  * Yearly-fee and scholarship students owe nothing month by month.
+  * Yearly-fee and scholarship students owe nothing month by month -- except a
+    yearly student whose yearly fee was auto calculated at admission: their
+    year is split month-wise on the ledger, so each Not Paid month uses the
+    amount stored on its row (a pro-rated joining month, or the monthly fee).
 
 Total = Paid + Pending. Paid Amount also includes what has been collected on
 Partial rows, so the three cards always add up.
@@ -72,7 +75,7 @@ def _ledger_rows():
 		select
 			s.name as student, s.student_name, s.status as student_status, s.gender,
 			s.standard, s.admission_date, s.monthly_fee, s.starting_payment,
-			s.yearly_fees_student, s.scholarship_student, s.current_batch,
+			s.yearly_fees_student, s.yearly_fees_auto_calculated, s.scholarship_student, s.current_batch,
 			ay.start_date as ay_start,
 			d.month, d.status, d.date, d.pending_amount_paid_date, d.amount_need_to_pay, d.amount_paid, d.pending
 		from `tabStudent` s
@@ -134,13 +137,16 @@ def _entries():
 		elif r.status in PENDING_STATUSES:
 			if r.student_status != "Active":
 				continue
-			if not is_starting and (cint(r.yearly_fees_student) or cint(r.scholarship_student)):
+			split_yearly = cint(r.yearly_fees_student) and cint(r.yearly_fees_auto_calculated)
+			if not is_starting and not split_yearly and (cint(r.yearly_fees_student) or cint(r.scholarship_student)):
 				continue
 			if r.status != "Not Paid" and flt(r.pending) > 0:
 				pending = flt(r.pending)
 			elif is_starting:
 				expected = flt(r.amount_need_to_pay) or flt(r.starting_payment)
 				pending = flt(r.pending) if flt(r.pending) > 0 else max(expected - paid, 0.0)
+			elif split_yearly:
+				pending = max(flt(r.amount_need_to_pay) - paid, 0.0)
 			else:
 				pending = max(flt(r.monthly_fee) - paid, 0.0)
 			if not pending and not paid:

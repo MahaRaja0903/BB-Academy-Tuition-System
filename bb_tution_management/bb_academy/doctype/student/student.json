@@ -94,6 +94,7 @@
   "yearly_fees_amount",
   "column_break_bozl",
   "yearly_fees_pending_amount",
+  "yearly_fees_auto_calculated",
   "section_break_frjg",
   "yearly_payment_details"
  ],
@@ -599,6 +600,15 @@
    "fieldname": "achievement",
    "fieldtype": "Data",
    "label": " Achievement "
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.yearly_fees_student == 1",
+   "description": "The yearly fee is split month-wise in Payment Details, and each yearly payment is spread across those months.",
+   "fieldname": "yearly_fees_auto_calculated",
+   "fieldtype": "Check",
+   "label": "Yearly Fees Auto Calculated",
+   "read_only": 1
   }
  ],
  "image_field": "image",
@@ -609,7 +619,7 @@
    "link_fieldname": "student"
   }
  ],
- "modified": "2026-10-15 13:33:47.000000",
+ "modified": "2026-10-21 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Student",

@@ -701,6 +701,9 @@ class FeeInvoice(Document):
 					if flt(row.amount_paid) == amount_paid and row.payment_date == frappe.utils.today():
 						student.remove(row)
 						break
+
+			if getattr(student, "yearly_fees_auto_calculated", 0):
+				spread_yearly_payment(student, amount_paid, is_submit=is_submit)
 		else:
 			coupon_remaining = flt(self.coupon_amount)
 			for detail in self.get("fees_details", []):
@@ -840,6 +843,39 @@ class FeeInvoice(Document):
 		)
 
 
+def spread_yearly_payment(student, amount, is_submit=True):
+	"""Spread a yearly payment across the months the yearly fee was split into.
+
+	Paid in order -- the starting payment, then the months as they fall -- and
+	taken back from the latest month first when the invoice is cancelled, so
+	the ledger always reads as how far the money has reached.
+	"""
+	rows = [
+		row for row in student.get("payment_details", [])
+		if row.status in ("Not Paid", "Partial", "Paid") and flt(row.amount_need_to_pay) > 0
+	]
+	if not is_submit:
+		rows.reverse()
+
+	remaining = flt(amount)
+	for row in rows:
+		if remaining <= 0:
+			break
+
+		if is_submit:
+			share = min(flt(row.pending), remaining)
+		else:
+			share = min(flt(row.amount_paid), remaining)
+		if share <= 0:
+			continue
+
+		remaining -= share
+		row.amount_paid = max(0.0, flt(row.amount_paid) + (share if is_submit else -share))
+		row.pending = max(0.0, flt(row.amount_need_to_pay) - flt(row.amount_paid) - flt(row.discount_amount))
+		row.status = get_row_status(row)
+		row.date = frappe.utils.today() if flt(row.amount_paid) > 0 else None
+
+
 def get_row_status(row):
 	if flt(row.pending) <= 0:
 		return "Paid"
@@ -865,8 +901,9 @@ def update_student_totals(student):
 		total_paid += flt(row.amount_paid) - flt(row.refunded_amount)
 
 		# A month settled by the starting payment is already paid for, by the
-		# money sitting on the starting payment row. A refunded month is closed.
-		if row.status in ("Paid", PAID_BY_STARTING_PAYMENT, REFUNDED):
+		# money sitting on the starting payment row. A refunded month is closed,
+		# and a No Fees month was let off.
+		if row.status in ("Paid", PAID_BY_STARTING_PAYMENT, REFUNDED, "No Fees"):
 			continue
 
 		billable = flt(row.amount_need_to_pay) or get_month_amount(student, row.month)
