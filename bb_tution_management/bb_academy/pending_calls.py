@@ -4,7 +4,8 @@ A student lands on the list once they have THRESHOLD mistakes in any one
 category -- H.W, Test, Study, Class or Behaviour -- and leaves it the moment
 staff log the call. Each category keeps its own count.
 
-What restarts the count is the call itself: a Parent Call Log records the exact
+The count also restarts on the 1st of every month (see count_from), the same
+as Attendance Call Works. Within the month, what restarts it is the call itself: a Parent Call Log records the exact
 mistakes it told the parents about, and only mistakes no call has covered are
 counted. So a student who misses home work twice after the call is on 2, not
 on 2 plus everything before it. Nothing is stored about the count -- it is
@@ -74,11 +75,14 @@ def threshold():
 def count_from():
 	"""Mistakes before this date are history the screen never reaches back to.
 
-	Without a floor, the first day the screen is opened every student with three
-	missed home works in the last two years would be "owed" a call.
+	Every month starts again at zero: the floor is the 1st of the current month,
+	so last month's uncalled mistakes do not follow the student into this one.
+	The "Count Mistakes From" setting can only move the start later within the
+	month (say, to skip days graded before the screen went live), never earlier.
 	"""
+	month_start = get_first_day(getdate(today()))
 	value = _setting("pending_calls_from")
-	return getdate(value) if value else get_first_day(getdate(today()))
+	return max(getdate(value), month_start) if value else month_start
 
 
 def _guard(ptype="read"):

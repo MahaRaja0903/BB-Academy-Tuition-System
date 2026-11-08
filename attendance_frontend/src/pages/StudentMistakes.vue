@@ -51,6 +51,28 @@
       </div>
     </div>
 
+    <!-- Category split — Study / Test / Behaviour. Picking one narrows the list
+         to students with mistakes in it, and makes the band cards below count
+         that category alone (3 Study mistakes, not 3 mistakes overall). -->
+    <div class="smr-cat-grid">
+      <button
+        v-for="c in categoryCards"
+        :key="c.key"
+        type="button"
+        class="smr-cat"
+        :class="[c.cls, { 'is-active': categoryFilter === c.key }]"
+        :title="`Show only students with ${c.key} mistakes this month`"
+        @click="toggleCategory(c.key)"
+      >
+        <span class="smr-cat-icon"><i class="fa" :class="c.icon"></i></span>
+        <span class="smr-cat-body">
+          <span class="smr-kpi-label">{{ c.key }}</span>
+          <span class="smr-kpi-value">{{ c.students }}</span>
+          <span class="smr-kpi-sub">{{ c.mistakes }} mistakes</span>
+        </span>
+      </button>
+    </div>
+
     <!-- Level summary — how many students sit in each mistake band, and a tap
          on any of them narrows the list below to exactly those students. -->
     <div class="smr-kpi-grid">
@@ -80,6 +102,12 @@
           v-model="search"
         />
       </div>
+      <span v-if="categoryFilter" class="smr-filter-chip">
+        <span>Category <strong>{{ categoryFilter }}</strong></span>
+        <button type="button" title="Clear category" @click="categoryFilter = null">
+          <i class="fa fa-times"></i>
+        </button>
+      </span>
       <span v-if="levelFilter" class="smr-filter-chip">
         <span>Showing <strong>{{ levelLabel(levelFilter) }}</strong></span>
         <button type="button" title="Clear filter" @click="levelFilter = null">
@@ -176,14 +204,13 @@
 
       <!-- Where the mistakes came from -->
       <div class="smr-tally">
-        <span class="smr-tally-chip" :class="{ 'is-zero': !r.test_count }">
-          Test <b>{{ r.test_count }}</b>
-        </span>
-        <span class="smr-tally-chip" :class="{ 'is-zero': !r.study_count }">
-          Study <b>{{ r.study_count }}</b>
-        </span>
-        <span class="smr-tally-chip" :class="{ 'is-zero': !r.behaviour_count }">
-          Behaviour <b>{{ r.behaviour_count }}</b>
+        <span
+          v-for="c in CATEGORIES"
+          :key="c.key"
+          class="smr-tally-chip"
+          :class="{ 'is-zero': !r[c.field], 'is-selected': categoryFilter === c.key }"
+        >
+          {{ c.key }} <b>{{ r[c.field] }}</b>
         </span>
         <button type="button" class="smr-link-btn" @click="toggleDetail(r)">
           <i class="fa" :class="expanded.has(r.name) ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
@@ -194,7 +221,7 @@
       <!-- The mistakes themselves -->
       <div v-if="expanded.has(r.name)" class="smr-detail">
         <div v-if="detailLoading === r.name" class="smr-detail-loading">Loading…</div>
-        <table v-else-if="(details[r.name] || []).length" class="smr-detail-table">
+        <table v-else-if="detailRows(r).length" class="smr-detail-table">
           <thead>
             <tr>
               <th>Date</th>
@@ -204,7 +231,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="m in details[r.name]" :key="m.name">
+            <tr v-for="m in detailRows(r)" :key="m.name">
               <td class="smr-detail-date">{{ formatDate(m.date) }}</td>
               <td>{{ m.category }}</td>
               <td>
@@ -219,7 +246,9 @@
             </tr>
           </tbody>
         </table>
-        <p v-else class="smr-detail-empty">No mistakes found for this month.</p>
+        <p v-else class="smr-detail-empty">
+          No {{ categoryFilter ? categoryFilter + ' ' : '' }}mistakes found for this month.
+        </p>
       </div>
 
       <!-- What is still owed -->
@@ -526,6 +555,21 @@ const LEVELS = [
   },
 ]
 
+// The three review buckets, and the per-category count each record carries.
+const CATEGORIES = [
+  { key: 'Study', field: 'study_count', icon: 'fa-book', cls: 'smr-cat-study' },
+  { key: 'Test', field: 'test_count', icon: 'fa-pencil-square-o', cls: 'smr-cat-test' },
+  { key: 'Behaviour', field: 'behaviour_count', icon: 'fa-user-times', cls: 'smr-cat-behaviour' },
+]
+
+// Same thresholds as the overall level, applied to a single category's count.
+function bandFor(count) {
+  if (count >= 10) return 'Category Review'
+  if (count >= 5) return 'Parent Meeting'
+  if (count >= 3) return 'Call'
+  return null
+}
+
 const standards = ref([])
 const batches = ref([])
 const staffList = ref([])
@@ -538,6 +582,8 @@ const status = ref('Open')
 const search = ref('')
 // Which threshold band the list is narrowed to, or null for all of them.
 const levelFilter = ref(null)
+// Study / Test / Behaviour, or null for all mistakes together.
+const categoryFilter = ref(null)
 
 const records = ref([])
 const loading = ref(false)
@@ -587,43 +633,100 @@ const searchedRecords = computed(() => {
   )
 })
 
+const selectedCategory = computed(
+  () => CATEGORIES.find((c) => c.key === categoryFilter.value) || null
+)
+
+// The count the bands are judged on: the selected category's alone, or the
+// overall total when no category is picked.
+function countOf(r) {
+  return selectedCategory.value ? Number(r[selectedCategory.value.field]) || 0 : r.mistake_count
+}
+
+function levelOf(r) {
+  return selectedCategory.value ? bandFor(countOf(r)) : r.action_level
+}
+
+// Narrowed to students who have at least one mistake in the selected category,
+// worst first in that category.
+const categoryRecords = computed(() => {
+  if (!selectedCategory.value) return searchedRecords.value
+  return searchedRecords.value
+    .filter((r) => countOf(r) > 0)
+    .sort((a, b) => countOf(b) - countOf(a))
+})
+
 const visibleRecords = computed(() => {
-  if (!levelFilter.value) return searchedRecords.value
-  return searchedRecords.value.filter((r) => r.action_level === levelFilter.value)
+  if (!levelFilter.value) return categoryRecords.value
+  return categoryRecords.value.filter((r) => levelOf(r) === levelFilter.value)
 })
 
 const levelCounts = computed(() => {
   const counts = { Call: 0, 'Parent Meeting': 0, 'Category Review': 0 }
-  for (const r of searchedRecords.value) {
-    if (counts[r.action_level] !== undefined) counts[r.action_level] += 1
+  for (const r of categoryRecords.value) {
+    const level = levelOf(r)
+    if (counts[level] !== undefined) counts[level] += 1
   }
   return counts
 })
+
+const categoryCards = computed(() =>
+  CATEGORIES.map((c) => {
+    let students = 0
+    let mistakes = 0
+    for (const r of searchedRecords.value) {
+      const n = Number(r[c.field]) || 0
+      if (n > 0) students += 1
+      mistakes += n
+    }
+    return { ...c, students, mistakes }
+  })
+)
+
+function toggleCategory(key) {
+  categoryFilter.value = categoryFilter.value === key ? null : key
+}
+
+// With a category picked, the expanded mistake list shows only that category.
+function detailRows(r) {
+  const rows = details[r.name] || []
+  if (!categoryFilter.value) return rows
+  return rows.filter((m) => (m.bucket || m.category) === categoryFilter.value)
+}
 
 const kpis = computed(() => [
   {
     key: 'total',
     level: null,
-    label: 'Students',
-    sub: 'On follow-up',
+    label: categoryFilter.value ? `${categoryFilter.value} Students` : 'Students',
+    sub: categoryFilter.value ? `With ${categoryFilter.value} mistakes` : 'On follow-up',
     cls: 'smr-kpi-total',
-    value: searchedRecords.value.length,
+    value: categoryRecords.value.length,
     title: 'Show every student on the follow-up list',
   },
   ...LEVELS.map((l) => ({
     key: l.level,
     level: l.level,
-    label: l.label,
+    label: bandLabel(l),
     sub: l.sub,
     cls: l.cls,
     value: levelCounts.value[l.level],
-    title: `Show only students with ${l.band} mistakes this month (${l.sub})`,
+    title: `Show only students with ${l.band} ${
+      categoryFilter.value ? categoryFilter.value + ' ' : ''
+    }mistakes this month`,
   })),
 ])
 
+// "3 Mistakes" overall, "3 Study Mistakes" with a category picked.
+function bandLabel(l) {
+  if (!categoryFilter.value) return l.label
+  return l.label.replace(' Mistakes', ` ${categoryFilter.value} Mistakes`)
+}
+
 function levelLabel(level) {
   const hit = LEVELS.find((l) => l.level === level)
-  return hit ? `${hit.label} · ${hit.sub}` : level
+  if (!hit) return level
+  return categoryFilter.value ? bandLabel(hit) : `${hit.label} · ${hit.sub}`
 }
 
 // The Students card clears the filter; any band toggles it.
@@ -649,11 +752,18 @@ function countTitle(r) {
 }
 
 const emptyState = computed(() => {
-  if (levelFilter.value && searchedRecords.value.length) {
+  if (levelFilter.value && categoryRecords.value.length) {
     return {
       icon: 'fa-info-circle',
       title: `No student at ${levelLabel(levelFilter.value)}`,
       text: 'No student is in that mistake band this month with these filters.',
+    }
+  }
+  if (categoryFilter.value && searchedRecords.value.length) {
+    return {
+      icon: 'fa-info-circle',
+      title: `No ${categoryFilter.value} mistakes`,
+      text: `No student on the list has a ${categoryFilter.value} mistake this month.`,
     }
   }
   if (status.value === 'Closed') {
@@ -1175,6 +1285,67 @@ onMounted(async () => {
 .smr-kpi-call { border-left-color: var(--blue-500); }
 .smr-kpi-meeting { border-left-color: var(--orange-500); }
 .smr-kpi-review { border-left-color: var(--red-500); }
+
+/* ---- category split ---- */
+.smr-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.smr-cat {
+  --smr-cat-color: var(--gray-500);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  font-family: inherit;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--smr-radius);
+  box-shadow: var(--card-shadow, var(--shadow-sm));
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+}
+
+.smr-cat:hover { border-color: var(--smr-cat-color); }
+
+.smr-cat.is-active {
+  border-color: var(--smr-cat-color);
+  box-shadow: 0 0 0 1px var(--smr-cat-color) inset;
+}
+
+.smr-cat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 16px;
+  color: #fff;
+  background: var(--smr-cat-color);
+}
+
+.smr-cat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.smr-cat-study { --smr-cat-color: var(--green-600, #16a34a); }
+.smr-cat-test { --smr-cat-color: var(--purple-500, #8b5cf6); }
+.smr-cat-behaviour { --smr-cat-color: var(--pink-500, #ec4899); }
+
+.smr-tally-chip.is-selected {
+  opacity: 1;
+  color: var(--text-color);
+  box-shadow: 0 0 0 1px var(--gray-500) inset;
+  font-weight: 600;
+}
 
 /* ---- band filter chip ---- */
 .smr-filter-chip {
@@ -1837,6 +2008,10 @@ onMounted(async () => {
 
   .smr-field { min-width: 0; }
   .smr-panel-status { width: 100%; }
+
+  .smr-cat-grid { gap: 8px; }
+  .smr-cat { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px; }
+  .smr-cat-icon { flex-basis: auto; width: 30px; height: 30px; font-size: 13px; }
   .smr-seg { flex: 1; justify-content: center; }
 
   .smr-toolbar { flex-direction: column; align-items: stretch; }

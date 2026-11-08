@@ -68,6 +68,24 @@
       </button>
     </div>
 
+    <!-- Absent-day bands: Absent days only (Late not counted). A tap narrows
+         the list to the students in that band. -->
+    <div v-if="view === 'pending'" class="acw-absent-grid">
+      <button
+        v-for="b in absentCards"
+        :key="b.key"
+        type="button"
+        class="pcw-kpi acw-absent-card"
+        :class="[b.cls, { 'is-active': absentFilter === b.key }]"
+        :title="`Show only students with ${b.range} Absent days this month`"
+        @click="toggleAbsent(b.key)"
+      >
+        <span class="pcw-kpi-label"><i class="fa fa-user-times"></i> {{ b.label }}</span>
+        <span class="pcw-kpi-value">{{ b.value }}</span>
+        <span class="acw-absent-sub">{{ b.range }} days</span>
+      </button>
+    </div>
+
     <p v-if="view === 'pending' && monthStart" class="pcw-rule">
       <i class="fa fa-info-circle"></i>
       Absent and Late days in <b>{{ monthLabel(monthStart) }}</b>:
@@ -89,6 +107,12 @@
           v-model="search"
         />
       </div>
+      <span v-if="view === 'pending' && absentFilter" class="pcw-filter-chip">
+        <span>Showing <strong>{{ absentLabel(absentFilter) }}</strong></span>
+        <button type="button" title="Clear filter" @click="absentFilter = null">
+          <i class="fa fa-times"></i>
+        </button>
+      </span>
       <span v-if="view === 'pending' && priorityFilter" class="pcw-filter-chip">
         <span>Showing <strong>{{ priorityFilter }}</strong></span>
         <button type="button" title="Clear filter" @click="priorityFilter = null">
@@ -217,12 +241,43 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="d in details[r.student]" :key="d.reference_name">
-                <td class="pcw-nowrap">{{ prettyDate(d.date) }}</td>
-                <td><span class="pcw-result-badge" :data-result="d.status">{{ d.status }}</span></td>
-                <td class="pcw-detail-what">{{ d.remarks || '' }}</td>
-                <td class="pcw-detail-what">{{ d.called ? 'Yes' : '—' }}</td>
-              </tr>
+              <template v-for="d in details[r.student]" :key="d.reference_name">
+                <tr>
+                  <td class="pcw-nowrap">{{ prettyDate(d.date) }}</td>
+                  <td><span class="pcw-result-badge" :data-result="d.status">{{ d.status }}</span></td>
+                  <td class="pcw-detail-what">{{ d.remarks || '' }}</td>
+                  <td class="pcw-detail-what">{{ d.called ? 'Yes' : '—' }}</td>
+                </tr>
+                <!-- What the batch did that day: what this student missed. -->
+                <tr v-if="d.missed" class="acw-missed-row">
+                  <td colspan="4">
+                    <div class="acw-missed">
+                      <span class="acw-missed-head">
+                        <i class="fa fa-calendar-check-o"></i>
+                        {{ d.status === 'Late' ? 'Batch had' : 'Missed' }}
+                        <template v-if="d.batch"> · {{ d.batch }}</template>
+                      </span>
+                      <template v-if="realSessions(d).length">
+                        <span
+                          v-for="m in realSessions(d)"
+                          :key="m.name"
+                          class="acw-missed-item"
+                          :data-category="m.category"
+                        >
+                          <b>{{ m.category }}</b>
+                          <span v-if="m.topic">{{ m.topic }}</span>
+                          <span v-if="m.category === 'Test' && m.total_marks" class="acw-missed-marks">
+                            ({{ m.total_marks }} marks)
+                          </span>
+                        </span>
+                      </template>
+                      <span v-else class="acw-missed-none">
+                        No Study, Test or Class was recorded for the batch that day.
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
           <p v-else class="pcw-detail-empty">No Absent or Late days this month.</p>
@@ -340,6 +395,12 @@ const DEFAULT_PRIORITIES = [
   { from: 6, label: 'Important' },
   { from: 10, label: 'High Priority' },
 ]
+// Absent days only — Late is not an absence. Each band runs up to the next.
+const ABSENT_BANDS = [
+  { key: 'a3', from: 3, to: 4, label: '3 Absent', cls: 'acw-absent-3' },
+  { key: 'a5', from: 5, to: 9, label: '5 Absent', cls: 'acw-absent-5' },
+  { key: 'a10', from: 10, to: Infinity, label: '10 Absent', cls: 'acw-absent-10' },
+]
 const SPOKEN_TO = ['Father', 'Mother', 'Guardian', 'Student', 'Other']
 
 const standards = ref([])
@@ -353,6 +414,8 @@ const gender = ref('')
 const month = ref((serverToday.value || '').slice(0, 7))
 const search = ref('')
 const priorityFilter = ref(null)
+// One of the Absent-day bands below, or null.
+const absentFilter = ref(null)
 
 const records = ref([])
 const calls = ref([])
@@ -398,10 +461,41 @@ function matchesSearch(row) {
 
 const searchedRecords = computed(() => records.value.filter(matchesSearch))
 
-const visibleRecords = computed(() => {
-  if (!priorityFilter.value) return searchedRecords.value
-  return searchedRecords.value.filter((r) => r.priority === priorityFilter.value)
-})
+function inBand(r, key) {
+  const band = ABSENT_BANDS.find((b) => b.key === key)
+  const n = Number(r.absent) || 0
+  return !!band && n >= band.from && n <= band.to
+}
+
+const visibleRecords = computed(() =>
+  searchedRecords.value.filter(
+    (r) =>
+      (!priorityFilter.value || r.priority === priorityFilter.value) &&
+      (!absentFilter.value || inBand(r, absentFilter.value))
+  )
+)
+
+const absentCards = computed(() =>
+  ABSENT_BANDS.map((b) => ({
+    ...b,
+    range: b.to === Infinity ? `${b.from}+` : `${b.from} – ${b.to}`,
+    value: searchedRecords.value.filter((r) => inBand(r, b.key)).length,
+  }))
+)
+
+function toggleAbsent(key) {
+  absentFilter.value = absentFilter.value === key ? null : key
+}
+
+function absentLabel(key) {
+  const card = absentCards.value.find((b) => b.key === key)
+  return card ? `${card.label} (${card.range} days)` : key
+}
+
+// The day's real sessions; "no Test today" style rows are not something missed.
+function realSessions(day) {
+  return (day.missed || []).filter((m) => !m.no_session)
+}
 
 const visibleCalls = computed(() => calls.value.filter(matchesSearch))
 
@@ -436,6 +530,13 @@ function togglePriority(priority) {
 }
 
 const emptyState = computed(() => {
+  if (absentFilter.value && searchedRecords.value.length) {
+    return {
+      icon: 'fa-info-circle',
+      title: `No student at ${absentLabel(absentFilter.value)}`,
+      text: 'No pending student is in that Absent band with these filters.',
+    }
+  }
   if (priorityFilter.value && searchedRecords.value.length) {
     return {
       icon: 'fa-info-circle',
@@ -639,6 +740,7 @@ async function loadLookups() {
 
 watch([view, standard, batch, gender, month], () => {
   priorityFilter.value = null
+  absentFilter.value = null
   load()
 })
 
@@ -696,7 +798,83 @@ onMounted(async () => {
   color: var(--text-on-orange, #c2410c);
 }
 
+/* 3 / 5 / 10 Absent */
+.acw-absent-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.acw-absent-3 { border-left-color: var(--yellow-500, #eab308); }
+.acw-absent-5 { border-left-color: var(--orange-500, #f97316); }
+.acw-absent-10 { border-left-color: var(--red-500, #ef4444); }
+
+.acw-absent-card .pcw-kpi-label i { margin-right: 3px; }
+
+.acw-absent-sub {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* What the batch did on the day the student missed */
+.pcw-detail-table tr:has(+ .acw-missed-row) td { border-bottom: none; }
+
+.acw-missed-row td {
+  padding-top: 0 !important;
+  border-top: none;
+}
+
+.acw-missed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--subtle-fg, var(--gray-50));
+}
+
+.acw-missed-head {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.acw-missed-item {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  color: var(--text-color);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--gray-400);
+  border-radius: 4px;
+}
+
+.acw-missed-item b { font-weight: 700; }
+.acw-missed-item[data-category='Class'] { border-left-color: var(--blue-500, #3b82f6); }
+.acw-missed-item[data-category='Study'] { border-left-color: var(--green-600, #16a34a); }
+.acw-missed-item[data-category='Test'] { border-left-color: var(--purple-500, #8b5cf6); }
+.acw-missed-item[data-category='H.W'] { border-left-color: var(--orange-500, #f97316); }
+
+.acw-missed-marks { color: var(--text-muted); }
+
+.acw-missed-none {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 @media (max-width: 767px) {
   .acw-manager .pcw-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .acw-absent-grid { gap: 8px; }
 }
 </style>

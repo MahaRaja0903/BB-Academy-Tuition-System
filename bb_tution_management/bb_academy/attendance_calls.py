@@ -24,7 +24,7 @@ reach. So a row re-marked Present simply drops out of both counts.
 import json
 
 import frappe
-from frappe.utils import add_months, get_datetime, getdate, now_datetime, today
+from frappe.utils import add_months, cint, get_datetime, getdate, now_datetime, today
 
 from bb_tution_management.bb_academy.pending_calls import (
 	DOCTYPE,
@@ -36,6 +36,12 @@ from bb_tution_management.bb_academy.pending_calls import (
 	priority_level,
 )
 from bb_tution_management.bb_academy.pending_calls import priority_label as _priority_label
+from bb_tution_management.bb_academy.syllabus import (
+	lesson_titles,
+	syllabus_lessons,
+	syllabus_of,
+	syllabus_text,
+)
 
 ATTENDANCE_DOCTYPE = "Student Attendance"
 CATEGORY = "Attendance"
@@ -64,7 +70,7 @@ def _month_rows(first_day, student=None, standard=None, batch=None, gender=None)
 	return frappe.db.sql(
 		f"""
 		SELECT a.name AS reference_name, a.student, a.attendance_date AS date,
-			a.status, a.remarks,
+			a.status, a.remarks, a.standard, a.batch,
 			EXISTS (
 				SELECT 1 FROM `tabParent Call Log Item` i
 				WHERE i.reference_name = a.name AND i.reference_doctype = %(attendance)s
@@ -198,7 +204,102 @@ def get_student_days(student):
 
 	rows = _month_rows(_this_month(), student=student)
 	rows.reverse()
+	_attach_missed_sessions(rows)
 	return {"days": rows}
+
+
+# What a batch's day is made of, in the order the screen lists it. Behaviour is
+# left out: it grades the students in the room, it is not something taught.
+SESSION_CATEGORIES = ["Class", "Study", "Test", "H.W"]
+
+
+def _batch_on(student):
+	"""A function giving the batch the student sat in on a given date.
+
+	Attendance rows do not store a batch, and batch names ("I", "II") repeat
+	across standards, so the batch is rebuilt from the student's current batch
+	and their transitions: before a move they were in its previous batch.
+	"""
+	current = frappe.db.get_value("Student", student, "current_batch")
+	moves = frappe.db.sql(
+		"""
+		SELECT effective_date, previous_batch
+		FROM `tabStudent Batch Transition`
+		WHERE student = %(student)s AND docstatus < 2 AND effective_date IS NOT NULL
+		ORDER BY effective_date ASC, creation ASC
+		""",
+		{"student": student},
+		as_dict=True,
+	)
+
+	def batch_on(date):
+		date = getdate(date)
+		for move in moves:
+			if getdate(move.effective_date) > date and move.previous_batch:
+				return move.previous_batch
+		return current
+
+	return batch_on
+
+
+def _attach_missed_sessions(rows):
+	"""Give every day the Class / Study / Test / H.W its batch had that day --
+	what the student missed by being absent, or walked in late on."""
+	for row in rows:
+		row["missed"] = []
+	if not rows:
+		return
+
+	batch_on = _batch_on(rows[0].student)
+	for row in rows:
+		row["batch"] = row.batch or batch_on(row.date)
+
+	dates = {getdate(r.date) for r in rows}
+	batches = {r.batch for r in rows if r.batch}
+	if not batches:
+		return
+
+	sessions = frappe.db.sql(
+		"""
+		SELECT name, date, standard, batch, category, subject, total_marks, pass_marks,
+			no_session, no_session_reason
+		FROM `tabStudent Performance Session`
+		WHERE date IN %(dates)s AND batch IN %(batches)s AND category IN %(categories)s
+		ORDER BY creation ASC
+		""",
+		{
+			"dates": tuple(dates),
+			"batches": tuple(batches),
+			"categories": tuple(SESSION_CATEGORIES),
+		},
+		as_dict=True,
+	)
+	if not sessions:
+		return
+
+	syllabus = syllabus_of("Student Performance Session", [s.name for s in sessions])
+	titles = lesson_titles(
+		[lesson for blocks in syllabus.values() for lesson in syllabus_lessons(blocks)]
+	)
+
+	by_day = {}
+	for s in sessions:
+		by_day.setdefault((getdate(s.date), s.standard, s.batch), []).append(
+			{
+				"name": s.name,
+				"category": s.category,
+				"topic": syllabus_text(syllabus.get(s.name, []), titles) or s.subject or "",
+				"total_marks": s.total_marks,
+				"pass_marks": s.pass_marks,
+				"no_session": cint(s.no_session),
+				"no_session_reason": s.no_session_reason,
+			}
+		)
+
+	order = {c: i for i, c in enumerate(SESSION_CATEGORIES)}
+	for row in rows:
+		found = by_day.get((getdate(row.date), row.standard, row.batch), [])
+		row["missed"] = sorted(found, key=lambda item: order.get(item["category"], 99))
 
 
 @frappe.whitelist()

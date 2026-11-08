@@ -91,7 +91,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Mistakes before this date are never counted. Left blank, counting starts on the first day of the current month.",
+   "description": "Counting always restarts on the 1st of each month. A date here only moves the start later within the current month; a date in an earlier month has no effect.",
    "fieldname": "pending_calls_from",
    "fieldtype": "Date",
    "label": "Count Mistakes From"
