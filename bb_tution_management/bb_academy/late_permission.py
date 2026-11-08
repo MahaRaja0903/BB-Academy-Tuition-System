@@ -1,5 +1,13 @@
+import json
+
 import frappe
 from frappe.utils import cint, getdate, today
+
+# The third Type on the Late Permission page. Parents tell the tuition ahead of
+# time that the student will break a behaviour rule for a reason outside their
+# control (the school bus runs late, the uniform is at the tailor's); the
+# behaviour points they permit are excused for that day and are not mistakes.
+DISCIPLINE_PERMISSION = "Discipline Permission"
 
 def _format_time(value):
     """Normalise a Time field to zero-padded "HH:MM".
@@ -20,9 +28,100 @@ def _format_time(value):
     return f"{total // 3600:02d}:{(total % 3600) // 60:02d}"
 
 
+def allowed_permission_reasons():
+    """Behaviour Reasons BB Academy Settings allows to be granted as a
+    Discipline Permission, in the master's display order. Disabled reasons are
+    left out even when still listed."""
+    names = frappe.get_all(
+        "Student Behaviour Reason Item",
+        filters={
+            "parenttype": "BB Academy Settings",
+            "parentfield": "discipline_permission_reasons",
+        },
+        pluck="behaviour_reason",
+    )
+    if not names:
+        return []
+    reasons = frappe.get_all(
+        "Behaviour Reason",
+        filters={"name": ["in", names], "disabled": 0},
+        fields=["name", "reason_name", "severity", "display_order", "description"],
+        limit_page_length=0,
+    )
+    reasons.sort(key=lambda r: (not r.display_order, r.display_order or 0, r.reason_name))
+    return reasons
+
+
+def permitted_reasons_map(students, date):
+    """{student: [behaviour reasons permitted on `date`]} for `students`."""
+    # Guards the window between a code deploy and the migrate that creates the
+    # table: every Behaviour save comes through here.
+    if not students or not frappe.db.table_exists(DISCIPLINE_PERMISSION):
+        return {}
+    rows = frappe.db.sql("""
+        SELECT dp.student, i.behaviour_reason
+        FROM `tabDiscipline Permission` dp
+        INNER JOIN `tabStudent Behaviour Reason Item` i
+            ON i.parent = dp.name AND i.parenttype = 'Discipline Permission'
+        WHERE %(date)s BETWEEN dp.from_date AND dp.to_date
+            AND dp.student IN %(students)s
+        ORDER BY i.idx ASC
+    """, {"date": getdate(date), "students": tuple(students)}, as_dict=True)
+    out = {}
+    for row in rows:
+        out.setdefault(row.student, []).append(row.behaviour_reason)
+    return out
+
+
+def permitted_reasons(student, date):
+    return permitted_reasons_map([student], date).get(student, [])
+
+
+def permission_on(student, date, fields="name"):
+    """The Discipline Permission covering `date` for `student`, if any."""
+    date_obj = getdate(date)
+    return frappe.db.get_value(
+        DISCIPLINE_PERMISSION,
+        {"student": student, "from_date": ["<=", date_obj], "to_date": [">=", date_obj]},
+        fields,
+        as_dict=not isinstance(fields, str),
+    )
+
+
+def excuse_behaviour_row(student, from_date, to_date):
+    """Re-save the student's Behaviour rows from `from_date` to `to_date` that
+    hold a reason now permitted, so the tracker drops it (see
+    StudentPerformanceTracker.drop_permitted_reasons) and the Student Mistake
+    Record follows. Saved without permission checks: it is a side effect of the
+    permission grant the user is already allowed to make."""
+    rows = frappe.get_all(
+        "Student Performance Tracker",
+        filters={
+            "student": student,
+            "category": "Behaviour",
+            "date": ["between", [getdate(from_date), getdate(to_date)]],
+        },
+        fields=["name", "date"],
+    )
+    for row in rows:
+        doc = frappe.get_doc("Student Performance Tracker", row.name)
+        permitted = set(permitted_reasons(student, row.date))
+        if any(r.behaviour_reason in permitted for r in doc.behaviour_reasons or []):
+            doc.save(ignore_permissions=True)
+
+
+@frappe.whitelist()
+def get_discipline_permission_reasons():
+    """The reasons the grant dialog offers."""
+    if not frappe.has_permission(DISCIPLINE_PERMISSION, "read"):
+        return []
+    return allowed_permission_reasons()
+
+
 @frappe.whitelist()
 def get_students_for_late_permission(standard, batch, date, gender=None, permission_type="Late Permission"):
-    if not frappe.has_permission("Late Permission", "read"):
+    doctype = DISCIPLINE_PERMISSION if permission_type == DISCIPLINE_PERMISSION else "Late Permission"
+    if not frappe.has_permission(doctype, "read"):
         frappe.throw("No permission to read")
 
     date_obj = getdate(date)
@@ -87,6 +186,37 @@ def get_students_for_late_permission(standard, batch, date, gender=None, permiss
             s["has_permission"] = 1 if s.get("early_out_time") else 0
             s["early_out_time"] = _format_time(s.get("early_out_time"))
             s["early_out_reason"] = s.get("early_out_reason") or ""
+    elif permission_type == DISCIPLINE_PERMISSION:
+        permissions = frappe.get_all(
+            DISCIPLINE_PERMISSION,
+            filters={
+                "student": ["in", student_ids],
+                "from_date": ["<=", date_obj],
+                "to_date": [">=", date_obj],
+            },
+            fields=["name", "student", "from_date", "to_date", "remarks", "parents_informed"],
+        )
+        perm_map = {p.student: p for p in permissions}
+        reason_map = permitted_reasons_map(student_ids, date_obj)
+        labels = dict(frappe.get_all(
+            "Behaviour Reason",
+            filters={"name": ["in", [r for rs in reason_map.values() for r in rs] or [""]]},
+            fields=["name", "reason_name"],
+            as_list=True,
+        ))
+
+        for s in students:
+            p = perm_map.get(s.name)
+            reasons = reason_map.get(s.name, []) if p else []
+            s["has_permission"] = 1 if p else 0
+            s["behaviour_reasons"] = reasons
+            s["behaviour_reason_labels"] = [labels.get(r, r) for r in reasons]
+            s["remarks"] = (p.remarks if p else "") or ""
+            s["permission"] = p.name if p else ""
+            s["from_date"] = str(p.from_date) if p else ""
+            s["to_date"] = str(p.to_date) if p else ""
+            s["parents_informed"] = cint(p.parents_informed) if p else 0
+            s["attendance_status"] = s.get("attendance_status") or ""
     else:
         # For Late Permission mode, check existing Late Permission records
         permissions = frappe.db.sql("""
@@ -149,17 +279,22 @@ def grant_late_permission(student, date, late_reason, parents_informed=0, time=N
 
 
 @frappe.whitelist()
-def set_parents_informed(student, date, parents_informed):
-    """Toggle the Parents Informed flag on an already-granted Late Permission."""
-    if not frappe.has_permission("Late Permission", "write"):
+def set_parents_informed(student, date, parents_informed, permission_type="Late Permission"):
+    """Toggle the Parents Informed flag on an already-granted Late or
+    Discipline Permission."""
+    doctype = DISCIPLINE_PERMISSION if permission_type == DISCIPLINE_PERMISSION else "Late Permission"
+    if not frappe.has_permission(doctype, "write"):
         frappe.throw("No permission")
 
     date_obj = getdate(date)
-    existing = frappe.db.get_value("Late Permission", {"student": student, "date": date_obj}, "name")
+    if doctype == DISCIPLINE_PERMISSION:
+        existing = permission_on(student, date_obj)
+    else:
+        existing = frappe.db.get_value(doctype, {"student": student, "date": date_obj}, "name")
     if not existing:
-        frappe.throw("No Late Permission record found for this student on this date.")
+        frappe.throw(f"No {doctype} record found for this student on this date.")
 
-    doc = frappe.get_doc("Late Permission", existing)
+    doc = frappe.get_doc(doctype, existing)
     doc.parents_informed = cint(parents_informed)
     doc.save()
 
@@ -174,6 +309,50 @@ def revoke_late_permission(student, date):
     if existing:
         frappe.delete_doc("Late Permission", existing)
     return "success"
+
+@frappe.whitelist()
+def grant_discipline_permission(
+    student, from_date, to_date, behaviour_reasons, remarks=None, parents_informed=0, permission=None
+):
+    """Grant a Discipline Permission for the picked behaviour points from
+    `from_date` to `to_date`, or update `permission` when editing one.
+    Re-granting replaces the permitted points with the new pick."""
+    if not frappe.has_permission(DISCIPLINE_PERMISSION, "write"):
+        frappe.throw("No permission")
+
+    if isinstance(behaviour_reasons, str):
+        behaviour_reasons = json.loads(behaviour_reasons or "[]")
+    rows = [{"behaviour_reason": r} for r in behaviour_reasons or []]
+
+    doc = (
+        frappe.get_doc(DISCIPLINE_PERMISSION, permission)
+        if permission
+        else frappe.new_doc(DISCIPLINE_PERMISSION)
+    )
+    doc.student = student
+    doc.from_date = getdate(from_date)
+    doc.to_date = getdate(to_date or from_date)
+    doc.remarks = (remarks or "").strip() or None
+    doc.parents_informed = cint(parents_informed)
+    doc.set("behaviour_reasons", rows)
+    doc.save()
+
+    return "success"
+
+
+@frappe.whitelist()
+def revoke_discipline_permission(student, date):
+    """Withdraw the permission covering `date`, for its whole date range. A
+    Behaviour grade it already excused stays as it is; the teacher re-grades
+    the student if the point should now count. To end it early, edit the End
+    Date instead."""
+    if not frappe.has_permission(DISCIPLINE_PERMISSION, "write"):
+        frappe.throw("No permission")
+    existing = permission_on(student, date)
+    if existing:
+        frappe.delete_doc(DISCIPLINE_PERMISSION, existing)
+    return "success"
+
 
 @frappe.whitelist()
 def grant_early_out(student, date, early_out_time, early_out_reason):

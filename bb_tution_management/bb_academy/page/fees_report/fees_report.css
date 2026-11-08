@@ -28,6 +28,12 @@
 	--fr-red-box: #fef2f2;
 	--fr-red-box-line: #fecaca;
 
+	--fr-orange: #ea580c;
+	--fr-orange-2: #c2410c;
+	--fr-orange-line: #fdba74;
+	--fr-orange-box: #fff7ed;
+	--fr-orange-box-line: #fed7aa;
+
 	background: var(--fr-plane);
 	color: var(--fr-ink);
 	padding: 20px;
@@ -106,6 +112,10 @@
 	gap: 18px;
 }
 
+.fr-cards-4 {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .fr-card {
 	display: block;
 	width: 100%;
@@ -181,6 +191,36 @@
 .fr-pending { border-color: var(--fr-red-line); }
 .fr-pending .fr-card-head { background: linear-gradient(90deg, var(--fr-red-2), var(--fr-red)); }
 .fr-pending .fr-value { background: var(--fr-red-box); border-color: var(--fr-red-box-line); }
+
+.fr-no_fee { border-color: var(--fr-orange-line); }
+.fr-no_fee .fr-card-head { background: linear-gradient(90deg, var(--fr-orange-2), var(--fr-orange)); }
+.fr-no_fee .fr-value { background: var(--fr-orange-box); border-color: var(--fr-orange-box-line); }
+
+/* A month waived on a No Fee invoice: the student's name is highlighted. */
+.fr-table tr.fr-nofee-row td {
+	background: #fff7ed;
+}
+
+.fr-nofee-name {
+	background: #fed7aa;
+	color: #9a3412 !important;
+	font-weight: 700;
+	padding: 1px 6px;
+	border-radius: 4px;
+}
+
+.fr-nofee-badge {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 0 7px;
+	border-radius: 999px;
+	background: #ea580c;
+	color: #fff;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+	text-transform: uppercase;
+}
 
 .fr-table td,
 .fr-table th {

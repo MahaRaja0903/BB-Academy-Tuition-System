@@ -8,6 +8,7 @@
           <select class="form-control" v-model="type">
             <option value="Late Permission">Late Permission</option>
             <option value="Early Out">Early Out</option>
+            <option value="Discipline Permission">Discipline Permission</option>
           </select>
         </div>
         <div class="lp-field lp-field-standard">
@@ -145,6 +146,26 @@
                   </span>
                   <span v-else class="lp-badge lp-badge-secondary">None</span>
                 </template>
+                <template v-else-if="type === 'Discipline Permission'">
+                  <span v-if="s.has_permission" class="lp-badge lp-badge-success">
+                    Permission Granted ({{ s.behaviour_reason_labels.join(', ') }})
+                  </span>
+                  <span v-if="s.has_permission" class="lp-time-chip" title="Permission valid">
+                    <i class="fa fa-calendar"></i> {{ validityText(s) }}
+                  </span>
+                  <span v-else class="lp-badge lp-badge-secondary">None</span>
+                  <div v-if="s.has_permission && s.remarks" class="lp-remarks">{{ s.remarks }}</div>
+                  <label v-if="s.has_permission" class="lp-parents-toggle">
+                    <input
+                      type="checkbox"
+                      :checked="!!s.parents_informed"
+                      :disabled="savingParents === s.name"
+                      @change="toggleParentsInformed(s, $event.target.checked)"
+                    />
+                    <span>Parents informed</span>
+                    <span v-if="savingParents === s.name" class="lp-saving">saving…</span>
+                  </label>
+                </template>
                 <template v-else>
                   <span v-if="s.has_permission" class="lp-badge lp-badge-success">
                     Permission Granted ({{ s.late_reason }})
@@ -231,6 +252,73 @@
             <span>Parents informed</span>
           </label>
         </template>
+        <template v-else-if="type === 'Discipline Permission'">
+          <div class="lp-date-range">
+            <div>
+              <label class="lp-modal-label">Start Date <span class="lp-req">*</span></label>
+              <input type="date" class="form-control" v-model="modal.fromDate" />
+            </div>
+            <div>
+              <label class="lp-modal-label">End Date <span class="lp-req">*</span></label>
+              <input type="date" class="form-control" :min="modal.fromDate" v-model="modal.toDate" />
+            </div>
+          </div>
+          <p v-if="modal.fromDate && modal.toDate && modal.toDate < modal.fromDate" class="lp-modal-error">
+            End Date cannot be before the Start Date.
+          </p>
+
+          <label class="lp-modal-label">
+            Permitted Behaviour Points <span class="lp-req">*</span>
+            <span class="lp-optional">({{ modal.reasons.length }} selected)</span>
+          </label>
+          <div v-if="disciplineReasons.length" class="lp-reason-search">
+            <i class="fa fa-search"></i>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Search by reason or description"
+              v-model="modal.search"
+            />
+          </div>
+          <div class="lp-reason-list">
+            <label v-for="r in filteredDisciplineReasons" :key="r.name" class="lp-checkbox lp-reason-item">
+              <input
+                type="checkbox"
+                :checked="modal.reasons.includes(r.name)"
+                @change="toggleDisciplineReason(r.name)"
+              />
+              <span class="lp-reason-text">
+                <span>{{ r.reason_name }}</span>
+                <small v-if="r.matchedDescription" class="lp-reason-desc">{{ r.description }}</small>
+              </span>
+            </label>
+            <p
+              v-if="disciplineReasons.length && !filteredDisciplineReasons.length"
+              class="lp-reason-empty"
+            >
+              No reason matches “{{ modal.search }}”.
+            </p>
+          </div>
+          <p v-if="!disciplineReasons.length" class="lp-modal-warn">
+            No behaviour points are allowed with permission yet — pick them in
+            BB Academy Settings → Discipline Permission.
+          </p>
+
+          <label class="lp-modal-label">
+            Remarks <span class="lp-optional">(optional)</span>
+          </label>
+          <textarea
+            class="form-control"
+            rows="2"
+            placeholder="e.g. School bus delayed this week"
+            v-model="modal.remarks"
+          ></textarea>
+
+          <label class="lp-checkbox">
+            <input type="checkbox" v-model="modal.parentsInformed" />
+            <span>Parents informed</span>
+          </label>
+        </template>
         <template v-else>
           <label class="lp-modal-label">Early Out Time <span class="lp-req">*</span></label>
           <div class="lp-time-row">
@@ -305,6 +393,8 @@ const students = ref([])
 const loading = ref(false)
 const lateEntryReasons = ref([])
 const earlyExitReasons = ref([])
+// Only the Behaviour Reasons BB Academy Settings allows to be permitted.
+const disciplineReasons = ref([])
 // The "add a reason" box inside the Early Out modal.
 const newReason = ref('')
 const addingReason = ref(false)
@@ -319,6 +409,12 @@ const modal = reactive({
   // Starts unchecked, matching the doctype default: informing the parents is a
   // separate action the user confirms, not something granting a permission assumes.
   parentsInformed: false,
+  // Discipline Permission: the behaviour points excused, and why.
+  reasons: [],
+  remarks: '',
+  search: '',
+  fromDate: '',
+  toDate: '',
   saving: false,
   error: '',
 })
@@ -333,7 +429,32 @@ const filteredStudents = computed(() => {
 
 const canGrant = computed(() => {
   if (type.value === 'Late Permission') return !!modal.reason
+  if (type.value === 'Discipline Permission') {
+    return (
+      modal.reasons.length > 0 &&
+      !!modal.fromDate &&
+      !!modal.toDate &&
+      modal.toDate >= modal.fromDate
+    )
+  }
   return !!modal.time && !!modal.reason
+})
+
+// Searches the reason and its description; the description is shown only when
+// it is why the reason matched.
+const filteredDisciplineReasons = computed(() => {
+  const q = modal.search.trim().toLowerCase()
+  if (!q) return disciplineReasons.value
+  return disciplineReasons.value
+    .filter(
+      (r) =>
+        (r.reason_name || '').toLowerCase().includes(q) ||
+        (r.description || '').toLowerCase().includes(q)
+    )
+    .map((r) => ({
+      ...r,
+      matchedDescription: !(r.reason_name || '').toLowerCase().includes(q),
+    }))
 })
 
 const emptyState = computed(() => {
@@ -380,6 +501,15 @@ const revokeEarlyOutResource = createResource({
 const setParentsInformedResource = createResource({
   url: 'bb_tution_management.bb_academy.late_permission.set_parents_informed',
 })
+const disciplineReasonsResource = createResource({
+  url: 'bb_tution_management.bb_academy.late_permission.get_discipline_permission_reasons',
+})
+const grantDisciplineResource = createResource({
+  url: 'bb_tution_management.bb_academy.late_permission.grant_discipline_permission',
+})
+const revokeDisciplineResource = createResource({
+  url: 'bb_tution_management.bb_academy.late_permission.revoke_discipline_permission',
+})
 
 // `<input type="time">` and the Frappe Time field both speak 24-hour "HH:MM",
 // so that stays the stored and transported format.
@@ -421,6 +551,19 @@ function attendanceBadgeClass(status) {
   return 'lp-badge-secondary'
 }
 
+// "29-10-2026" for one day, "29-10-2026 → 05-11-2026" for a range.
+function shortDate(value) {
+  const [y, m, d] = String(value || '').split('-')
+  return d ? `${d}-${m}-${y}` : value
+}
+
+function validityText(s) {
+  if (!s.from_date) return ''
+  return s.from_date === s.to_date
+    ? shortDate(s.from_date)
+    : `${shortDate(s.from_date)} → ${shortDate(s.to_date)}`
+}
+
 function earlyOutInfo(s) {
   const parts = []
   if (s.early_out_time) parts.push(displayTime(s.early_out_time))
@@ -428,10 +571,11 @@ function earlyOutInfo(s) {
   return parts.length ? ` (${parts.join(' - ')})` : ''
 }
 
-// Late Permission can be granted before attendance is marked; Early Out edits
-// an existing attendance record, so it needs one to exist.
+// Late and Discipline Permissions can be granted before attendance is marked
+// (parents ask ahead); Early Out edits an existing attendance record, so it
+// needs one to exist.
 function canAct(s) {
-  return type.value === 'Late Permission' ? true : !!s.attendance_status
+  return type.value === 'Early Out' ? !!s.attendance_status : true
 }
 
 function stepDate(delta) {
@@ -447,6 +591,7 @@ async function loadFilters() {
     (await lateEntryReasonsResource.submit({ doctype: 'Late Entry Reason' })) || []
   earlyExitReasons.value =
     (await earlyExitReasonsResource.submit({ doctype: 'Early Exit Reason' })) || []
+  disciplineReasons.value = (await disciplineReasonsResource.submit()) || []
 }
 
 async function loadStudents() {
@@ -481,10 +626,23 @@ function openGrantModal(student) {
       // Late Permission time is optional: prefill only what was already stored
       : student.time || ''
   modal.parentsInformed = student.has_permission ? !!student.parents_informed : false
+  modal.reasons = student.has_permission ? [...(student.behaviour_reasons || [])] : []
+  modal.remarks = student.has_permission ? student.remarks || '' : ''
+  modal.search = ''
+  // A new permission starts on the day on screen; the end defaults to the
+  // same day and is stretched for a longer leave.
+  modal.fromDate = student.has_permission ? student.from_date : date.value
+  modal.toDate = student.has_permission ? student.to_date : date.value
   modal.error = ''
   modal.saving = false
   newReason.value = ''
   reasonError.value = ''
+}
+
+function toggleDisciplineReason(name) {
+  modal.reasons = modal.reasons.includes(name)
+    ? modal.reasons.filter((r) => r !== name)
+    : [...modal.reasons, name]
 }
 
 async function addEarlyOutReason() {
@@ -524,6 +682,17 @@ async function confirmGrant() {
         // empty string clears a previously recorded time
         time: modal.time || '',
       })
+    } else if (type.value === 'Discipline Permission') {
+      await grantDisciplineResource.submit({
+        student: s.name,
+        from_date: modal.fromDate,
+        to_date: modal.toDate,
+        // editing updates the permission on screen, whatever dates it moves to
+        permission: s.permission || undefined,
+        behaviour_reasons: JSON.stringify(modal.reasons),
+        remarks: modal.remarks,
+        parents_informed: modal.parentsInformed ? 1 : 0,
+      })
     } else {
       await grantEarlyOutResource.submit({
         student: s.name,
@@ -544,6 +713,17 @@ async function confirmGrant() {
 async function revoke(s) {
   if (type.value === 'Late Permission') {
     await revokeLateResource.submit({ student: s.name, date: date.value })
+  } else if (type.value === 'Discipline Permission') {
+    // Revoke drops the whole range, not just the day on screen.
+    if (
+      s.from_date !== s.to_date &&
+      !window.confirm(
+        `Revoke ${s.student_name}'s permission for every day from ${validityText(s)}? ` +
+          'To end it early instead, use Edit and change the End Date.'
+      )
+    )
+      return
+    await revokeDisciplineResource.submit({ student: s.name, date: date.value })
   } else {
     await revokeEarlyOutResource.submit({ student: s.name, date: date.value })
   }
@@ -559,6 +739,7 @@ async function toggleParentsInformed(s, checked) {
       student: s.name,
       date: date.value,
       parents_informed: checked ? 1 : 0,
+      permission_type: type.value,
     })
   } catch (e) {
     s.parents_informed = previous
@@ -985,6 +1166,48 @@ watch([standard, batch, date, type, gender], loadStudents)
 }
 
 .lp-manager .lp-checkbox input { accent-color: var(--blue-500); cursor: pointer; }
+
+/* Discipline Permission: the allowed behaviour points, ticked in a list. */
+.lp-manager .lp-reason-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--lp-radius-sm);
+  padding: 2px 10px 10px;
+}
+
+.lp-manager .lp-reason-item { margin-top: 8px; align-items: flex-start; }
+
+.lp-manager .lp-reason-text { display: flex; flex-direction: column; gap: 2px; }
+
+.lp-manager .lp-reason-desc { font-size: 11px; color: var(--text-muted); }
+
+.lp-manager .lp-reason-empty { font-size: 12px; color: var(--text-muted); margin: 10px 0 0; }
+
+.lp-manager .lp-reason-search { position: relative; margin-bottom: 8px; }
+
+.lp-manager .lp-reason-search i {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.lp-manager .lp-reason-search input { padding-left: 30px; }
+
+.lp-manager .lp-date-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.lp-manager .lp-remarks {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
 
 .lp-manager .lp-modal-actions { display: flex; gap: 8px; margin-top: 18px; }
 

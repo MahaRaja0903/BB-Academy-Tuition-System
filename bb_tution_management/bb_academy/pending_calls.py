@@ -1,8 +1,8 @@
 """Pending Call Works: the students whose parents are owed a phone call.
 
 A student lands on the list once they have THRESHOLD mistakes in any one
-category -- H.W, Attendance, Test, Study, Class or Behaviour -- and leaves it the
-moment staff log the call. Each category keeps its own count.
+category -- H.W, Test, Study, Class or Behaviour -- and leaves it the moment
+staff log the call. Each category keeps its own count.
 
 What restarts the count is the call itself: a Parent Call Log records the exact
 mistakes it told the parents about, and only mistakes no call has covered are
@@ -10,12 +10,9 @@ counted. So a student who misses home work twice after the call is on 2, not
 on 2 plus everything before it. Nothing is stored about the count -- it is
 derived live every time, so re-grading a row corrects the list with it.
 
-A mistake is:
-
-    H.W / Test / Study / Class / Behaviour   a tracker row graded with one of
-                                             LOW_RESULTS (Skipped never counts)
-    Attendance                               a Student Attendance row marked
-                                             Absent
+A mistake is a tracker row graded with one of LOW_RESULTS (Skipped never
+counts). Absent and Late days have their own screen, by priority within the
+month: see attendance_calls.py.
 """
 
 import json
@@ -27,16 +24,36 @@ from bb_tution_management.bb_academy.performance_config import LOW_RESULTS
 
 DOCTYPE = "Parent Call Log"
 TRACKER = "Student Performance Tracker"
-ATTENDANCE_DOCTYPE = "Student Attendance"
 
-ATTENDANCE = "Attendance"
 # The order the screen shows them in.
-CATEGORIES = ["H.W", ATTENDANCE, "Test", "Study", "Class", "Behaviour"]
-TRACKER_CATEGORIES = [c for c in CATEGORIES if c != ATTENDANCE]
-
-ABSENT_STATUSES = ["Absent"]
+CATEGORIES = ["H.W", "Test", "Study", "Class", "Behaviour"]
 
 DEFAULT_THRESHOLD = 3
+
+# Priority bands of a count: (first count in the band, label), lowest first.
+# Attendance Call Works lists students by them; both screens use them to tag a
+# band the count went past without anyone calling.
+PRIORITIES = [(3, "Normal"), (6, "Important"), (10, "High Priority")]
+
+
+def priority_level(count):
+	"""0 below the first band, else 1, 2 or 3."""
+	return sum(1 for start, _label in PRIORITIES if count >= start)
+
+
+def priority_label(level):
+	return PRIORITIES[level - 1][1] if level else None
+
+
+def missed_calls(level, called_level=0, floor=0):
+	"""The bands between the last one called and the current one: the count
+	reached each of them and moved on with no call made. Bands starting below
+	`floor` were never owed a call."""
+	return [
+		{"from": start, "label": label}
+		for start, label in PRIORITIES[called_level : max(level - 1, called_level)]
+		if start >= floor
+	]
 
 
 def _setting(fieldname):
@@ -95,54 +112,27 @@ def _uncovered_mistakes(student=None, standard=None, batch=None, gender=None, ca
 			values[field] = value
 	student_where = " AND ".join(student_conditions)
 
-	rows = []
-
-	tracker_categories = [c for c in categories if c in TRACKER_CATEGORIES]
-	if tracker_categories:
-		values["tracker_categories"] = tuple(tracker_categories)
-		values["low_results"] = tuple(LOW_RESULTS)
-		rows += frappe.db.sql(
-			f"""
-			SELECT %(tracker)s AS reference_doctype, t.name AS reference_name,
-				t.student, t.category, t.date, t.result, t.subject, t.remarks,
-				t.marks_obtained, t.total_marks
-			FROM `tabStudent Performance Tracker` t
-			INNER JOIN `tabStudent` s ON s.name = t.student
-			WHERE {student_where}
-				AND t.date >= %(from_date)s
-				AND t.category IN %(tracker_categories)s
-				AND t.result IN %(low_results)s
-				AND NOT EXISTS (
-					SELECT 1 FROM `tabParent Call Log Item` i
-					WHERE i.reference_name = t.name AND i.reference_doctype = %(tracker)s
-				)
-			""",
-			{**values, "tracker": TRACKER},
-			as_dict=True,
-		)
-
-	if ATTENDANCE in categories:
-		values["absent"] = tuple(ABSENT_STATUSES)
-		rows += frappe.db.sql(
-			f"""
-			SELECT %(attendance)s AS reference_doctype, a.name AS reference_name,
-				a.student, 'Attendance' AS category, a.attendance_date AS date,
-				a.status AS result, NULL AS subject, a.remarks,
-				NULL AS marks_obtained, NULL AS total_marks
-			FROM `tabStudent Attendance` a
-			INNER JOIN `tabStudent` s ON s.name = a.student
-			WHERE {student_where}
-				AND a.docstatus < 2
-				AND a.attendance_date >= %(from_date)s
-				AND a.status IN %(absent)s
-				AND NOT EXISTS (
-					SELECT 1 FROM `tabParent Call Log Item` i
-					WHERE i.reference_name = a.name AND i.reference_doctype = %(attendance)s
-				)
-			""",
-			{**values, "attendance": ATTENDANCE_DOCTYPE},
-			as_dict=True,
-		)
+	values["categories"] = tuple(categories)
+	values["low_results"] = tuple(LOW_RESULTS)
+	rows = frappe.db.sql(
+		f"""
+		SELECT %(tracker)s AS reference_doctype, t.name AS reference_name,
+			t.student, t.category, t.date, t.result, t.subject, t.remarks,
+			t.marks_obtained, t.total_marks
+		FROM `tabStudent Performance Tracker` t
+		INNER JOIN `tabStudent` s ON s.name = t.student
+		WHERE {student_where}
+			AND t.date >= %(from_date)s
+			AND t.category IN %(categories)s
+			AND t.result IN %(low_results)s
+			AND NOT EXISTS (
+				SELECT 1 FROM `tabParent Call Log Item` i
+				WHERE i.reference_name = t.name AND i.reference_doctype = %(tracker)s
+			)
+		""",
+		{**values, "tracker": TRACKER},
+		as_dict=True,
+	)
 
 	rows.sort(key=lambda r: (getdate(r.date), r.reference_name))
 	return rows
@@ -244,6 +234,8 @@ def get_pending_calls(standard=None, batch=None, gender=None):
 					# family has been waiting for the call.
 					"due_since": getdate(rows[limit - 1].date) if len(rows) >= limit else None,
 					"last_mistake_on": getdate(rows[-1].date),
+					"priority": priority_label(priority_level(len(rows))) if len(rows) >= limit else None,
+					"missed": missed_calls(priority_level(len(rows)), floor=limit) if len(rows) >= limit else [],
 				}
 			)
 
@@ -354,12 +346,25 @@ def _resolve_month(month):
 
 @frappe.whitelist()
 def get_call_history(month=None, standard=None, batch=None, gender=None):
-	"""Calls made in one month, newest first."""
+	"""Calls made in one month, newest first. Calls only about attendance
+	belong to Attendance Call Works and are left out."""
 	_guard("read")
 
 	first_day = _resolve_month(month)
-	values = {"first_day": first_day, "next_month": add_months(first_day, 1)}
-	conditions = ["c.called_on >= %(first_day)s", "c.called_on < %(next_month)s"]
+	values = {
+		"first_day": first_day,
+		"next_month": add_months(first_day, 1),
+		"doctype": DOCTYPE,
+		"categories": tuple(CATEGORIES),
+	}
+	conditions = [
+		"c.called_on >= %(first_day)s",
+		"c.called_on < %(next_month)s",
+		"""EXISTS (
+			SELECT 1 FROM `tabParent Call Log Item` i
+			WHERE i.parent = c.name AND i.parenttype = %(doctype)s AND i.category IN %(categories)s
+		)""",
+	]
 	for field, column, value in (
 		("standard", "c.standard", standard),
 		("batch", "c.batch", batch),

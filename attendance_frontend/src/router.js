@@ -9,6 +9,7 @@ import LatePermission from '@/pages/LatePermission.vue'
 import AttendanceReports from '@/pages/AttendanceReports.vue'
 import StudentMistakes from '@/pages/StudentMistakes.vue'
 import PendingCalls from '@/pages/PendingCalls.vue'
+import AttendanceCalls from '@/pages/AttendanceCalls.vue'
 import Login from '@/pages/Login.vue'
 import { sessionUser } from '@/data/session'
 import { userResource } from '@/data/user'
@@ -66,6 +67,12 @@ const routes = [
         name: 'PendingCalls',
         component: PendingCalls,
         meta: { title: 'Pending Call Works' },
+      },
+      {
+        path: 'attendance-calls',
+        name: 'AttendanceCalls',
+        component: AttendanceCalls,
+        meta: { title: 'Attendance Call Works' },
       },
       {
         path: 'reports',

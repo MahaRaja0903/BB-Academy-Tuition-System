@@ -335,6 +335,26 @@ frappe.ui.form.on("Fee Invoice", {
 	monthly_fee: function(frm) {
 		calculate_totals(frm);
 	},
+	no_fee: function(frm) {
+		// Waived months collect nothing; unticking asks for the full amount again.
+		(frm.doc.fees_details || []).forEach(row => {
+			row.paid_amount = frm.doc.no_fee ? 0 : (row.amount_need_to_pay || 0);
+			if (frm.doc.no_fee) row.discount_amount = 0;
+		});
+		frm.refresh_field("fees_details");
+
+		if (frm.doc.no_fee) {
+			frm.set_value("add_discount", 0);
+			frm.set_value("apply_gst_18", 0);
+			frm.set_value("payment_method", "");
+			frm.set_value("coupon__code", "");
+			frm.set_value("coupon_amount", 0);
+			frm.set_value("coupon_referred_for", "");
+		} else {
+			frm.set_value("no_fee_reason", "");
+		}
+		update_monthly_fee_from_details(frm);
+	},
 	add_discount: function(frm) {
 		if (!frm.doc.add_discount) {
 			frm.set_value('discount_amount', 0);
@@ -361,7 +381,7 @@ frappe.ui.form.on("Fees Invoice Details", {
 		if (row.month) {
 			let amount = get_row_amount(frm, row.month);
 			frappe.model.set_value(cdt, cdn, 'amount_need_to_pay', amount);
-			frappe.model.set_value(cdt, cdn, 'paid_amount', amount);
+			frappe.model.set_value(cdt, cdn, 'paid_amount', frm.doc.no_fee ? 0 : amount);
 		}
 		update_monthly_fee_from_details(frm);
 	},
@@ -478,6 +498,18 @@ function show_coupon_dialog(frm, coupons) {
 }
 
 function build_collection_summary_html(frm) {
+	if (frm.doc.no_fee) {
+		let months = (frm.doc.fees_details || []).filter(row => row.month).map(row => row.month);
+		return `
+		<div style="padding:14px;border-radius:8px;background:#fff7ed;color:#9a3412;font-size:14px;">
+			<div style="font-size:16px;font-weight:600;margin-bottom:6px;">${__("No Fee")}</div>
+			<div>${__("No fee will be collected from {0} for {1}. These months will be marked No Fees.",
+				[`<b>${frappe.utils.escape_html(frm.doc.student_name || frm.doc.student || "")}</b>`, `<b>${months.join(", ")}</b>`])}</div>
+			<div style="margin-top:6px;">${__("Amount waived")}: <b>${format_currency(frm.doc.monthly_fee || 0)}</b></div>
+			${frm.doc.no_fee_reason ? `<div style="margin-top:6px;">${__("Reason")}: ${frappe.utils.escape_html(frm.doc.no_fee_reason)}</div>` : ""}
+		</div>`;
+	}
+
 	let rows = (frm.doc.fees_details || []).filter(row => row.month);
 	let billed = 0;
 	let paid = 0;
@@ -666,7 +698,7 @@ function update_monthly_fee_from_details(frm) {
 	});
 
 	frm.set_value("monthly_fee", total_fee);
-	frm.set_value("paid_amount", total_paid);
+	frm.set_value("paid_amount", frm.doc.no_fee ? 0 : total_paid);
 	if (frm.doc.add_discount) {
 		frm.set_value("discount_amount", total_discount);
 	}
@@ -699,6 +731,12 @@ function calculate_totals(frm) {
 	frm.set_value('gst_amount', gst_amount);
 	
 	let grand_total = net_total + gst_amount;
+	if (frm.doc.no_fee) {
+		// Everything on a No Fee invoice is waived.
+		frm.set_value('grand_total', 0);
+		frm.set_value('balance_amount', 0);
+		return;
+	}
 	frm.set_value('grand_total', grand_total);
 	
 	let outstanding = frm.doc.outstanding_amount || 0;
@@ -918,6 +956,11 @@ function get_shared_styles() {
 	.card-reserved .sft-mc-status { background: #e5e7eb; color: #4b5563; }
 	.card-reserved .sft-mc-icon { background: #9ca3af; color: #fff; }
 	.card-reserved .sft-mc-details { color: #9ca3af; }
+
+	/* Waived month -- nothing to collect */
+	.card-nofee { background-color: #fff7ed; border-color: #fed7aa; }
+	.card-nofee .sft-mc-status { background: #ffedd5; color: #9a3412; }
+	.card-nofee .sft-mc-icon { background: #f97316; color: #fff; }
 
 	/* "Paid by Starting Payment" tag on a month card */
 	.sft-mc-tag {
@@ -1277,6 +1320,9 @@ ${get_shared_styles()}
 		} else if (status === 'Partial') {
 			cardClass = 'card-partial';
 			icon = '◐';
+		} else if (status === 'No Fees') {
+			cardClass = 'card-nofee';
+			icon = '✚';
 		}
 
 		let tagHtml = '';

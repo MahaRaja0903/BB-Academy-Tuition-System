@@ -21,6 +21,7 @@ import json
 
 import frappe
 
+from bb_tution_management.bb_tution_management.doctype.group.group import allowed_subjects
 from bb_tution_management.bb_tution_management.doctype.subject.subject import (
 	subjects_for_standard,
 )
@@ -194,6 +195,17 @@ def set_syllabus(doc, blocks):
 		PORTION_PARENTFIELD,
 		[{"portion": p, "subject": b["subject"]} for b in blocks for p in b["portions"]],
 	)
+
+
+def blocks_for_group(blocks, group, rules):
+	"""The blocks a student of `group` takes — a Computer Science student's row
+	drops the Biology block the batch was set up with. A block with no subject
+	is kept: there is nothing to judge it by."""
+	if not group or not rules:
+		return list(blocks or [])
+	subjects = [b["subject"] for b in blocks or [] if b["subject"]]
+	keep = set(allowed_subjects(subjects, group, rules))
+	return [b for b in blocks or [] if not b["subject"] or b["subject"] in keep]
 
 
 def has_syllabus(doc):

@@ -19,9 +19,13 @@ Which rows count:
                                      including months that are not due yet, so
                                      picking an upcoming month shows what is
                                      still to be collected for it
-  * Anything else (Not Joined, No Fees, Paid By Starting Payment, Refunded) is
-    left out: there is nothing to collect for it, and months covered by the
-    starting payment are already counted in the starting payment.
+  * No Fees from a submitted No Fee invoice -> no fee (waived in an emergency);
+                                     its amount is kept as the waived amount, never
+                                     as paid or pending
+  * Anything else (Not Joined, the free No Fees months of a yearly payment, Paid
+    By Starting Payment, Refunded) is left out: there is nothing to collect for
+    it, and months covered by the starting payment are already counted in the
+    starting payment.
 
 Pending amount of a row:
   * Partial / Reserved rows keep the balance stored on the row.
@@ -37,7 +41,9 @@ Pending amount of a row:
     amount stored on its row (a pro-rated joining month, or the monthly fee).
 
 Total = Paid + Pending. Paid Amount also includes what has been collected on
-Partial rows, so the three cards always add up.
+Partial rows, so the three cards always add up. Total Count also counts the
+No Fee months (Paid Count + Not Paid Count + No Fee Count), and they are listed,
+highlighted, in the Total breakdown.
 """
 
 import frappe
@@ -57,9 +63,10 @@ MONTH_NUMBER = {name: i + 1 for i, name in enumerate(MONTH_NAMES)}
 STARTING = "Starting Payment"
 PAID_STATUSES = {"Paid"}
 PENDING_STATUSES = {"Not Paid", "Partial", "Reserved"}
+NO_FEES = "No Fees"
 
 SECTIONS = ("starting", "monthly", "overall")
-KINDS = ("total", "paid", "pending")
+KINDS = ("total", "paid", "pending", "no_fee")
 
 
 def _guard():
@@ -88,6 +95,23 @@ def _ledger_rows():
 	)
 
 
+def _no_fee_months():
+	"""(student, month) pairs waived on a submitted No Fee invoice."""
+	return {
+		(r.student, r.month)
+		for r in frappe.db.sql(
+			"""
+			select fi.student, d.month
+			from `tabFee Invoice` fi
+			inner join `tabFees Invoice Details` d
+				on d.parent = fi.name and d.parenttype = 'Fee Invoice'
+			where fi.docstatus = 1 and fi.no_fee = 1
+			""",
+			as_dict=True,
+		)
+	}
+
+
 def _next_period(cursor, month_num):
 	"""First (year, month) on or after `cursor` whose month is `month_num`."""
 	year = cursor[0] if month_num >= cursor[1] else cursor[0] + 1
@@ -98,6 +122,7 @@ def _entries():
 	"""Ledger rows that count, each tagged with its (year, month) and amounts."""
 	entries = []
 	cursor, last_student = None, None
+	no_fee_months = _no_fee_months()
 
 	for r in _ledger_rows():
 		if r.student != last_student:
@@ -129,7 +154,13 @@ def _entries():
 				continue
 
 		paid = flt(r.amount_paid)
-		if r.status in PAID_STATUSES:
+		waived = 0.0
+		is_no_fee = r.status == NO_FEES and (r.student, r.month) in no_fee_months
+		if is_no_fee:
+			# Anything part-paid before the waiver still counts as collected.
+			waived = max(flt(r.amount_need_to_pay) - paid, 0.0)
+			pending = 0.0
+		elif r.status in PAID_STATUSES:
 			# Nothing was actually collected on a ₹0 "Paid" row, so it is left out.
 			if not paid:
 				continue
@@ -160,8 +191,10 @@ def _entries():
 				year=period[0],
 				month=period[1],
 				is_paid=r.status in PAID_STATUSES,
+				is_no_fee=is_no_fee,
 				paid=paid,
 				pending=pending,
+				waived=waived,
 				student=r.student,
 				student_name=r.student_name,
 				standard=r.standard,
@@ -194,6 +227,7 @@ def _empty_block():
 		"total_amount": 0.0, "total_count": 0,
 		"paid_amount": 0.0, "paid_count": 0,
 		"pending_amount": 0.0, "not_paid_count": 0,
+		"no_fee_amount": 0.0, "no_fee_count": 0,
 	}
 
 
@@ -201,7 +235,10 @@ def _add(block, e):
 	block["total_amount"] += e.paid + e.pending
 	block["total_count"] += 1
 	block["paid_amount"] += e.paid
-	if e.is_paid:
+	if e.is_no_fee:
+		block["no_fee_amount"] += e.waived
+		block["no_fee_count"] += 1
+	elif e.is_paid:
 		block["paid_count"] += 1
 	else:
 		block["pending_amount"] += e.pending
@@ -235,7 +272,9 @@ def get_breakdown(section, kind, year=None, month=None):
 			continue
 		if kind == "paid" and not e.is_paid:
 			continue
-		if kind == "pending" and e.is_paid:
+		if kind == "pending" and (e.is_paid or e.is_no_fee):
+			continue
+		if kind == "no_fee" and not e.is_no_fee:
 			continue
 		rows.append(
 			{
@@ -250,11 +289,16 @@ def get_breakdown(section, kind, year=None, month=None):
 				"status": e.status,
 				"paid": e.paid,
 				"pending": e.pending,
+				"waived": e.waived,
+				"no_fee": 1 if e.is_no_fee else 0,
 			}
 		)
 	if kind == "paid":
 		# Oldest payment first; rows without a date go last.
 		rows.sort(key=lambda r: (not r["paid_date"], str(r["paid_date"] or ""), r["student_name"] or ""))
+	elif kind == "no_fee":
+		rows.sort(key=lambda r: (r["student_name"] or "", r["period"]))
 	else:
-		rows.sort(key=lambda r: (-r["pending"], r["student_name"] or ""))
+		# No Fee rows first in the Total list, so they stand out.
+		rows.sort(key=lambda r: (-r["no_fee"], -r["pending"], r["student_name"] or ""))
 	return rows

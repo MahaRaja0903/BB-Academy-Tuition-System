@@ -4,6 +4,8 @@
    • Three sections (Starting Payment, Monthly Fees, Grand Consolidated Total),
      each with Total / Paid / Pending cards.
    • Clicking a card opens the student-wise rows behind it (`get_breakdown`).
+   • Months waived on a No Fee invoice get their own card, and the student's
+     name is highlighted wherever such a row is listed.
    • No inline onclick. Clicks are delegated from [data-fr-*] attributes. */
 
 frappe.pages["fees-report"].on_page_load = function (wrapper) {
@@ -50,6 +52,16 @@ const FR_CARDS = [
 		rows: [
 			[__("Pending Amount"), "pending_amount", true],
 			[__("Not Paid Count"), "not_paid_count", false],
+		],
+	},
+	{
+		kind: "no_fee",
+		label: __("No Fee"),
+		// The starting payment cannot be waived, so it has no No Fee card.
+		skip: ["starting"],
+		rows: [
+			[__("Waived Amount"), "no_fee_amount", true],
+			[__("No Fee Count"), "no_fee_count", false],
 		],
 	},
 ];
@@ -132,7 +144,8 @@ class FeesReport {
 		const money = (v) => format_currency(flt(v), frappe.defaults.get_default("currency"), 0);
 		const sections = FR_SECTIONS.map((sec, i) => {
 			const block = data[sec.key] || {};
-			const cards = FR_CARDS.map((card) => {
+			const sec_cards = FR_CARDS.filter((card) => !(card.skip || []).includes(sec.key));
+			const cards = sec_cards.map((card) => {
 				const rows = card.rows
 					.map(
 						([label, field, is_money]) => `
@@ -155,7 +168,7 @@ class FeesReport {
 					<div class="fr-section-title">${String(i + 1).padStart(2, "0")}. ${sec.title.toUpperCase()}
 						${sec.key === "starting" && this._filters().month
 							? `<span class="fr-section-note">${__("All Months")}</span>` : ""}</div>
-					<div class="fr-cards">${cards}</div>
+					<div class="fr-cards fr-cards-${sec_cards.length}">${cards}</div>
 				</div>`;
 		}).join("");
 
@@ -185,6 +198,7 @@ class FeesReport {
 				const rows = r.message || [];
 				const money = (v) => format_currency(flt(v), frappe.defaults.get_default("currency"), 0);
 				const uniq = (list) => [...new Set(list.filter(Boolean))].sort();
+				const no_fee_badge = `<span class="fr-nofee-badge">${__("No Fee")}</span>`;
 				const render = (list) =>
 					list.length
 						? `<table class="table table-bordered table-condensed fr-table">
@@ -192,12 +206,15 @@ class FeesReport {
 							<th>#</th><th>${__("Student")}</th><th>${__("Standard")}</th><th>${__("Batch")}</th><th>${__("Gender")}</th>
 							<th>${__("Fee")}</th><th>${__("Period")}</th><th>${__("Status")}</th><th>${__("Payment Date")}</th>
 							<th class="text-right">${__("Paid")}</th><th class="text-right">${__("Pending")}</th>
+							${kind === "no_fee" ? `<th class="text-right">${__("Waived")}</th>` : ""}
 						</tr></thead>
 						<tbody>${list
 							.map(
-								(d, i) => `<tr>
+								(d, i) => `<tr class="${d.no_fee ? "fr-nofee-row" : ""}">
 								<td>${i + 1}</td>
-								<td><a href="/app/student/${encodeURIComponent(d.student)}">${frappe.utils.escape_html(d.student_name || d.student)}</a></td>
+								<td><a href="/app/student/${encodeURIComponent(d.student)}"
+									class="${d.no_fee ? "fr-nofee-name" : ""}">${frappe.utils.escape_html(d.student_name || d.student)}</a>
+									${d.no_fee ? no_fee_badge : ""}</td>
 								<td>${frappe.utils.escape_html(d.standard || "")}</td>
 								<td>${frappe.utils.escape_html(d.batch || "")}</td>
 								<td>${frappe.utils.escape_html(d.gender || "")}</td>
@@ -207,6 +224,7 @@ class FeesReport {
 								<td>${d.paid_date ? frappe.datetime.str_to_user(d.paid_date) : ""}</td>
 								<td class="text-right">${money(d.paid)}</td>
 								<td class="text-right">${money(d.pending)}</td>
+								${kind === "no_fee" ? `<td class="text-right">${money(d.waived)}</td>` : ""}
 							</tr>`
 							)
 							.join("")}</tbody>

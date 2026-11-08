@@ -18,7 +18,9 @@
   "section_break_pending_calls",
   "pending_call_threshold",
   "column_break_pending_calls",
-  "pending_calls_from"
+  "pending_calls_from",
+  "section_break_discipline_permission",
+  "discipline_permission_reasons"
  ],
  "fields": [
   {
@@ -78,7 +80,7 @@
   },
   {
    "default": "3",
-   "description": "A student appears on Pending Call Works once they have this many mistakes in any one category (H.W, Attendance, Test, Study, Class, Behaviour) since the last call home about it.",
+   "description": "A student appears on Pending Call Works once they have this many mistakes in any one category (H.W, Test, Study, Class, Behaviour) since the last call home about it. Absent and Late days are handled on Attendance Call Works.",
    "fieldname": "pending_call_threshold",
    "fieldtype": "Int",
    "label": "Mistakes Before a Call Is Due",
@@ -93,13 +95,25 @@
    "fieldname": "pending_calls_from",
    "fieldtype": "Date",
    "label": "Count Mistakes From"
+  },
+  {
+   "fieldname": "section_break_discipline_permission",
+   "fieldtype": "Section Break",
+   "label": "Discipline Permission"
+  },
+  {
+   "description": "Only these Behaviour Reasons can be granted as a Discipline Permission on the Late Permission page. A permitted reason is excused for that student and day and does not count as a mistake.",
+   "fieldname": "discipline_permission_reasons",
+   "fieldtype": "Table MultiSelect",
+   "label": "Reasons Allowed With Permission",
+   "options": "Student Behaviour Reason Item"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-15 10:00:00.000000",
+ "modified": "2026-10-29 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "BB Academy Settings",

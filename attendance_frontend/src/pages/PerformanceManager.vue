@@ -532,6 +532,10 @@
                 <div v-if="s.behaviour_reasons.length" class="perf-reason-msg">
                   <i class="fa fa-exclamation-circle"></i> {{ s.behaviour_reasons.map(reasonLabel).join(', ') }}
                 </div>
+                <div v-if="s.permitted_reasons?.length" class="perf-permission-msg">
+                  <i class="fa fa-check-circle"></i> Permission:
+                  {{ s.permitted_reasons.map(reasonLabel).join(', ') }}
+                </div>
               </td>
             </tr>
           </tbody>
@@ -561,15 +565,26 @@
         </div>
 
         <div class="perf-reason-list">
-          <label v-for="r in filteredReasonOptions" :key="r.name" class="perf-reason-item">
+          <label
+            v-for="r in filteredReasonOptions"
+            :key="r.name"
+            class="perf-reason-item"
+            :class="{ 'is-permitted': modalPermitted.has(r.name) }"
+          >
             <span class="perf-reason-sno">{{ r.sno }}.</span>
+            <!-- Parents asked leave for this point today: it is excused, so it
+                 cannot be picked as a mistake. -->
             <input
               type="checkbox"
               :checked="reasonModal.selected.has(r.name)"
+              :disabled="modalPermitted.has(r.name)"
               @change="toggleReason(r.name)"
             />
             <span class="perf-reason-text">
-              <span>{{ r.reason_name }}</span>
+              <span>
+                {{ r.reason_name }}
+                <span v-if="modalPermitted.has(r.name)" class="perf-permission-tag">Permission</span>
+              </span>
               <small v-if="r.matchedDescription" class="perf-reason-desc">{{ r.description }}</small>
             </span>
           </label>
@@ -739,7 +754,7 @@
           <SyllabusEditor
             :blocks="skipModal.syllabus"
             :standard="standard"
-            :subjects="subjects"
+            :subjects="subjectsFor(skipModal.student)"
             :portion-options="portionOptions"
             id-prefix="perf-skip"
           />
@@ -820,7 +835,7 @@
             :disabled="!skipModal.remarks.trim() || skipModal.saving || skipModal.insteadLoading"
             @click="confirmSkip"
           >
-            {{ skipModal.saving ? 'Saving…' : config.skipLabel }}
+            {{ skipModal.saving ? 'Saving…' : insteadIsOwnRow ? `Save ${category}` : config.skipLabel }}
           </button>
         </div>
       </div>
@@ -838,7 +853,7 @@
           <SyllabusEditor
             :blocks="detailModal.syllabus"
             :standard="standard"
-            :subjects="subjects"
+            :subjects="subjectsFor(detailModal.student)"
             :portion-options="portionOptions"
             id-prefix="perf-detail"
           />
@@ -993,6 +1008,9 @@ const standards = ref([])
 const batches = ref([])
 // Subject master, narrowed to the picked standard.
 const subjects = ref([])
+// 11th / 12th: { group: [subjects only that group takes] } — a Computer Science
+// student is offered Computer Science, not Biology.
+const groupSubjects = ref({})
 // Portion master — the same 1M / 2M / 5M list for every standard.
 const portionOptions = ref([])
 const standard = ref('')
@@ -1184,8 +1202,9 @@ const insteadOptions = computed(() =>
 // skipped with nothing in their place.
 const insteadRequired = computed(() => INSTEAD_CATEGORIES.includes(category.value))
 const insteadChoices = computed(() => {
-  // A day can hold several Tests, so a skipped Test can be another Test sat.
-  const opts = config.value.multiSession && config.value.usesSkip
+  // A day can hold several Tests, so a skipped Test can be another Test sat; a
+  // skipped Study can be a different Subject / Lesson / Portion studied.
+  const opts = config.value.usesSkip && insteadRequired.value
     ? [...insteadOptions.value, category.value]
     : insteadOptions.value
   return insteadRequired.value ? opts : ['', ...opts]
@@ -1200,6 +1219,12 @@ function insteadLabel(opt) {
 // carries its own Subject / Lesson / Portion.
 const skipSyllabusEditable = computed(
   () => config.value.usesSyllabus && (!config.value.multiSession || skipModal.instead === 'Study')
+)
+
+// "Another Study" on a once-a-day Study is not a skip at all: the student's own
+// Study row is graded, on the syllabus they actually covered.
+const insteadIsOwnRow = computed(
+  () => skipModal.instead === category.value && !config.value.multiSession
 )
 
 const insteadTestSyllabus = computed(() => {
@@ -1418,6 +1443,19 @@ const reasonOptions = computed(() =>
     .map((r, i) => ({ ...r, sno: i + 1 }))
 )
 
+// Behaviour points the student in the modal is excused from today.
+const modalPermitted = computed(
+  () => new Set(reasonModal.student?.permitted_reasons || [])
+)
+
+// The server drops permitted points from a Behaviour row, and grades it Good
+// when nothing else is left; the bulk path mirrors that locally.
+function excusedGrade(student, result, reasons) {
+  const permitted = new Set(student.permitted_reasons || [])
+  const kept = reasons.filter((r) => !permitted.has(r))
+  return kept.length || !reasons.length ? { result, reasons: kept } : { result: 'Good', reasons: [] }
+}
+
 const filteredReasonOptions = computed(() => {
   const q = reasonModal.search.trim().toLowerCase()
   if (!q) return reasonOptions.value
@@ -1514,6 +1552,17 @@ async function loadBehaviourReasons() {
   behaviourReasons.value = (await reasonsResource.submit()) || []
 }
 
+// The standard's subjects this student takes: a subject listed on some group
+// belongs to that group only; a student with no group is offered everything.
+function subjectsFor(student) {
+  const group = student?.group
+  const rules = groupSubjects.value
+  if (!group || !Object.keys(rules).length) return subjects.value
+  const restricted = new Set(Object.values(rules).flat())
+  const own = new Set(rules[group] || [])
+  return subjects.value.filter((s) => !restricted.has(s) || own.has(s))
+}
+
 async function loadStudents() {
   if (!standard.value || !batch.value || !category.value || !date.value) {
     students.value = []
@@ -1554,6 +1603,7 @@ async function loadStudents() {
     specialClass.value = res.special_class || null
     students.value = res.students || []
     summary.value = res.summary || {}
+    groupSubjects.value = res.group_subjects || {}
     totalStudents.value = res.total_students || 0
     attendanceMarked.value = res.attendance_marked || 0
     rememberLessonTitles(res.lesson_titles)
@@ -1896,6 +1946,10 @@ async function pickInstead(opt, testPick) {
   skipModal.instead = opt
   skipModal.error = ''
   if (!opt || !skipModal.student) return
+  if (opt === category.value && !config.value.multiSession) {
+    if (!skipModal.student.skipped) skipModal.insteadResult = skipModal.student.result || ''
+    return
+  }
 
   skipModal.insteadLoading = true
   try {
@@ -1973,6 +2027,20 @@ async function confirmSkip() {
   skipModal.saving = true
   skipModal.error = ''
   try {
+    if (insteadIsOwnRow.value) {
+      await applyResult(student, {
+        result: skipModal.insteadResult,
+        remarks,
+        syllabus: skipModal.syllabus,
+      })
+      student.instead = []
+      resetInstead()
+      skipModal.open = false
+      skipModal.student = null
+      skipModal.syllabus = []
+      skipModal.remarks = ''
+      return
+    }
     // The syllabus goes with the skip: a skipped student still did something,
     // and this row is the only record of what. When that something was a
     // Study or a Test, it is also saved as a row in that category.
@@ -2039,7 +2107,8 @@ function openReasonModal(result, student) {
   reasonModal.bulk = !student
   reasonModal.student = student || null
   reasonModal.result = result
-  reasonModal.selected = new Set(student?.behaviour_reasons || [])
+  const permitted = new Set(student?.permitted_reasons || [])
+  reasonModal.selected = new Set((student?.behaviour_reasons || []).filter((r) => !permitted.has(r)))
   reasonModal.remarks = student?.remarks || ''
   reasonModal.newReason = ''
   reasonModal.search = ''
@@ -2098,8 +2167,9 @@ async function confirmReasons() {
       })
       students.value.forEach((s) => {
         if (selected.has(s.student_id)) {
-          s.result = reasonModal.result
-          s.behaviour_reasons = reasons
+          const graded = excusedGrade(s, reasonModal.result, reasons)
+          s.result = graded.result
+          s.behaviour_reasons = graded.reasons
         }
       })
       selected.clear()
@@ -3308,6 +3378,15 @@ watch([resultFilter, showCompleted, search], () => {
   margin-top: 5px;
 }
 
+.perf-manager .perf-permission-msg {
+  font-size: 11px;
+  color: #155724;
+  background: #d4edda;
+  padding: 3px 6px;
+  border-radius: 3px;
+  margin-top: 5px;
+}
+
 /* ---- modals ---- */
 .perf-manager .perf-modal-backdrop {
   position: fixed;
@@ -3373,6 +3452,18 @@ watch([resultFilter, showCompleted, search], () => {
 }
 
 .perf-manager .perf-reason-item:hover { background: var(--fg-hover-color, var(--gray-100)); }
+
+.perf-manager .perf-reason-item.is-permitted { cursor: not-allowed; opacity: 0.7; }
+
+.perf-manager .perf-permission-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #155724;
+  background: #d4edda;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: 4px;
+}
 
 .perf-manager .perf-reason-item input {
   width: 16px;

@@ -5,7 +5,14 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt
 
-from bb_tution_management.bb_academy.syllabus import doc_syllabus, sync_subjects
+from bb_tution_management.bb_academy.late_permission import permitted_reasons
+from bb_tution_management.bb_academy.syllabus import (
+	blocks_for_group,
+	doc_syllabus,
+	set_syllabus,
+	sync_subjects,
+)
+from bb_tution_management.bb_tution_management.doctype.group.group import group_subject_rules
 from bb_tution_management.bb_academy.performance_config import (
 	CATEGORIES,
 	CATEGORY_RESULTS,
@@ -48,6 +55,8 @@ class StudentPerformanceTracker(Document):
 		self.set_student_context()
 		self.set_default_pass_marks()
 		self.clear_unused_fields()
+		self.validate_group_subjects()
+		self.drop_permitted_reasons()
 		self.validate_marks()
 		self.validate_behaviour_reasons()
 		self.validate_test_combination()
@@ -140,6 +149,36 @@ class StudentPerformanceTracker(Document):
 		if self.skipped:
 			self.marks_obtained = 0
 
+	def validate_group_subjects(self):
+		"""11th / 12th students take only their own group's subjects.
+
+		A row inheriting a mixed batch setup (Biology + Physics) just drops the
+		subject the student's group does not take. A row left with none of its
+		subjects — a Biology Test on a Computer Science student — is refused.
+		"""
+		if not category_config(self.category)["uses_syllabus"] or not self.standard:
+			return
+		group = frappe.db.get_value("Student", self.student, "group")
+		if not group:
+			return
+		rules = group_subject_rules(self.standard)
+		if not rules:
+			return
+
+		blocks = doc_syllabus(self)
+		kept = blocks_for_group(blocks, group, rules)
+		if len(kept) == len(blocks):
+			return
+
+		dropped = ", ".join(b["subject"] for b in blocks if b not in kept)
+		if not any(b["subject"] for b in kept):
+			frappe.throw(
+				f"{self.student_name or self.student} is in the {group} group and does not "
+				f"take {dropped}.",
+				title="Subject Not In Group",
+			)
+		set_syllabus(self, kept)
+
 	def validate_marks(self):
 		if not category_config(self.category)["uses_marks"]:
 			return
@@ -153,6 +192,22 @@ class StudentPerformanceTracker(Document):
 			)
 		if flt(self.pass_marks) > flt(self.total_marks or 0):
 			frappe.throw("Pass Marks cannot be greater than Total Marks.")
+
+	def drop_permitted_reasons(self):
+		"""A behaviour point the student holds a Discipline Permission for that
+		day is excused, not a mistake. It comes off the row; a row left with no
+		reason was otherwise fine, so it is graded Good."""
+		if self.category != "Behaviour" or not self.behaviour_reasons:
+			return
+		permitted = set(permitted_reasons(self.student, self.date))
+		if not permitted:
+			return
+		kept = [r.behaviour_reason for r in self.behaviour_reasons if r.behaviour_reason not in permitted]
+		if len(kept) == len(self.behaviour_reasons):
+			return
+		self.set("behaviour_reasons", [{"behaviour_reason": r} for r in kept])
+		if not kept:
+			self.result = "Good"
 
 	def validate_behaviour_reasons(self):
 		if self.category != "Behaviour":

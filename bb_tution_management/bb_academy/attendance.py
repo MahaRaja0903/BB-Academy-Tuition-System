@@ -2,6 +2,8 @@ import frappe
 from frappe.utils import getdate, now, today, add_days, get_first_day, get_last_day
 import json
 
+from bb_tution_management.bb_academy.late_permission import permitted_reasons
+
 @frappe.whitelist()
 def get_server_today():
     """Today's date in the site's timezone.
@@ -532,6 +534,10 @@ def _sync_late_mistake(student, attendance_date, status, standard=None, batch=No
         return
 
     if doc and reason.name in reasons:
+        return
+
+    # Parents already told us: the late arrival is excused, not a mistake.
+    if reason.name in permitted_reasons(student, date_obj):
         return
 
     late_result = "Critical" if reason.severity == "Critical" else "Discipline"

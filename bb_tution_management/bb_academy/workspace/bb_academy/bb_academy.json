@@ -167,7 +167,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Short Cut",
-   "link_count": 5,
+   "link_count": 7,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -225,6 +225,26 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Competition",
+   "link_count": 0,
+   "link_to": "Competition",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Competition Registration",
+   "link_count": 0,
+   "link_to": "Competition Registration",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Attendance",
    "link_count": 4,
    "link_type": "DocType",
@@ -275,7 +295,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Attendance Reports",
-   "link_count": 9,
+   "link_count": 12,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -373,8 +393,41 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Daily Attendance List",
+   "link_count": 0,
+   "link_to": "Daily Attendance",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link",
+   "report_ref_doctype": "Student Attendance"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Monthly Attendance List",
+   "link_count": 0,
+   "link_to": "Monthly Attendance",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link",
+   "report_ref_doctype": "Student Attendance"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Student Attendance List",
+   "link_count": 0,
+   "link_to": "Student Attendance",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link",
+   "report_ref_doctype": "Student Attendance"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Report",
-   "link_count": 8,
+   "link_count": 15,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -461,9 +514,79 @@
   },
   {
    "hidden": 0,
+   "is_query_report": 1,
+   "label": "Enquiry Report",
+   "link_count": 0,
+   "link_to": "Enquiry Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Joined Report",
+   "link_count": 0,
+   "link_to": "Joined Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Promote and Demote Report",
+   "link_count": 0,
+   "link_to": "Promote and Demote Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Month Wise Discontinue Report",
+   "link_count": 0,
+   "link_to": "Month Wise Discontinue Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Reason For Discontinue Report",
+   "link_count": 0,
+   "link_to": "Reason For Discontinue Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Payment Wise Report",
+   "link_count": 0,
+   "link_to": "Payment Wise Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Pending Balance Report",
+   "link_count": 0,
+   "link_to": "Pending Balance Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
    "is_query_report": 0,
    "label": "Performance",
-   "link_count": 6,
+   "link_count": 8,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -527,9 +650,29 @@
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Pending Performance Report",
+   "link_count": 0,
+   "link_to": "Pending Performance Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Pending Call Works Report",
+   "link_count": 0,
+   "link_to": "Pending Call Works Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-10-15 17:00:00.000000",
+ "modified": "2026-10-29 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "BB Academy",

@@ -28,6 +28,10 @@ RESERVED = "Reserved"
 # A month whose money was given back through a Fee Refund.
 REFUNDED = "Refunded"
 
+# A month the student was let off -- a free month of a yearly payment, or a
+# month waived on a No Fee invoice (an emergency).
+NO_FEES = "No Fees"
+
 # Statuses that mean the month is settled -- nothing left to bill or chase.
 SETTLED_STATUSES = ("Paid", PAID_BY_STARTING_PAYMENT, "Not Joined", REFUNDED)
 
@@ -82,17 +86,17 @@ def get_payment_row(student_doc, month, from_end=False, is_submit=None):
 	# Handle duplicate months (e.g. April 2026 and April 2027)
 	if is_submit is True:
 		for r in matches:
-			if r.status not in SETTLED_STATUSES:
+			if r.status not in SETTLED_STATUSES and r.status != NO_FEES:
 				return r
 		return matches[0]
 	elif is_submit is False:
 		for r in reversed(matches):
-			if r.status in ["Paid", "Paid By Starting Payment", REFUNDED] or r.amount_paid > 0:
+			if r.status in ["Paid", "Paid By Starting Payment", REFUNDED, NO_FEES] or r.amount_paid > 0:
 				return r
 		return matches[-1]
 	else:
 		for r in matches:
-			if r.status not in SETTLED_STATUSES:
+			if r.status not in SETTLED_STATUSES and r.status != NO_FEES:
 				return r
 		return matches[-1]
 
@@ -194,7 +198,7 @@ def should_bill_month(student_doc, month, starting_pending):
 		return False
 
 	row = get_payment_row(student_doc, month)
-	if row and row.status in SETTLED_STATUSES:
+	if row and (row.status in SETTLED_STATUSES or row.status == NO_FEES):
 		return False
 
 	# While the starting payment is outstanding the months it pays for in
@@ -405,6 +409,7 @@ def get_invoice_prefill(student):
 
 class FeeInvoice(Document):
 	def validate(self):
+		self.validate_no_fee()
 		self.set_row_amounts()
 		self.validate_duplicate_rows()
 		self.validate_duplicate_invoice()
@@ -413,6 +418,37 @@ class FeeInvoice(Document):
 		self.calculate_outstanding()
 		self.validate_split_up_payment()
 		# self.update_status()
+
+	def validate_no_fee(self):
+		"""A No Fee invoice waives its months: nothing is collected, so the
+		money fields are cleared and the months are closed as No Fees on submit."""
+		if not self.no_fee:
+			self.no_fee_reason = None
+			return
+
+		if self.yearly_fees_student:
+			frappe.throw(_("No Fee cannot be used for a Yearly Fees Student."))
+
+		months = [row.month for row in self.get("fees_details", []) if row.month]
+		if not months:
+			frappe.throw(_("Add the month(s) to waive in Fees Details."))
+		if STARTING_PAYMENT in months:
+			frappe.throw(_("No Fee applies to monthly fees only. Remove the Starting Payment row."))
+
+		if not (self.no_fee_reason or "").strip():
+			frappe.throw(_("Enter the No Fee Reason."))
+
+		for row in self.get("fees_details", []):
+			row.paid_amount = 0
+			row.discount_amount = 0
+
+		self.add_discount = 0
+		self.discount_amount = 0
+		self.discount_reason = None
+		self.discount_reason_remarks = None
+		self.apply_gst_18 = 0
+		self.coupon__code = None
+		self.payment_method = None
 
 	def validate_split_up_payment(self):
 		"""A Split Up payment is the Paid Amount handed over in more than one
@@ -644,6 +680,14 @@ class FeeInvoice(Document):
 			self.gst_amount = 0.0
 
 		self.grand_total = net_total + self.gst_amount
+
+		# The whole bill is waived; Actual Amount still shows what was let off.
+		if self.no_fee:
+			self.grand_total = 0
+			self.paid_amount = 0
+			self.balance_amount = 0
+			return
+
 		final_total = self.grand_total + flt(self.outstanding_amount)
 		self.balance_amount = max(0.0, final_total - flt(self.paid_amount) - flt(self.coupon_amount))
 
@@ -735,7 +779,9 @@ class FeeInvoice(Document):
 				# The coupon share is already inside amount_paid; this records how
 				# much of it came from a coupon rather than cash.
 				row.coupon_amount = max(0.0, flt(row.coupon_amount) + sign * coupon_applied_to_row)
-				row.date = frappe.utils.today() if is_submit else None
+				# Paid Date is left alone on a No Fee invoice -- nothing was paid.
+				if not self.no_fee:
+					row.date = frappe.utils.today() if is_submit else None
 				
 				if self.add_discount and is_submit:
 					row.discount_amount = flt(detail.discount_amount)
@@ -756,6 +802,11 @@ class FeeInvoice(Document):
 
 				row.pending = max(0.0, flt(row.amount_need_to_pay) - flt(row.amount_paid) - flt(row.discount_amount))
 				row.status = get_row_status(row)
+
+				# A waived month owes nothing; cancelling brings the fee back.
+				if self.no_fee and is_submit:
+					row.pending = 0
+					row.status = NO_FEES
 
 				# Stamp when the balance left by an earlier invoice was cleared.
 				if not is_submit:
@@ -903,7 +954,7 @@ def update_student_totals(student):
 		# A month settled by the starting payment is already paid for, by the
 		# money sitting on the starting payment row. A refunded month is closed,
 		# and a No Fees month was let off.
-		if row.status in ("Paid", PAID_BY_STARTING_PAYMENT, REFUNDED, "No Fees"):
+		if row.status in ("Paid", PAID_BY_STARTING_PAYMENT, REFUNDED, NO_FEES):
 			continue
 
 		billable = flt(row.amount_need_to_pay) or get_month_amount(student, row.month)

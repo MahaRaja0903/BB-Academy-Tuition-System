@@ -16,7 +16,9 @@ import frappe
 from frappe.utils import cint, flt, get_first_day, get_last_day, getdate, today
 
 from bb_tution_management.bb_academy.attendance import get_day_context, get_holiday_details
+from bb_tution_management.bb_academy.late_permission import permitted_reasons_map
 from bb_tution_management.bb_academy.syllabus import (
+	blocks_for_group,
 	doc_syllabus,
 	has_syllabus,
 	lesson_titles,
@@ -27,6 +29,10 @@ from bb_tution_management.bb_academy.syllabus import (
 	syllabus_text,
 	validate_subject,
 	validate_syllabus,
+)
+from bb_tution_management.bb_tution_management.doctype.group.group import (
+	allowed_subjects,
+	group_subject_rules,
 )
 from bb_tution_management.bb_tution_management.doctype.lesson.lesson import (
 	lesson_docname,
@@ -276,6 +282,29 @@ def _is_present(student, performance_date):
 	return status in PRESENT_STATUSES
 
 
+def _group_filter(standard, session, rules, params):
+	"""SQL that leaves out the students whose group takes none of the subjects
+	the session is on. Nothing is narrowed before a subject is picked, or for a
+	student with no group set."""
+	subjects = [b["subject"] for b in (session or {}).get("syllabus") or [] if b["subject"]]
+	if not rules or not subjects:
+		return ""
+
+	groups = frappe.db.sql_list(
+		"""
+		SELECT DISTINCT `group` FROM `tabStudent`
+		WHERE standard = %(standard)s AND IFNULL(`group`, '') != ''
+		""",
+		{"standard": standard},
+	)
+	excluded = [g for g in groups if not allowed_subjects(subjects, g, rules)]
+	if not excluded:
+		return ""
+
+	params["excluded_groups"] = tuple(excluded)
+	return "AND IFNULL(s.`group`, '') NOT IN %(excluded_groups)s"
+
+
 def _blank_monthly_counts(category):
 	return {result: 0 for result in CATEGORY_RESULTS[category]}
 
@@ -391,6 +420,20 @@ def get_performance_students(standard, batch, category, performance_date, gender
 	}
 	gender_filter = " AND s.gender = %(gender)s" if gender else ""
 
+	multi = is_multi_session(category)
+	tests = _list_tests(date_obj, standard, batch, category) if multi else []
+	if multi and session_name and session_name not in {t.name for t in tests}:
+		# The Test was removed or edited away by someone else — fall back to
+		# "pick a Test" instead of erroring the whole screen.
+		session_name = None
+	session = _get_session(date_obj, standard, batch, category, session_name)
+	cfg = category_config(category)
+
+	# 11th / 12th: a Biology Test lists only the Biology group, not Computer
+	# Science. Students of a group taking none of the set subjects drop out.
+	group_rules = group_subject_rules(standard) if cfg["uses_syllabus"] else {}
+	group_filter = _group_filter(standard, session, group_rules, params)
+
 	# The batch a student is counted under is the temporary attendance_batch when
 	# one is set, exactly as the attendance register resolves it.
 	roster_filter = f"""
@@ -402,6 +445,7 @@ def get_performance_students(standard, batch, category, performance_date, gender
 		)
 		AND s.admission_date <= %(date)s
 		{gender_filter}
+		{group_filter}
 	"""
 
 	# Two counts the empty state needs to tell "attendance not taken yet" apart
@@ -425,7 +469,7 @@ def get_performance_students(standard, batch, category, performance_date, gender
 		f"""
 		SELECT
 			s.name, s.student_name, s.gender, s.image, s.admission_date,
-			s.date_of_birth, s.attendance_batch_set, s.current_batch,
+			s.date_of_birth, s.attendance_batch_set, s.current_batch, s.`group`,
 			a.status AS attendance_status
 		FROM `tabStudent` s
 		INNER JOIN `tabStudent Attendance` a
@@ -437,15 +481,6 @@ def get_performance_students(standard, batch, category, performance_date, gender
 		params,
 		as_dict=True,
 	)
-
-	multi = is_multi_session(category)
-	tests = _list_tests(date_obj, standard, batch, category) if multi else []
-	if multi and session_name and session_name not in {t.name for t in tests}:
-		# The Test was removed or edited away by someone else — fall back to
-		# "pick a Test" instead of erroring the whole screen.
-		session_name = None
-	session = _get_session(date_obj, standard, batch, category, session_name)
-	cfg = category_config(category)
 
 	summary = {result: 0 for result in CATEGORY_RESULTS[category]}
 	summary["pending"] = 0
@@ -463,6 +498,7 @@ def get_performance_students(standard, batch, category, performance_date, gender
 			"config": cfg,
 			"results": CATEGORY_RESULTS[category],
 			"lesson_titles": lesson_titles(syllabus_lessons(session["syllabus"] if session else [])),
+			"group_subjects": group_rules,
 			"total_students": total_students,
 			"attendance_marked": attendance_marked,
 		}
@@ -513,6 +549,10 @@ def get_performance_students(standard, batch, category, performance_date, gender
 		)
 		for row in reason_rows:
 			reason_map.setdefault(row.parent, []).append(row.behaviour_reason)
+
+	# Behaviour points the parents asked leave for are excused today; the PWA
+	# shows them and keeps them out of the reason picker.
+	permitted_map = permitted_reasons_map(student_ids, date_obj) if category == "Behaviour" else {}
 
 	# Month-to-date tally per grade, so each row can carry "Full Mark 4 · Fail 1"
 	# instead of one opaque concern count.
@@ -571,15 +611,19 @@ def get_performance_students(standard, batch, category, performance_date, gender
 		)
 
 		# A row that never had its own syllabus shows what the batch was set up to cover.
+		# Either way it shows only the subjects the student's group takes; a row
+		# saved before the group split keeps its subjects if none would be left.
 		row_syllabus = row_syllabus_map.get(record.name) if record else None
 		if not row_syllabus:
 			row_syllabus = session_syllabus
+		row_syllabus = blocks_for_group(row_syllabus, s.group, group_rules) or row_syllabus
 
 		result_students.append(
 			{
 				"student_id": s.name,
 				"student_name": s.student_name,
 				"gender": s.gender,
+				"group": s.group or "",
 				"image": s.image or "",
 				"attendance_status": s.attendance_status,
 				"is_birthday": is_birthday,
@@ -595,6 +639,7 @@ def get_performance_students(standard, batch, category, performance_date, gender
 				"total_marks": flt(record.total_marks) if record else flt(session.total_marks if session else 0),
 				"pass_marks": flt(record.pass_marks) if record else flt(session.pass_marks if session else 0),
 				"behaviour_reasons": reason_map.get(record.name, []) if record else [],
+				"permitted_reasons": permitted_map.get(s.name, []),
 				"remarks": (record.remarks if record else "") or "",
 				"instead": instead_map.get(s.name, []) if record and cint(record.skipped) else [],
 				"monthly_counts": counts,
@@ -614,6 +659,7 @@ def get_performance_students(standard, batch, category, performance_date, gender
 		"config": cfg,
 		"results": CATEGORY_RESULTS[category],
 		"lesson_titles": titles,
+		"group_subjects": group_rules,
 		"total_students": total_students,
 		"attendance_marked": attendance_marked,
 	}

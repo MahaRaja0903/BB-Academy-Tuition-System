@@ -18,6 +18,8 @@
   "status",
   "is_starting_fee",
   "yearly_fees_student",
+  "no_fee",
+  "no_fee_reason",
   "billing_period_section",
   "fees_details",
   "payment_amounts_section",
@@ -240,11 +242,12 @@
    "read_only": 1
   },
   {
+   "depends_on": "eval:!doc.no_fee",
    "fieldname": "payment_method",
    "fieldtype": "Select",
    "label": "Payment Method",
-   "options": "\nCash\nGPAY\nScanner\nSplit Up",
-   "reqd": 1
+   "mandatory_depends_on": "eval:!doc.no_fee",
+   "options": "\nCash\nGPAY\nScanner\nSplit Up"
   },
   {
    "fieldname": "add_coupon",
@@ -322,12 +325,26 @@
    "fieldtype": "Small Text",
    "label": "Discount Reason Remarks",
    "mandatory_depends_on": "eval:doc.discount_reason == \"Others ( Reason Box )\""
+  },
+  {
+   "default": "0",
+   "description": "Tick in an emergency when no fee is to be collected for the months on this invoice. The months are closed as No Fees on the student.",
+   "fieldname": "no_fee",
+   "fieldtype": "Check",
+   "label": "No Fee"
+  },
+  {
+   "depends_on": "eval:doc.no_fee",
+   "fieldname": "no_fee_reason",
+   "fieldtype": "Small Text",
+   "label": "No Fee Reason",
+   "mandatory_depends_on": "eval:doc.no_fee"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-28 19:42:43.273707",
+ "modified": "2026-10-29 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Fee Invoice",

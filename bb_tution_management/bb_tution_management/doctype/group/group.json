@@ -7,7 +7,8 @@
  "engine": "InnoDB",
  "field_order": [
   "group_name",
-  "standard_detail"
+  "standard_detail",
+  "group_subjects"
  ],
  "fields": [
   {
@@ -21,12 +22,19 @@
    "fieldtype": "Table MultiSelect",
    "label": "Standard Detail",
    "options": "Standard Detail"
+  },
+  {
+   "description": "Subjects only this group takes (e.g. Computer Science). A subject listed on any group of a standard is shown only to that group's students; subjects on no group are common to everyone.",
+   "fieldname": "group_subjects",
+   "fieldtype": "Table MultiSelect",
+   "label": "Group Subjects",
+   "options": "Subject Item"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-04 23:01:10.417804",
+ "modified": "2026-10-29 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Bb Tution Management",
  "name": "Group",
