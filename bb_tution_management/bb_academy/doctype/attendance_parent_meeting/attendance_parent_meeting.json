@@ -1,0 +1,174 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "Prompt",
+ "creation": "2026-11-12 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "student",
+  "student_name",
+  "standard",
+  "batch",
+  "column_break_head",
+  "month_start",
+  "absent_late_count",
+  "section_break_meeting",
+  "parents_informed",
+  "parents_informed_on",
+  "meeting_done",
+  "met_staff",
+  "meeting_on",
+  "column_break_meeting",
+  "meeting_photo",
+  "meeting_notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "student",
+   "fieldtype": "Link",
+   "label": "Student",
+   "options": "Student",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "student_name",
+   "fieldtype": "Data",
+   "label": "Student Name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "standard",
+   "fieldtype": "Link",
+   "label": "Standard",
+   "options": "Standard",
+   "read_only": 1
+  },
+  {
+   "fieldname": "batch",
+   "fieldtype": "Link",
+   "label": "Batch",
+   "options": "Batch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "month_start",
+   "fieldtype": "Date",
+   "label": "Month",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "absent_late_count",
+   "fieldtype": "Int",
+   "label": "Absent / Late Days",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_meeting",
+   "fieldtype": "Section Break",
+   "label": "Meeting"
+  },
+  {
+   "fieldname": "parents_informed",
+   "fieldtype": "Check",
+   "label": "Parents Informed"
+  },
+  {
+   "fieldname": "parents_informed_on",
+   "fieldtype": "Datetime",
+   "label": "Parents Informed On"
+  },
+  {
+   "fieldname": "meeting_done",
+   "fieldtype": "Check",
+   "label": "Parents Met the Staff",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "met_staff",
+   "fieldtype": "Link",
+   "label": "Met Staff",
+   "options": "Staff"
+  },
+  {
+   "fieldname": "meeting_on",
+   "fieldtype": "Datetime",
+   "label": "Meeting On"
+  },
+  {
+   "fieldname": "column_break_meeting",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "meeting_photo",
+   "fieldtype": "Attach Image",
+   "label": "Meeting Photo"
+  },
+  {
+   "fieldname": "meeting_notes",
+   "fieldtype": "Small Text",
+   "label": "What Was Discussed"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-12 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "BB Academy",
+ "name": "Attendance Parent Meeting",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Performance Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Attendance Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "month_start",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "student_name",
+ "track_changes": 1,
+ "search_fields": "student_name"
+}

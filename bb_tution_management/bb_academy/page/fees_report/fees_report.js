@@ -1,7 +1,7 @@
-/* Starting Payment & Monthly Fees report: page controller.
+/* Starting Payment, Monthly & Yearly Fees report: page controller.
 
    • One API call (`get_summary`) fills the page; the Year and Month filters re-run it.
-   • Three sections (Starting Payment, Monthly Fees, Grand Consolidated Total),
+   • Four sections (Starting Payment, Monthly Fees, Yearly Fees, Grand Consolidated Total),
      each with Total / Paid / Pending cards.
    • Clicking a card opens the student-wise rows behind it (`get_breakdown`).
    • Months waived on a No Fee invoice get their own card, and the student's
@@ -26,8 +26,12 @@ const FR_MONTHS = [
 const FR_SECTIONS = [
 	{ key: "starting", title: __("Starting Payment") },
 	{ key: "monthly", title: __("Monthly Fees") },
+	{ key: "yearly", title: __("Yearly Fees") },
 	{ key: "overall", title: __("Grand Consolidated Total"), card: __("Overall") },
 ];
+
+// Sections covering the whole academic year: the Month filter does not narrow them.
+const FR_YEAR_SECTIONS = ["starting", "yearly"];
 
 const FR_CARDS = [
 	{
@@ -57,8 +61,8 @@ const FR_CARDS = [
 	{
 		kind: "no_fee",
 		label: __("No Fee"),
-		// The starting payment cannot be waived, so it has no No Fee card.
-		skip: ["starting"],
+		// The starting payment and the yearly fee cannot be waived, so they have no No Fee card.
+		skip: ["starting", "yearly"],
 		rows: [
 			[__("Waived Amount"), "no_fee_amount", true],
 			[__("No Fee Count"), "no_fee_count", false],
@@ -116,11 +120,11 @@ class FeesReport {
 		return { year: this.f_year.get_value() || "", month: this.f_month.get_value() || "" };
 	}
 
-	// The starting payment is not narrowed by month (see get_summary), so its
-	// section always reads "All Months".
+	// The starting payment and the yearly fee are not narrowed by month (see
+	// get_summary), so their sections always read "All Months".
 	_period_label(section) {
 		const { year, month } = this._filters();
-		const m = month && section !== "starting" ? __(FR_MONTHS[cint(month) - 1]) : __("All Months");
+		const m = month && !FR_YEAR_SECTIONS.includes(section) ? __(FR_MONTHS[cint(month) - 1]) : __("All Months");
 		return `${m} · ${year || __("All Years")}`;
 	}
 
@@ -166,7 +170,7 @@ class FeesReport {
 			return `
 				<div class="fr-section">
 					<div class="fr-section-title">${String(i + 1).padStart(2, "0")}. ${sec.title.toUpperCase()}
-						${sec.key === "starting" && this._filters().month
+						${FR_YEAR_SECTIONS.includes(sec.key) && this._filters().month
 							? `<span class="fr-section-note">${__("All Months")}</span>` : ""}</div>
 					<div class="fr-cards fr-cards-${sec_cards.length}">${cards}</div>
 				</div>`;
@@ -174,7 +178,7 @@ class FeesReport {
 
 		this.$body.html(`
 			<div class="fr-header">
-				<div class="fr-title">${__("Starting Payment & Monthly Fees - Report")}</div>
+				<div class="fr-title">${__("Starting Payment, Monthly & Yearly Fees - Report")}</div>
 				<div class="fr-subtitle">${__("Financial Summary & Collection Tracking Dashboard")}
 					<span class="fr-period">${this._period_label()}</span></div>
 			</div>

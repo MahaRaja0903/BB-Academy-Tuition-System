@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt, nowdate
+from frappe.utils import flt, getdate, nowdate
 
 from bb_tution_management.bb_academy.doctype.fee_invoice.fee_invoice import (
 	REFUNDED,
@@ -110,7 +110,16 @@ class FeeRefund(Document):
 			self.db_set("previous_student_status", student.status)
 			student.status = DISCONTINUED
 			# The Student form requires these once the status is Discontinued.
-			student.discontinued__date = student.discontinued__date or self.refund_date
+			# A rejoined student still carries the date they last left -- that
+			# one is stale, use the refund date instead.
+			stale = (
+				student.discontinued__date
+				and student.rejoined_date
+				and getdate(student.discontinued__date) <= getdate(student.rejoined_date)
+			)
+			student.discontinued__date = (
+				self.refund_date if stale else (student.discontinued__date or self.refund_date)
+			)
 			student.discontinue_reason_category = student.discontinue_reason_category or (
 				DISCONTINUE_REASON_FOR_REFUND.get(self.reason, "Other")
 			)

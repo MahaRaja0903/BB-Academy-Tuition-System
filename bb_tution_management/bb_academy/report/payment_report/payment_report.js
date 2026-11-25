@@ -94,7 +94,9 @@ frappe.query_reports["Payment Report"] = {
 				// still owed first, then a discount, then a coupon -- so those
 				// students stand out without reading across the amount columns.
 				let name_color = "";
-				if (flt(data.balance_amount) > 0) {
+				if (data.no_fee) {
+					name_color = NO_FEE_COLOR;
+				} else if (flt(data.balance_amount) > 0) {
 					name_color = PAYMENT_REPORT_CARDS.balance.color;
 				} else if (flt(data.discount_amount) > 0) {
 					name_color = PAYMENT_REPORT_CARDS.discount.color;
@@ -125,7 +127,7 @@ frappe.query_reports["Payment Report"] = {
 
 				// What the student still owes, or was let off, sits under the
 				// name as a tag in the colour of its card.
-				const tags = [
+				let tags = [
 					["balance", "balance_amount", __("Balance")],
 					["coupon", "coupon_amount", __("Coupon Used")],
 					["discount", "discount_amount", __("Discount")],
@@ -136,6 +138,20 @@ frappe.query_reports["Payment Report"] = {
 							`<span style="color: ${PAYMENT_REPORT_CARDS[key].color}; border: 1px solid ${PAYMENT_REPORT_CARDS[key].color}; border-radius: 8px; padding: 0 5px; margin-right: 4px; font-weight: 600; white-space: nowrap;">${label}: ${format_currency(data[fieldname])}</span>`
 					)
 					.join("");
+
+				// A No Fee invoice waived its months -- tagged like a balance,
+				// with the months it let off, followed by why they were waived.
+				if (data.no_fee) {
+					const month_list = (data.payment_type || "").split(",").map(m => m.trim()).filter(Boolean);
+					const months = month_list.length ? `: ${frappe.utils.escape_html(month_list.join(", "))}` : "";
+					const no_fee_reason = data.no_fee_reason ? frappe.utils.escape_html(data.no_fee_reason) : "";
+					tags =
+						`<span title="${no_fee_reason || __("No Fee")}" style="color: ${NO_FEE_COLOR}; border: 1px solid ${NO_FEE_COLOR}; border-radius: 8px; padding: 0 5px; margin-right: 4px; font-weight: 600; white-space: nowrap;">${__("No Fee")}${months}</span>` +
+						(no_fee_reason
+							? `<span title="${no_fee_reason}" style="color: ${NO_FEE_COLOR}; margin-right: 4px;">${__("Reason")}: ${no_fee_reason}</span>`
+							: "") +
+						tags;
+				}
 
 				const reason = data.fee_reason ? frappe.utils.escape_html(data.fee_reason) : "";
 				if (tags || reason) {
@@ -178,6 +194,9 @@ frappe.query_reports["Payment Report"] = {
 		});
 	}
 };
+
+// The orange the Fees Report uses for a month waived on a No Fee invoice.
+const NO_FEE_COLOR = "#ea580c";
 
 // The summary cards, drawn after the client's reference design: one coloured
 // card per figure, each holding its total and its count.

@@ -20,6 +20,7 @@ from frappe.utils import (
 	today,
 )
 
+from bb_tution_management.bb_academy.discontinue import get_discontinued_periods
 from bb_tution_management.bb_academy.syllabus import (
 	lesson_titles,
 	syllabus_lessons,
@@ -56,6 +57,9 @@ STUDENT_FIELDS = [
 	"gender",
 	"status",
 	"discontinued__date",
+	"discontinue_reason_category",
+	"discontinued_reason",
+	"rejoined_date",
 	"date_of_birth",
 	"admission_date",
 	"blood_group",
@@ -204,11 +208,15 @@ def get_student_profile(student, from_date=None, to_date=None):
 	return {
 		"student": {
 			**details,
+			# A rejoined student keeps the date they last left; the profile
+			# only treats it as "left on" while they are still discontinued.
+			"discontinued__date": details.discontinued__date if details.status == "Discontinued" else None,
 			"batch": batch,
 			"age": _age(details.date_of_birth),
 			"years_with_us": _years_since(details.admission_date),
 		},
 		"range": {"from_date": from_date, "to_date": to_date},
+		"discontinue_history": _discontinue_history(details),
 		"attendance": attendance,
 		"performance": performance,
 		"behaviour": behaviour,
@@ -218,6 +226,36 @@ def get_student_profile(student, from_date=None, to_date=None):
 	}
 
 
+def _discontinue_history(details):
+	"""Every time the student left, newest first: when, why, and when (if) they
+	rejoined. Past spells come from the Student Rejoin Log; a current one from
+	the Student itself."""
+	history = [
+		{
+			"discontinued_date": log.discontinued_date,
+			"rejoined_date": log.rejoined_date,
+			"reason_category": log.discontinue_reason_category,
+			"reason": log.discontinued_reason,
+		}
+		for log in frappe.get_all(
+			"Student Rejoin Log",
+			filters={"student": details.name},
+			fields=["discontinued_date", "rejoined_date", "discontinue_reason_category", "discontinued_reason"],
+		)
+	]
+	if details.status == "Discontinued":
+		history.append(
+			{
+				"discontinued_date": details.discontinued__date,
+				"rejoined_date": None,
+				"reason_category": details.discontinue_reason_category,
+				"reason": details.discontinued_reason,
+			}
+		)
+	history.sort(key=lambda h: getdate(h["discontinued_date"] or h["rejoined_date"]), reverse=True)
+	return history
+
+
 def _empty_attendance():
 	return {
 		"school_days": 0,
@@ -225,6 +263,7 @@ def _empty_attendance():
 		"absent": 0,
 		"late": 0,
 		"early_outs": 0,
+		"discontinued": 0,
 		"attended": 0,
 		"percentage": 0.0,
 		"band": _band(0),
@@ -325,7 +364,8 @@ def _get_attendance(student, from_date, to_date, holidays):
 		if row.status in counts:
 			counts[row.status] += 1
 
-	marked = len(rows)
+	# Absent rows re-tagged "Discontinued" are not school days for this student.
+	marked = sum(1 for row in rows if row.status != "Discontinued")
 	# A late arrival is still a day attended — parents read the percentage as
 	# "how often was my child here", so Late counts towards it and is called out
 	# separately below.
@@ -336,6 +376,8 @@ def _get_attendance(student, from_date, to_date, holidays):
 	# the range — the single most encouraging number on the page.
 	best_streak = current_streak = 0
 	for row in rows:
+		if row.status == "Discontinued":
+			continue
 		if row.status == "Absent":
 			current_streak = 0
 		else:
@@ -380,7 +422,20 @@ def _get_attendance(student, from_date, to_date, holidays):
 				"remarks": f"{holiday.holiday_type} — {holiday.reason}",
 			}
 		)
-	days.sort(key=lambda d: d["date"])
+	# Days the student was discontinued (left, later rejoined or not yet):
+	# shown as "Discontinued", never counted as absent or towards the %.
+	taken = {str(d["date"]) for d in days}
+	discontinued_days = sum(1 for row in rows if row.status == "Discontinued")
+	for start, end in get_discontinued_periods([student], from_date, to_date).get(student, []):
+		d = max(start, getdate(from_date))
+		last = min(end or getdate(today()), getdate(to_date))
+		while d <= last:
+			if str(d) not in taken:
+				days.append({"date": d, "status": "Discontinued", "remarks": "Discontinued — not on roll"})
+				discontinued_days += 1
+			d = getdate(add_days(d, 1))
+
+	days.sort(key=lambda d: getdate(d["date"]))
 
 	return {
 		"school_days": marked,
@@ -388,6 +443,7 @@ def _get_attendance(student, from_date, to_date, holidays):
 		"absent": counts["Absent"],
 		"late": counts["Late"],
 		"early_outs": counts["Early Outs"],
+		"discontinued": discontinued_days,
 		"attended": attended,
 		"percentage": pct,
 		"band": _band(pct),
@@ -409,6 +465,7 @@ def _monthly_attendance(student, from_date, to_date):
 			SUM(CASE WHEN status = 'Absent' THEN 0 ELSE 1 END) AS attended
 		FROM `tabStudent Attendance`
 		WHERE student = %(student)s AND attendance_date BETWEEN %(from_date)s AND %(to_date)s
+			AND status != 'Discontinued'
 		GROUP BY DATE_FORMAT(attendance_date, '%%Y-%%m')
 		ORDER BY month ASC
 		""",
@@ -675,7 +732,7 @@ def _get_timeline(student, from_date, to_date, can_attendance=True, can_performa
 		FROM `tabStudent Attendance`
 		WHERE student = %(student)s
 			AND attendance_date BETWEEN %(from_date)s AND %(to_date)s
-			AND status != 'Present'
+			AND status NOT IN ('Present', 'Discontinued')
 		ORDER BY attendance_date DESC
 		LIMIT %(limit)s
 		""",

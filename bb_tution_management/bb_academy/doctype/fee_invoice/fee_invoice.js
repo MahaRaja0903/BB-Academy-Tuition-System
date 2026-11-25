@@ -125,6 +125,7 @@ frappe.ui.form.on("Fee Invoice", {
 		});
 	},
 	refresh(frm) {
+		apply_yearly_layout(frm);
 		if (frm.doc.docstatus === 0) {
 			frm.trigger("status");
 		}
@@ -176,6 +177,9 @@ frappe.ui.form.on("Fee Invoice", {
 			dialog.show();
 		});
 	},
+	yearly_fees_student(frm) {
+		apply_yearly_layout(frm);
+	},
 	student(frm) {
 		// Coupons belong to the student they were issued to.
 		if (frm.doc.docstatus === 0 && frm.doc.coupon__code) {
@@ -213,9 +217,11 @@ frappe.ui.form.on("Fee Invoice", {
 					frm.set_value("is_starting_fee", 0);
 					frm.clear_table("fees_details");
 					frm.refresh_field("fees_details");
+					frm.set_value("no_fee", 0);
 					frm.set_value("monthly_fee", prefill.pending);
 					frm.set_value("paid_amount", prefill.pending);
 					calculate_totals(frm);
+					apply_yearly_layout(frm);
 					if (prefill.pending > 0) {
 						frappe.show_alert({ message: __("Yearly Fees Pending: {0}", [format_currency(prefill.pending)]), indicator: "blue" }, 10);
 					} else {
@@ -225,6 +231,7 @@ frappe.ui.form.on("Fee Invoice", {
 				}
 
 				frm.set_value("yearly_fees_student", 0);
+				apply_yearly_layout(frm);
 				frm.clear_table("fees_details");
 				(prefill.rows || []).forEach(row => {
 					frm.add_child("fees_details", {
@@ -239,6 +246,7 @@ frappe.ui.form.on("Fee Invoice", {
 				// Starting Payment row already there and leaves it alone.
 				frm.set_value("is_starting_fee", prefill.has_starting_payment ? 1 : 0);
 				update_monthly_fee_from_details(frm);
+				render_rejoin_hint(frm);
 
 				(prefill.notes || []).forEach(note => {
 					frappe.show_alert({ message: note, indicator: "blue" }, 10);
@@ -268,6 +276,7 @@ frappe.ui.form.on("Fee Invoice", {
 		update_monthly_fee_from_details(frm);
 	},
 	fees_details_remove(frm) {
+		render_rejoin_hint(frm);
 		update_monthly_fee_from_details(frm);
 	},
 	add_coupon(frm) {
@@ -315,6 +324,7 @@ frappe.ui.form.on("Fee Invoice", {
 					if (frm.doc.docstatus === 0){
 						frm.set_value("student_detail_json", JSON.stringify(data));
 					}
+					apply_rejoin_amount_edit(frm);
 
 					// is_starting_fee and the Fees Details rows are set by
 					// get_invoice_prefill when the student is picked -- don't
@@ -378,11 +388,50 @@ frappe.ui.form.on("Fee Invoice", {
 frappe.ui.form.on("Fees Invoice Details", {
 	month: function(frm, cdt, cdn) {
 		let row = locals[cdt][cdn];
+		if (row.month && is_paid_by_starting_payment(frm, row.month)) {
+			frappe.msgprint({
+				title: __("Month Already Paid"),
+				message: __("{0} is already Paid By Starting Payment. It cannot be billed again.", [row.month]),
+				indicator: "orange"
+			});
+			frappe.model.set_value(cdt, cdn, 'month', '');
+			return;
+		}
 		if (row.month) {
 			let amount = get_row_amount(frm, row.month);
 			frappe.model.set_value(cdt, cdn, 'amount_need_to_pay', amount);
 			frappe.model.set_value(cdt, cdn, 'paid_amount', frm.doc.no_fee ? 0 : amount);
+			if (row.month === get_editable_rejoin_month(frm)) {
+				frappe.show_alert({
+					message: __("Rejoin Student: you can edit the Amount Need to Pay for {0}.", [row.month]),
+					indicator: "green"
+				}, 7);
+			}
 		}
+		render_rejoin_hint(frm);
+		update_monthly_fee_from_details(frm);
+	},
+	amount_need_to_pay: function(frm, cdt, cdn) {
+		let row = locals[cdt][cdn];
+		if (!row.month) return;
+
+		let rejoin_month = get_editable_rejoin_month(frm);
+		if (row.month !== rejoin_month) {
+			// Only the rejoin month is editable; put any other row back.
+			let amount = get_row_amount(frm, row.month);
+			if (row.amount_need_to_pay !== amount) {
+				frappe.model.set_value(cdt, cdn, "amount_need_to_pay", amount);
+				frappe.show_alert({
+					message: __("Only the rejoin month ({0}) amount can be edited.", [rejoin_month]),
+					indicator: "orange"
+				}, 6);
+			}
+			return;
+		}
+
+		// Collect the edited amount in full unless the cashier changes it.
+		frappe.model.set_value(cdt, cdn, "paid_amount", frm.doc.no_fee ? 0 : (row.amount_need_to_pay || 0));
+		render_rejoin_hint(frm);
 		update_monthly_fee_from_details(frm);
 	},
 	paid_amount: function(frm, cdt, cdn) {
@@ -392,6 +441,16 @@ frappe.ui.form.on("Fees Invoice Details", {
 		update_monthly_fee_from_details(frm);
 	}
 });
+
+// Whether the student's ledger already has this month settled out of the
+// starting payment -- such a month must not be billed again.
+function is_paid_by_starting_payment(frm, month) {
+	if (!frm.doc.student_detail_json || frm.doc.docstatus !== 0) return false;
+	let data = JSON.parse(frm.doc.student_detail_json);
+	return (data.payment_details || []).some(
+		p => p.month === month && p.status === PAID_BY_STARTING_PAYMENT
+	);
+}
 
 // What a fresh row for this month should be billed -- the server works this out
 // per student (starting payment still pending, pro-rated joining month, or the
@@ -404,6 +463,58 @@ function get_row_amount(frm, month) {
 
 	if (month in amounts) return amounts[month];
 	return month === "Starting Payment" ? (data.starting_payment || 0) : (data.monthly_fee || 0);
+}
+
+// A rejoined student's rejoin month is billed from the rejoin date; that one
+// month's Amount Need to Pay can be edited while it is still unpaid.
+function get_editable_rejoin_month(frm) {
+	if (!frm.doc.student_detail_json) return null;
+	try {
+		return JSON.parse(frm.doc.student_detail_json).editable_rejoin_month || null;
+	} catch (e) {
+		return null;
+	}
+}
+
+function apply_rejoin_amount_edit(frm) {
+	let grid = frm.fields_dict.fees_details && frm.fields_dict.fees_details.grid;
+	if (!grid) return;
+
+	let rejoin_month = frm.doc.docstatus === 0 ? get_editable_rejoin_month(frm) : null;
+	grid.update_docfield_property("amount_need_to_pay", "read_only", rejoin_month ? 0 : 1);
+	grid.update_docfield_property("amount_need_to_pay", "description",
+		rejoin_month ? __("Editable for the rejoin month ({0}) only.", [rejoin_month]) : "");
+	frm.refresh_field("fees_details");
+	render_rejoin_hint(frm);
+}
+
+// A small note above Fees Details once the rejoin month is in the grid, telling
+// the cashier its Amount Need to Pay can be changed.
+function render_rejoin_hint(frm) {
+	let field = frm.fields_dict.fees_details;
+	if (!field) return;
+
+	field.$wrapper.find(".rejoin-amount-hint").remove();
+
+	let rejoin_month = frm.doc.docstatus === 0 ? get_editable_rejoin_month(frm) : null;
+	if (!rejoin_month) return;
+
+	let row = (frm.doc.fees_details || []).find(d => d.month === rejoin_month);
+	if (!row) return;
+
+	let data = {};
+	try { data = JSON.parse(frm.doc.student_detail_json || "{}"); } catch (e) {}
+	let rejoined = data.rejoined_date ? frappe.datetime.str_to_user(data.rejoined_date) : "";
+
+	let html = `
+	<div class="rejoin-amount-hint" style="margin:0 0 10px;padding:10px 12px;border-radius:8px;
+		background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;font-size:13px;line-height:1.5;">
+		<i class="fa fa-pencil" style="margin-right:6px;"></i>
+		<b>${__("Rejoin Student")}</b> &mdash;
+		${__("{0} was worked out from the rejoin date{1}: {2}. You can edit the <b>Amount Need to Pay</b> for row {3} ({0}); Paid Amount follows it.",
+			[rejoin_month, rejoined ? ` (${rejoined})` : "", format_currency(row.amount_need_to_pay || 0), row.idx])}
+	</div>`;
+	field.$wrapper.prepend(html);
 }
 
 function get_selected_coupons(frm) {
@@ -508,6 +619,10 @@ function build_collection_summary_html(frm) {
 			<div style="margin-top:6px;">${__("Amount waived")}: <b>${format_currency(frm.doc.monthly_fee || 0)}</b></div>
 			${frm.doc.no_fee_reason ? `<div style="margin-top:6px;">${__("Reason")}: ${frappe.utils.escape_html(frm.doc.no_fee_reason)}</div>` : ""}
 		</div>`;
+	}
+
+	if (frm.doc.yearly_fees_student) {
+		return build_yearly_collection_summary_html(frm);
 	}
 
 	let rows = (frm.doc.fees_details || []).filter(row => row.month);
@@ -685,7 +800,59 @@ function build_collection_summary_html(frm) {
 	</div>`;
 }
 
+// A yearly student pays a lump sum against the yearly fee, in as many parts as
+// they like: no month rows, and the cashier types what was actually collected.
+function apply_yearly_layout(frm) {
+	let yearly = !!frm.doc.yearly_fees_student;
+	frm.toggle_display(["fees_details", "is_starting_fee", "no_fee"], !yearly);
+	frm.set_df_property("paid_amount", "read_only", yearly && frm.doc.docstatus === 0 ? 0 : 1);
+	frm.set_df_property("paid_amount", "description",
+		yearly ? __("Enter the amount collected now. It can be less than the pending yearly fee; the rest stays pending.") : "");
+}
+
+function build_yearly_collection_summary_html(frm) {
+	let data = {};
+	try { data = JSON.parse(frm.doc.student_detail_json || "{}"); } catch (e) {}
+
+	let yearly_total = data.yearly_fees_amount || 0;
+	let pending = frm.doc.monthly_fee || 0;
+	let paid_so_far = Math.max(0, yearly_total - pending);
+	let collect = frm.doc.paid_amount || 0;
+	let remaining = Math.max(0, pending - collect - (frm.doc.coupon_amount || 0)
+		- (frm.doc.add_discount ? (frm.doc.discount_amount || 0) : 0));
+	let name = frappe.utils.escape_html(frm.doc.student_name || frm.doc.student || "");
+
+	return `
+	<div style="font-size:13px;">
+		<p style="margin-bottom:12px;">
+			${__("Check the Paid Amount against the money actually collected. Once submitted this posts against the student's yearly fee.")}
+		</p>
+		<table class="table table-bordered" style="margin-bottom:0;">
+			<tbody>
+				<tr><td>${__("Student")}</td><td class="text-right"><b>${name}</b></td></tr>
+				<tr><td>${__("Yearly Fee")}</td><td class="text-right">${format_currency(yearly_total)}</td></tr>
+				<tr><td>${__("Paid So Far")}</td><td class="text-right">${format_currency(paid_so_far)}</td></tr>
+				<tr><td>${__("Pending Before This Payment")}</td><td class="text-right">${format_currency(pending)}</td></tr>
+				<tr><td>${__("Remaining After This Payment")}</td><td class="text-right" style="color:${remaining > 0 ? "#b91c1c" : "#065f46"};"><b>${format_currency(remaining)}</b></td></tr>
+			</tbody>
+		</table>
+		<div style="margin-top:14px;padding:12px;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:15px;">
+			${__("Collect")} <b style="font-size:18px;">${format_currency(collect)}</b>
+			${frm.doc.payment_method ? ` ${__("by")} <b>${frm.doc.payment_method}</b>` : ""}
+		</div>
+		${remaining > 0 ? `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:#fef3c7;color:#92400e;">
+			${__("Part payment. {0} stays pending on the yearly fee.", [format_currency(remaining)])}
+		</div>` : ""}
+	</div>`;
+}
+
 function update_monthly_fee_from_details(frm) {
+	// Yearly invoices have no rows; their amount comes from the yearly pending.
+	if (frm.doc.yearly_fees_student) {
+		calculate_totals(frm);
+		return;
+	}
+
 	let total_fee = 0;
 	let total_paid = 0;
 	let total_discount = 0;
@@ -1192,6 +1359,16 @@ ${get_shared_styles()}
 					<span class="sft-meta-label">Admission Date</span>
 					<span class="sft-meta-value">${formatDate(data.admission_date)}</span>
 				</div>
+				${data.discontinued_date ? `
+				<div class="sft-meta-item">
+					<span class="sft-meta-label">Discontinued Date</span>
+					<span class="sft-meta-value" style="color: #b45309;">${formatDate(data.discontinued_date)}</span>
+				</div>` : ''}
+				${data.rejoined_date ? `
+				<div class="sft-meta-item">
+					<span class="sft-meta-label">Rejoined Date</span>
+					<span class="sft-meta-value" style="color: #15803d;">${formatDate(data.rejoined_date)}</span>
+				</div>` : ''}
 				${data.yearly_fees_student ? '' : `
 				<div class="sft-meta-item">
 					<span class="sft-meta-label">Due Date</span>

@@ -50,4 +50,10 @@ def get_pending_students(columns, filters):
             SELECT student FROM `tabStudent Attendance` WHERE attendance_date = %s
         )
     """, (date, date, date), as_dict=True)
+
+    # A rejoined student owes nothing for the days they were discontinued.
+    from bb_tution_management.bb_academy.discontinue import get_discontinued_periods, is_discontinued_on
+
+    periods = get_discontinued_periods([r.student for r in data], date, date)
+    data = [r for r in data if not is_discontinued_on(periods, r.student, date)]
     return columns, data

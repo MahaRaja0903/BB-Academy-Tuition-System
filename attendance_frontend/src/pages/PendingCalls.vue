@@ -152,8 +152,12 @@
               <span class="pcw-wait-badge" :title="`Call due since ${prettyDate(r.due_since, true)}`">
                 <i class="fa fa-clock-o"></i> {{ waitingText(r.days_pending) }}
               </span>
+              <span v-if="r.not_attended" class="pcw-not-attended-badge" title="Calls this month nobody picked up">
+                <i class="fa fa-phone-square"></i> Not attended {{ r.not_attended }}×
+              </span>
               <span v-if="r.last_call" class="pcw-last-call">
-                Last call {{ formatDateTime(r.last_call.called_on) }}
+                {{ r.last_call.call_status === 'Closed' ? 'Closed' : 'Last call' }}
+                {{ formatDateTime(r.last_call.called_on) }}
                 <template v-if="r.last_call.categories"> · {{ r.last_call.categories }}</template>
               </span>
             </div>
@@ -239,6 +243,12 @@
           <button type="button" class="pcw-btn pcw-btn-primary" @click="openCall(r)">
             <i class="fa fa-phone"></i> Log Call
           </button>
+          <button type="button" class="pcw-btn pcw-btn-warn" @click="openOutcome('not_attended', r)">
+            <i class="fa fa-phone-square"></i> Not Attended
+          </button>
+          <button type="button" class="pcw-btn pcw-btn-close" @click="openOutcome('close', r)">
+            <i class="fa fa-check"></i> Close
+          </button>
         </div>
       </article>
     </template>
@@ -269,13 +279,30 @@
           <span class="pcw-history-when">{{ formatDateTime(c.called_on) }}</span>
         </header>
         <div class="pcw-done-row">
-          <i class="fa fa-phone"></i>
-          <span>
-            <b>{{ c.called_by }}</b> spoke to <b>{{ c.spoken_to }}</b>
-            <template v-if="c.spoken_to_name"> ({{ c.spoken_to_name }})</template>
-          </span>
+          <template v-if="c.call_status === 'Not Attended'">
+            <i class="fa fa-phone-square"></i>
+            <span>
+              <span class="pcw-status-tag is-not-attended">Not Attended</span>
+              <b>{{ c.called_by }}</b> called
+              <template v-if="c.spoken_to"> <b>{{ c.spoken_to }}</b></template>, nobody picked up
+            </span>
+          </template>
+          <template v-else-if="c.call_status === 'Closed'">
+            <i class="fa fa-check"></i>
+            <span>
+              <span class="pcw-status-tag is-closed">Closed</span>
+              without a call<template v-if="c.closed_by"> by <b>{{ c.closed_by }}</b></template>
+            </span>
+          </template>
+          <template v-else>
+            <i class="fa fa-phone"></i>
+            <span>
+              <b>{{ c.called_by }}</b> spoke to <b>{{ c.spoken_to }}</b>
+              <template v-if="c.spoken_to_name"> ({{ c.spoken_to_name }})</template>
+            </span>
+          </template>
         </div>
-        <div class="pcw-tally pcw-tally-flat">
+        <div v-if="(c.breakdown || []).length" class="pcw-tally pcw-tally-flat">
           <span v-for="b in c.breakdown" :key="b.category" class="pcw-tally-chip">
             {{ b.category }} <b>{{ b.count }}</b>
           </span>
@@ -283,6 +310,18 @@
         <div v-if="c.call_notes" class="pcw-done-notes">“{{ c.call_notes }}”</div>
       </article>
     </template>
+
+    <CallOutcomeModal
+      :open="outcome.open"
+      :mode="outcome.mode"
+      :record="outcome.record"
+      call-for="Pending Calls"
+      close-module="pending_calls"
+      close-hint="Takes the student off the list without a call. Every pending mistake is cleared, so the counts start again from zero."
+      :staff-list="staffList"
+      @close="outcome.open = false"
+      @saved="onOutcomeSaved"
+    />
 
     <!-- Call modal -->
     <div v-if="callModal.open" class="pcw-modal-backdrop" @click.self="callModal.open = false">
@@ -350,6 +389,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import { serverToday, loadServerToday } from '@/data/serverDate'
+import CallOutcomeModal from '@/components/CallOutcomeModal.vue'
 
 // Mirrors CATEGORIES in bb_academy/pending_calls.py.
 const CATEGORIES = ['H.W', 'Test', 'Study', 'Class', 'Behaviour']
@@ -612,6 +652,18 @@ function openCall(record) {
     saving: false,
     error: '',
   })
+}
+
+// Not Attended / Close
+const outcome = reactive({ open: false, mode: 'not_attended', record: null })
+
+function openOutcome(mode, record) {
+  Object.assign(outcome, { open: true, mode, record })
+}
+
+async function onOutcomeSaved() {
+  outcome.open = false
+  await load()
 }
 
 async function saveCall() {

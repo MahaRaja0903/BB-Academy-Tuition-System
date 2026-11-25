@@ -18,6 +18,17 @@ class ParentCallLog(Document):
 		if self.called_on and get_datetime(self.called_on) > now_datetime():
 			frappe.throw(frappe._("The call cannot be in the future."))
 
+		# A Not Attended attempt and a Close have nobody to quote; only an
+		# answered call must say whom it reached and what was said.
+		self.call_status = self.call_status or "Attended"
+		if self.call_status != "Closed" and not self.called_by:
+			frappe.throw(frappe._("Say who made the call."))
+		if self.call_status == "Attended":
+			if not self.spoken_to:
+				frappe.throw(frappe._("Say whom you spoke to."))
+			if not (self.call_notes or "").strip():
+				frappe.throw(frappe._("Write down what was spoken."))
+
 		student = frappe.db.get_value(
 			"Student", self.student, ["student_name", "standard", "current_batch"], as_dict=True
 		)

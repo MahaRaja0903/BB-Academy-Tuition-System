@@ -93,6 +93,82 @@ def _guard(ptype="read"):
 		)
 
 
+# Which screen a call was logged from. Call status: an answered call, a ring
+# nobody picked up (covers nothing, the student stays listed), or a Close
+# (covers the same rows a call would, with nobody spoken to).
+CALL_FOR = ("Attendance", "Pending Calls", "Mistakes")
+ATTENDED, NOT_ATTENDED, CLOSED = "Attended", "Not Attended", "Closed"
+
+
+def not_attended_counts(students, call_for, month_start=None):
+	"""Calls from one screen nobody picked up, per student, in the month."""
+	students = [s for s in (students or []) if s]
+	if not students:
+		return {}
+	first_day = get_first_day(getdate(month_start or today()))
+	return {
+		row.student: cint(row.n)
+		for row in frappe.db.sql(
+			"""
+			SELECT student, COUNT(name) AS n
+			FROM `tabParent Call Log`
+			WHERE student IN %(students)s AND call_for = %(call_for)s
+				AND call_status = %(status)s
+				AND called_on >= %(first_day)s AND called_on < %(next_month)s
+			GROUP BY student
+			""",
+			{
+				"students": tuple(students),
+				"call_for": call_for,
+				"status": NOT_ATTENDED,
+				"first_day": first_day,
+				"next_month": add_months(first_day, 1),
+			},
+			as_dict=True,
+		)
+	}
+
+
+def new_call_log(student, call_status, call_for, rows=(), **fields):
+	"""Insert one Parent Call Log pinning `rows` (dicts of item fields)."""
+	doc = frappe.new_doc(DOCTYPE)
+	doc.student = student
+	doc.call_status = call_status
+	doc.call_for = call_for
+	doc.called_on = get_datetime(fields.pop("called_on")) if fields.get("called_on") else now_datetime()
+	fields.pop("called_on", None)
+	for key, value in fields.items():
+		doc.set(key, value)
+	for row in rows:
+		doc.append("mistakes", row)
+	doc.insert(ignore_permissions=True)
+	return doc
+
+
+@frappe.whitelist()
+def log_not_attended(student, call_for, called_on=None, called_by=None, spoken_to=None, call_notes=None):
+	"""A call nobody picked up. Nothing is pinned, so the student stays on
+	the list; the attempt is counted on the card."""
+	_guard("create")
+	if call_for not in CALL_FOR:
+		frappe.throw(frappe._("Unknown call screen {0}.").format(call_for))
+	if not called_by:
+		frappe.throw(frappe._("Say who made the call."))
+	doc = new_call_log(
+		student,
+		NOT_ATTENDED,
+		call_for,
+		called_on=called_on,
+		called_by=called_by,
+		spoken_to=spoken_to or None,
+		call_notes=call_notes,
+	)
+	return {
+		"name": doc.name,
+		"not_attended": not_attended_counts([student], call_for, doc.called_on).get(student, 0),
+	}
+
+
 def _uncovered_mistakes(student=None, standard=None, batch=None, gender=None, categories=None):
 	"""Every mistake since `count_from()` that no call has told the parents about.
 
@@ -208,15 +284,17 @@ def get_pending_calls(standard=None, batch=None, gender=None):
 	last_calls = {}
 	for call in frappe.db.sql(
 		"""
-		SELECT student, called_on, called_by, spoken_to, categories
+		SELECT student, called_on, called_by, spoken_to, categories, call_status
 		FROM `tabParent Call Log`
-		WHERE student IN %(students)s
+		WHERE student IN %(students)s AND IFNULL(call_status, 'Attended') != %(not_attended)s
 		ORDER BY called_on DESC
 		""",
-		{"students": tuple(pending)},
+		{"students": tuple(pending), "not_attended": NOT_ATTENDED},
 		as_dict=True,
 	):
 		last_calls.setdefault(call.student, call)
+
+	not_attended = not_attended_counts(list(pending), "Pending Calls")
 
 	records = []
 	for student_id, by_category in pending.items():
@@ -262,6 +340,7 @@ def get_pending_calls(standard=None, batch=None, gender=None):
 				"due_since": due_since,
 				"days_pending": (getdate(today()) - due_since).days,
 				"last_call": last_calls.get(student_id),
+				"not_attended": not_attended.get(student_id, 0),
 			}
 		)
 
@@ -317,26 +396,45 @@ def log_call(
 	if not rows:
 		frappe.throw(frappe._("There are no pending mistakes in those categories to inform."))
 
-	doc = frappe.new_doc(DOCTYPE)
-	doc.student = student
-	doc.spoken_to = spoken_to
-	doc.spoken_to_name = spoken_to_name
-	doc.called_on = get_datetime(called_on) if called_on else now_datetime()
-	doc.called_by = called_by
-	doc.call_notes = call_notes
-	for row in rows:
-		doc.append(
-			"mistakes",
-			{
-				"category": row.category,
-				"mistake_date": row.date,
-				"result": row.result,
-				"details": _details(row)[:140],
-				"reference_doctype": row.reference_doctype,
-				"reference_name": row.reference_name,
-			},
-		)
-	doc.insert(ignore_permissions=True)
+	doc = new_call_log(
+		student,
+		ATTENDED,
+		"Pending Calls",
+		_items(rows),
+		spoken_to=spoken_to,
+		spoken_to_name=spoken_to_name,
+		called_on=called_on,
+		called_by=called_by,
+		call_notes=call_notes,
+	)
+	return {"name": doc.name, "mistakes": len(rows)}
+
+
+def _items(rows):
+	return [
+		{
+			"category": row.category,
+			"mistake_date": row.date,
+			"result": row.result,
+			"details": _details(row)[:140],
+			"reference_doctype": row.reference_doctype,
+			"reference_name": row.reference_name,
+		}
+		for row in rows
+	]
+
+
+@frappe.whitelist()
+def close_student(student, call_notes=None):
+	"""Take the student off the list without a call: every uncovered mistake
+	is pinned to a Closed log, so the counts start again from zero."""
+	_guard("create")
+
+	rows = _uncovered_mistakes(student=student)
+	if not rows:
+		frappe.throw(frappe._("There are no pending mistakes to close."))
+
+	doc = new_call_log(student, CLOSED, "Pending Calls", _items(rows), call_notes=call_notes)
 	return {"name": doc.name, "mistakes": len(rows)}
 
 
@@ -360,14 +458,15 @@ def get_call_history(month=None, standard=None, batch=None, gender=None):
 		"next_month": add_months(first_day, 1),
 		"doctype": DOCTYPE,
 		"categories": tuple(CATEGORIES),
+		"not_attended": NOT_ATTENDED,
 	}
 	conditions = [
 		"c.called_on >= %(first_day)s",
 		"c.called_on < %(next_month)s",
-		"""EXISTS (
+		"""(EXISTS (
 			SELECT 1 FROM `tabParent Call Log Item` i
 			WHERE i.parent = c.name AND i.parenttype = %(doctype)s AND i.category IN %(categories)s
-		)""",
+		) OR (c.call_for = 'Pending Calls' AND c.call_status = %(not_attended)s))""",
 	]
 	for field, column, value in (
 		("standard", "c.standard", standard),
@@ -382,7 +481,7 @@ def get_call_history(month=None, standard=None, batch=None, gender=None):
 		f"""
 		SELECT c.name, c.student, c.student_name, c.standard, c.batch, s.gender, s.image,
 			c.called_on, c.called_by, c.spoken_to, c.spoken_to_name, c.call_notes,
-			c.categories, c.mistake_count
+			c.categories, c.mistake_count, IFNULL(c.call_status, 'Attended') AS call_status, c.owner
 		FROM `tabParent Call Log` c
 		LEFT JOIN `tabStudent` s ON s.name = c.student
 		WHERE {" AND ".join(conditions)}
@@ -411,5 +510,6 @@ def get_call_history(month=None, standard=None, batch=None, gender=None):
 			call["breakdown"] = [
 				{"category": c, "count": found[c]} for c in CATEGORIES if c in found
 			]
+			call["closed_by"] = frappe.utils.get_fullname(call.owner)
 
 	return {"calls": calls}

@@ -154,6 +154,8 @@ def get_data(filters):
 			fi.cash,
 			fi.gpay,
 			fi.scanner,
+			ifnull(fi.no_fee, 0) as no_fee,
+			fi.no_fee_reason,
 			ifnull(fi.is_starting_fee, 0) as is_starting_fee,
 			(
 				select group_concat(fd.month order by fd.idx asc separator ', ')
@@ -233,6 +235,10 @@ def get_data(filters):
 				fee_reason=get_fee_reason(invoice, has_starting, has_monthly),
 				has_starting_payment=int(has_starting),
 				balance_months=invoice.balance_months or "",
+				# A No Fee invoice waives its months; it is tagged on the name
+				# the way a balance is.
+				no_fee=int(invoice.no_fee),
+				no_fee_reason=invoice.no_fee_reason or "",
 				gender=invoice.gender,
 				# The batch has no column of its own; it rides on the standard,
 				# as in "10TH - I".

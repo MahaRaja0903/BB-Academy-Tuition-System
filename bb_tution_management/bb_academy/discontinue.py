@@ -100,3 +100,100 @@ def report_summary(records):
 		{"label": _("Still Discontinued"), "value": len(records) - rejoined, "indicator": "Orange", "datatype": "Int"},
 		{"label": _("Rejoined"), "value": rejoined, "indicator": "Green", "datatype": "Int"},
 	]
+
+
+# ---------------------------------------------------------------------------
+# Discontinued periods (attendance)
+# ---------------------------------------------------------------------------
+#
+# A student owes no attendance from the day they are discontinued until the day
+# before they rejoin. Like a Student Holiday those days are derived, here, from
+# the Student (still discontinued) and the Student Rejoin Logs (came back), so
+# the attendance screen, the previous-day guard, the register and the profile
+# all agree on them. An Absent row already marked inside such a period is
+# re-tagged with the "Discontinued" attendance status.
+
+
+def get_discontinued_periods(students=None, from_date=None, to_date=None):
+	"""{student: [(start, end), ...]} — inclusive ranges in which each student
+	was discontinued. `end` is None while the student is still discontinued.
+
+	`students` narrows the lookup; `from_date`/`to_date` keep only the periods
+	overlapping that window.
+	"""
+	from frappe.utils import add_days
+
+	if students is not None:
+		students = list(students)
+		if not students:
+			return {}
+
+	from_date = getdate(from_date) if from_date else None
+	to_date = getdate(to_date) if to_date else None
+
+	student_filters = {"status": "Discontinued", "discontinued__date": ["is", "set"]}
+	log_filters = {"discontinued_date": ["is", "set"], "rejoined_date": ["is", "set"]}
+	if students is not None:
+		student_filters["name"] = ["in", students]
+		log_filters["student"] = ["in", students]
+
+	ranges = []
+	for s in frappe.get_all("Student", filters=student_filters, fields=["name", "discontinued__date"]):
+		ranges.append((s.name, getdate(s.discontinued__date), None))
+
+	for log in frappe.get_all(
+		"Student Rejoin Log", filters=log_filters, fields=["student", "discontinued_date", "rejoined_date"]
+	):
+		end = getdate(add_days(log.rejoined_date, -1))
+		start = getdate(log.discontinued_date)
+		if end >= start:
+			ranges.append((log.student, start, end))
+
+	periods = {}
+	for student, start, end in ranges:
+		if to_date and start > to_date:
+			continue
+		if from_date and end and end < from_date:
+			continue
+		periods.setdefault(student, []).append((start, end))
+	for spans in periods.values():
+		spans.sort()
+	return periods
+
+
+def is_discontinued_on(periods, student, date):
+	"""Was `student` discontinued on `date`, per get_discontinued_periods()?"""
+	date = getdate(date)
+	return any(start <= date and (end is None or date <= end) for start, end in periods.get(student, ()))
+
+
+def tag_discontinued_absences(student, start, end=None):
+	"""Re-tag the Absent rows marked for `student` while discontinued as
+	"Discontinued".
+
+	Staff had to mark a left student Absent to get past the previous-day guard;
+	those rows must not count as absences (monthly totals, absence calls,
+	attendance %). They are re-tagged rather than deleted because the absence
+	WhatsApp already sent links to them. Present/Late rows are real attendance
+	and are kept. Returns the number of rows re-tagged.
+	"""
+	from frappe.utils import now
+
+	conditions = "student = %(student)s AND status = 'Absent' AND attendance_date >= %(start)s"
+	if end:
+		conditions += " AND attendance_date <= %(end)s"
+	frappe.db.sql(
+		f"""
+		UPDATE `tabStudent Attendance`
+		SET status = 'Discontinued', modified = %(modified)s, modified_by = %(user)s
+		WHERE {conditions}
+		""",
+		{
+			"student": student,
+			"start": getdate(start),
+			"end": getdate(end) if end else None,
+			"modified": now(),
+			"user": frappe.session.user,
+		},
+	)
+	return frappe.db._cursor.rowcount or 0

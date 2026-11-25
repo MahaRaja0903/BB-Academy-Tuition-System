@@ -391,7 +391,7 @@
 }
 
 /* ---- actions ---- */
-.pcw-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+.pcw-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 
 .pcw-btn {
   display: inline-flex;
@@ -407,6 +407,35 @@
 }
 
 .pcw-btn-primary { background: var(--blue-500); border-color: var(--blue-500); color: #fff; }
+.pcw-btn-warn {
+  background: var(--bg-orange, #ffedd5);
+  border-color: var(--orange-300, #fdba74);
+  color: var(--text-on-orange, #c2410c);
+}
+.pcw-btn-close {
+  background: var(--card-bg);
+  border-color: var(--green-500, #22c55e);
+  color: var(--green-700, #15803d);
+}
+
+/* Calls nobody picked up, and the Not Attended / Closed tags in history. */
+.pcw-not-attended-badge,
+.pcw-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--bg-orange, #ffedd5);
+  color: var(--text-on-orange, #c2410c);
+}
+.pcw-status-tag { margin-right: 4px; padding: 1px 8px; }
+.pcw-status-tag.is-closed {
+  background: var(--bg-green, #dcfce7);
+  color: var(--text-on-green, #15803d);
+}
 
 /* ---- history ---- */
 .pcw-history-head {
@@ -555,3 +584,89 @@
   .pcw-link-btn { margin-left: 0; }
   .pcw-btn { flex: 1; }
 }
+
+/* ---- complaints ---- */
+.pcw-choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.pcw-choice {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  border-radius: var(--pcw-radius-sm, 8px);
+  background: var(--card-bg);
+  color: var(--text-color);
+  cursor: pointer;
+}
+.pcw-choice.is-active {
+  background: var(--blue-500);
+  border-color: var(--blue-500);
+  color: #fff;
+}
+.pcw-complaint-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+.pcw-btn-complaint {
+  background: var(--bg-red, #fee2e2);
+  border-color: var(--red-300, #fca5a5);
+  color: var(--red-700, #b91c1c);
+}
+.pcw-complaint-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 999px;
+  background: var(--bg-red, #fee2e2);
+  color: var(--red-700, #b91c1c);
+}
+.pcw-meeting-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 999px;
+  background: var(--bg-purple, #ede9fe);
+  color: var(--purple-700, #6d28d9);
+}
+.pcw-meeting-tag.is-done { background: var(--bg-green, #dcfce7); color: var(--green-700, #15803d); }
+.pcw-btn-done {
+  background: var(--card-bg);
+  border-color: var(--green-500, #22c55e);
+  color: var(--green-700, #15803d);
+}
+.pcw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- meeting modal ---- */
+.pcw-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 13.5px;
+  color: var(--text-color);
+  cursor: pointer;
+}
+.pcw-check input { width: 17px; height: 17px; accent-color: var(--blue-500); }
+.pcw-photo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pcw-photo-preview {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--pcw-radius-sm, 8px);
+  border: 1px solid var(--border-color);
+}
+.pcw-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px dashed var(--gray-400);
+  border-radius: var(--pcw-radius-sm, 8px);
+  cursor: pointer;
+  color: var(--text-color);
+}
+.pcw-upload-btn input { display: none; }

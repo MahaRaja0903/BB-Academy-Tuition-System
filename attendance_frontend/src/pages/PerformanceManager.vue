@@ -792,6 +792,66 @@
               </option>
             </select>
           </template>
+          <template v-if="canAddInsteadTest">
+            <button
+              v-if="!skipModal.addTest.open"
+              type="button"
+              class="perf-btn perf-btn-secondary perf-skip-add-test"
+              @click="openAddInsteadTest"
+            >
+              <i class="fa fa-plus"></i>
+              {{ skipModal.insteadTests.length ? `Add another ${skipModal.instead}` : `Add the ${skipModal.instead} here` }}
+            </button>
+            <div v-else class="perf-skip-add-test-form">
+              <p class="perf-modal-sub perf-modal-sub-tight">
+                <i class="fa fa-info-circle"></i>
+                Which {{ skipModal.instead }} did <strong>{{ skipModal.student?.student_name }}</strong> write
+                instead? Enter its Subject, Lesson, Portion and Total Marks, then the marks they got.
+              </p>
+              <label class="perf-modal-label">
+                Subject, Lesson &amp; Portion <span class="perf-required">*</span>
+              </label>
+              <SyllabusEditor
+                :blocks="skipModal.addTest.syllabus"
+                :standard="standard"
+                :subjects="subjectsFor(skipModal.student)"
+                :portion-options="portionOptions"
+                single
+                id-prefix="perf-skip-add"
+              />
+              <label class="perf-modal-label">Total Marks <span class="perf-required">*</span></label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                class="form-control"
+                placeholder="Total marks of this paper"
+                v-model="skipModal.addTest.total"
+              />
+              <small class="perf-field-hint">
+                Saved as a {{ skipModal.instead }} for this batch on this day<template v-if="skipModal.noSession">
+                  (this also removes "No {{ skipModal.instead }}")</template>.
+              </small>
+              <div class="perf-modal-actions">
+                <button
+                  type="button"
+                  class="perf-btn perf-btn-secondary"
+                  :disabled="skipModal.addTest.saving"
+                  @click="skipModal.addTest.open = false"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="perf-btn perf-btn-primary"
+                  :disabled="skipModal.addTest.saving"
+                  @click="addInsteadTest"
+                >
+                  {{ skipModal.addTest.saving ? 'Adding…' : `Add ${skipModal.instead}` }}
+                </button>
+              </div>
+            </div>
+          </template>
           <small v-if="insteadTestSyllabus" class="perf-field-hint">
             <i class="fa fa-book"></i> {{ insteadTestSyllabus }}
           </small>
@@ -1107,6 +1167,10 @@ const skipModal = reactive({
   // A Test sat instead belongs to one of the day's Tests.
   insteadTests: [],
   insteadTest: '',
+  // The day is marked "No Test" for the batch.
+  noSession: false,
+  // A Test the student sat that nobody set up yet is added from the modal.
+  addTest: { open: false, syllabus: [], total: '', saving: false },
   remarks: '',
   saving: false,
   error: '',
@@ -1937,6 +2001,8 @@ function resetInstead() {
   skipModal.insteadLoading = false
   skipModal.insteadTests = []
   skipModal.insteadTest = ''
+  skipModal.noSession = false
+  skipModal.addTest = { open: false, syllabus: [], total: '', saving: false }
 }
 
 // Opens on whatever the student already has in that category today, so
@@ -1966,12 +2032,14 @@ async function pickInstead(opt, testPick) {
     if (skipModal.instead !== opt) return
     skipModal.insteadTests = entry?.tests || []
     skipModal.insteadTest = entry?.session_name || ''
-    if (entry?.no_session) {
+    const multi = CATEGORY_CONFIG[opt]?.multiSession
+    skipModal.noSession = !!entry?.no_session
+    if (multi && !skipModal.insteadTests.length) {
+      // Nothing to pick yet — not an error: the teacher just enters the paper
+      // the student wrote, right here.
+      openAddInsteadTest()
+    } else if (entry?.no_session) {
       skipModal.error = `No ${opt} is set for this batch today — undo "No ${opt}" first.`
-    } else if (CATEGORY_CONFIG[opt]?.multiSession && !skipModal.insteadTests.length) {
-      skipModal.error = opt === category.value
-        ? `No other ${opt} is added for this batch today — add it under ${opt} first.`
-        : `No ${opt} is added for this batch today — add it under ${opt} first.`
     }
     skipModal.insteadExists = !!entry?.exists && !entry?.skipped
     if (skipModal.insteadExists) {
@@ -1983,6 +2051,74 @@ async function pickInstead(opt, testPick) {
     skipModal.error = errorText(e, `Failed to load ${opt}`)
   } finally {
     if (skipModal.instead === opt) skipModal.insteadLoading = false
+  }
+}
+
+// Only a Test (one setup per combination) can be added from the skip modal.
+const canAddInsteadTest = computed(
+  () =>
+    !!skipModal.instead &&
+    !!CATEGORY_CONFIG[skipModal.instead]?.multiSession &&
+    !skipModal.insteadLoading &&
+    !isFutureDate.value
+)
+
+function openAddInsteadTest() {
+  skipModal.addTest = {
+    open: true,
+    syllabus: [{ subject: '', lessons: [], portions: [] }],
+    total: skipModal.insteadTotal || '',
+    saving: false,
+  }
+}
+
+async function addInsteadTest() {
+  const opt = skipModal.instead
+  const blocks = cloneSyllabus(skipModal.addTest.syllabus).filter(hasContent)
+  const total = skipModal.addTest.total === '' ? 0 : Number(skipModal.addTest.total)
+  if (!blocks.length || !blocks[0].subject) {
+    skipModal.error = `Pick the Subject this ${opt} is on.`
+    return
+  }
+  if (!(total > 0)) {
+    skipModal.error = `Enter the Total Marks of this ${opt}.`
+    return
+  }
+  skipModal.addTest.saving = true
+  skipModal.error = ''
+  try {
+    const res = await saveSessionResource.submit({
+      standard: standard.value,
+      batch: batch.value,
+      category: opt,
+      performance_date: date.value,
+      syllabus: syllabusPayload(blocks),
+      total_marks: total,
+    })
+    const added = res?.session
+    // The page's own Test list must show it too when the page is that category.
+    if (added && opt === category.value && !tests.value.some((t) => t.name === added.name)) {
+      tests.value = [
+        ...tests.value,
+        {
+          name: added.name,
+          subject: added.subject,
+          total_marks: added.total_marks,
+          pass_marks: added.pass_marks,
+          syllabus: added.syllabus,
+          label: syllabusLine(added.syllabus) || added.subject || added.name,
+          graded: 0,
+        },
+      ]
+    }
+    if (skipModal.instead !== opt) return
+    const marks = skipModal.insteadMarks
+    await pickInstead(opt, added?.name)
+    if (marks !== '' && skipModal.insteadMarks === '') skipModal.insteadMarks = marks
+  } catch (e) {
+    skipModal.error = errorText(e, `Failed to add the ${opt}`)
+  } finally {
+    skipModal.addTest.saving = false
   }
 }
 
@@ -3234,6 +3370,17 @@ watch([resultFilter, showCompleted, search], () => {
 .perf-manager .perf-field-lesson { grid-column: 1 / -1; }
 
 /* Skip modal: "12 / 20" for the Test the student sat instead. */
+.perf-manager .perf-skip-add-test {
+  margin-top: 10px;
+}
+
+.perf-manager .perf-skip-add-test-form {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px dashed var(--perf-border, #d1d5db);
+  border-radius: 8px;
+}
+
 .perf-manager .perf-marks-pair {
   display: flex;
   align-items: center;

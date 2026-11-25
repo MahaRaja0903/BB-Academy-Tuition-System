@@ -38,12 +38,15 @@ self.addEventListener('fetch', event => {
 @frappe.whitelist(allow_guest=True)
 def sw_attendance():
     js_content = """
-const CACHE_NAME = 'bb-student-manager-pwa-v1';
+const CACHE_NAME = 'bb-student-manager-pwa-v2';
 const urlsToCache = [
   '/attendance_manager',
 ];
 
+// Take over straight away, so a new build reaches open phones on the next
+// load instead of after every tab of the app has been closed.
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
@@ -52,16 +55,28 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))
-    )
+    caches.keys()
+      .then(keys =>
+        Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))
+      )
+      .then(() => self.clients.claim())
   );
 });
 
+// Network first: the page names the current build's JS file, so a cached copy
+// keeps running the old build. The cache is only the offline fallback.
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
+    fetch(event.request)
+      .then(response => {
+        if (event.request.mode === 'navigate' && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 """

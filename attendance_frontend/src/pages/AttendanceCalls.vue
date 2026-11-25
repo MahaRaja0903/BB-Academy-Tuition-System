@@ -46,7 +46,7 @@
           :class="{ 'is-active': view === 'history' }"
           @click="view = 'history'"
         >
-          <i class="fa fa-history"></i> Call History
+          <i class="fa fa-check-circle"></i> Closed
         </button>
       </div>
     </div>
@@ -176,14 +176,35 @@
             </div>
 
             <div class="pcw-badges">
-              <span class="acw-priority" :class="`acw-level-${r.level}`">
+              <span v-if="r.priority" class="acw-priority" :class="`acw-level-${r.level}`">
                 <i class="fa fa-flag"></i> {{ r.priority }}
               </span>
-              <span class="pcw-wait-badge" :title="`${r.priority} since ${prettyDate(r.due_since, true)}`">
+              <span
+                v-if="r.meeting_required"
+                class="pcw-meeting-tag"
+                :class="{ 'is-done': r.meeting_complete }"
+                :title="`${MEETING_THRESHOLD} or more Absent / Late days: the parents must meet the staff`"
+              >
+                <i class="fa fa-handshake-o"></i>
+                {{ r.meeting_complete ? 'Meeting done' : 'Parent meeting due' }}
+              </span>
+              <router-link
+                v-if="r.open_complaints"
+                class="pcw-complaint-tag"
+                :to="{ name: 'ComplaintCalls' }"
+                title="Open complaint — solve it on Complaint Calls before closing"
+              >
+                <i class="fa fa-bullhorn"></i> Complaint open
+              </router-link>
+              <span class="pcw-wait-badge" :title="`${r.priority || 'Waiting'} since ${prettyDate(r.due_since, true)}`">
                 <i class="fa fa-clock-o"></i> {{ waitingText(r.days_pending) }}
               </span>
+              <span v-if="r.not_attended" class="pcw-not-attended-badge" title="Calls this month nobody picked up">
+                <i class="fa fa-phone-square"></i> Not attended {{ r.not_attended }}×
+              </span>
               <span v-if="r.last_call" class="pcw-last-call">
-                Last call {{ formatDateTime(r.last_call.called_on) }}
+                {{ r.last_call.call_status === 'Closed' ? 'Closed' : 'Last call' }}
+                {{ formatDateTime(r.last_call.called_on) }}
                 <template v-if="r.called_priority"> · {{ r.called_priority }}</template>
               </span>
             </div>
@@ -264,8 +285,21 @@
                           class="acw-missed-item"
                           :data-category="m.category"
                         >
-                          <b>{{ m.category }}</b>
-                          <span v-if="m.topic">{{ m.topic }}</span>
+                          <b class="acw-missed-cat">{{ m.category }}</b>
+                          <template v-if="(m.blocks || []).length">
+                            <span v-for="(blk, bi) in m.blocks" :key="bi" class="acw-missed-block">
+                              <span v-if="blk.subject" class="acw-missed-field">
+                                <em>Subject</em> {{ blk.subject }}
+                              </span>
+                              <span v-if="blk.lessons.length" class="acw-missed-field">
+                                <em>Lesson</em> {{ blk.lessons.join(', ') }}
+                              </span>
+                              <span v-if="blk.portions.length" class="acw-missed-field">
+                                <em>Portion</em> {{ blk.portions.join(', ') }}
+                              </span>
+                            </span>
+                          </template>
+                          <span v-else-if="m.topic">{{ m.topic }}</span>
                           <span v-if="m.category === 'Test' && m.total_marks" class="acw-missed-marks">
                             ({{ m.total_marks }} marks)
                           </span>
@@ -284,8 +318,40 @@
         </div>
 
         <div class="pcw-actions">
-          <button type="button" class="pcw-btn pcw-btn-primary" @click="openCall(r)">
-            <i class="fa fa-phone"></i> Log Call
+          <template v-if="r.call_due !== false">
+            <button type="button" class="pcw-btn pcw-btn-primary" @click="openCall(r)">
+              <i class="fa fa-phone"></i> Log Call
+            </button>
+            <button type="button" class="pcw-btn pcw-btn-warn" @click="openOutcome('not_attended', r)">
+              <i class="fa fa-phone-square"></i> Not Attended
+            </button>
+          </template>
+          <button
+            v-if="r.meeting_required"
+            type="button"
+            class="pcw-btn"
+            :class="r.meeting_complete ? 'pcw-btn-done' : 'pcw-btn-primary'"
+            @click="openMeeting(r)"
+          >
+            <i class="fa fa-handshake-o"></i>
+            {{ r.meeting?.meeting_done ? 'Edit Meeting' : 'Parent Meeting' }}
+          </button>
+          <button
+            v-if="r.call_due !== false"
+            type="button"
+            class="pcw-btn pcw-btn-close"
+            :disabled="!!closeBlocker(r)"
+            :title="closeBlocker(r) || 'Close without a call'"
+            @click="openOutcome('close', r)"
+          >
+            <i class="fa fa-check"></i> Close
+          </button>
+        </div>
+
+        <!-- A parent's complaint: the card stays until it is solved on Complaint Calls. -->
+        <div class="pcw-complaint-row">
+          <button type="button" class="pcw-btn pcw-btn-complaint" @click="openComplaint(r)">
+            <i class="fa fa-bullhorn"></i> Complaint
           </button>
         </div>
       </article>
@@ -317,13 +383,30 @@
           <span class="pcw-history-when">{{ formatDateTime(c.called_on) }}</span>
         </header>
         <div class="pcw-done-row">
-          <i class="fa fa-phone"></i>
-          <span>
-            <b>{{ c.called_by }}</b> spoke to <b>{{ c.spoken_to }}</b>
-            <template v-if="c.spoken_to_name"> ({{ c.spoken_to_name }})</template>
-          </span>
+          <template v-if="c.call_status === 'Not Attended'">
+            <i class="fa fa-phone-square"></i>
+            <span>
+              <span class="pcw-status-tag is-not-attended">Not Attended</span>
+              <b>{{ c.called_by }}</b> called
+              <template v-if="c.spoken_to"> <b>{{ c.spoken_to }}</b></template>, nobody picked up
+            </span>
+          </template>
+          <template v-else-if="c.call_status === 'Closed'">
+            <i class="fa fa-check"></i>
+            <span>
+              <span class="pcw-status-tag is-closed">Closed</span>
+              without a call<template v-if="c.closed_by"> by <b>{{ c.closed_by }}</b></template>
+            </span>
+          </template>
+          <template v-else>
+            <i class="fa fa-phone"></i>
+            <span>
+              <b>{{ c.called_by }}</b> spoke to <b>{{ c.spoken_to }}</b>
+              <template v-if="c.spoken_to_name"> ({{ c.spoken_to_name }})</template>
+            </span>
+          </template>
         </div>
-        <div class="pcw-tally pcw-tally-flat">
+        <div v-if="c.call_status !== 'Not Attended'" class="pcw-tally pcw-tally-flat">
           <span v-if="c.priority" class="acw-priority" :class="`acw-level-${levelOf(c.priority)}`">
             <i class="fa fa-flag"></i> {{ c.priority }}
           </span>
@@ -334,6 +417,89 @@
         <div v-if="c.call_notes" class="pcw-done-notes">“{{ c.call_notes }}”</div>
       </article>
     </template>
+
+    <CallOutcomeModal
+      :open="outcome.open"
+      :mode="outcome.mode"
+      :record="outcome.record"
+      call-for="Attendance"
+      close-module="attendance_calls"
+      close-hint="Takes the student off the list without a call. Like a call, they come back only on reaching the next priority."
+      :staff-list="staffList"
+      @close="outcome.open = false"
+      @saved="onOutcomeSaved"
+    />
+
+    <ComplaintModal
+      :open="complaint.open"
+      :record="complaint.record"
+      complaint-for="Attendance"
+      :staff-list="staffList"
+      @close="complaint.open = false"
+      @saved="onComplaintSaved"
+    />
+
+    <!-- Parent meeting modal -->
+    <div v-if="meetModal.open" class="pcw-modal-backdrop" @click.self="meetModal.open = false">
+      <div class="pcw-modal">
+        <h3><i class="fa fa-handshake-o"></i> Parent Meeting — {{ meetModal.record?.student_name }}</h3>
+        <p class="pcw-modal-hint">
+          {{ meetModal.record?.count }} Absent / Late days this month. The parents must be informed,
+          must meet the staff, and a photo of the meeting must be uploaded.
+        </p>
+
+        <label class="pcw-check">
+          <input type="checkbox" v-model="meetModal.parents_informed" />
+          <span>Parents have been informed</span>
+        </label>
+        <label class="pcw-check">
+          <input type="checkbox" v-model="meetModal.meeting_done" />
+          <span>Parents met the staff</span>
+        </label>
+
+        <template v-if="meetModal.meeting_done">
+          <label class="pcw-modal-label">Which staff did they meet? <span class="pcw-req">*</span></label>
+          <select class="form-control" v-model="meetModal.met_staff">
+            <option value="">Select staff</option>
+            <option v-for="s in staffList" :key="s.name" :value="s.name">{{ s.name }}</option>
+          </select>
+
+          <label class="pcw-modal-label">Meeting time</label>
+          <input type="datetime-local" class="form-control" v-model="meetModal.meeting_on" />
+
+          <label class="pcw-modal-label">What was discussed?</label>
+          <textarea class="form-control" rows="3" v-model="meetModal.meeting_notes"></textarea>
+
+          <label class="pcw-modal-label">Meeting photo <span class="pcw-req">*</span></label>
+          <div class="pcw-photo-row">
+            <img v-if="meetModal.photo" class="pcw-photo-preview" :src="meetModal.photo" alt="Meeting photo" />
+            <label class="pcw-upload-btn">
+              <i class="fa" :class="meetModal.uploading ? 'fa-spinner fa-spin' : 'fa-camera'"></i>
+              <span>{{ meetModal.photo ? 'Replace photo' : 'Take / upload photo' }}</span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                :disabled="meetModal.uploading"
+                @change="onPhotoPicked"
+              />
+            </label>
+          </div>
+        </template>
+
+        <p v-if="meetModal.error" class="pcw-modal-error">{{ meetModal.error }}</p>
+        <div class="pcw-modal-actions">
+          <button class="pcw-btn-lg" @click="meetModal.open = false">Cancel</button>
+          <button
+            class="pcw-btn-lg pcw-btn-primary-lg"
+            :disabled="!canSaveMeeting || meetModal.saving || meetModal.uploading"
+            @click="saveMeeting"
+          >
+            {{ meetModal.saving ? 'Saving…' : 'Save Meeting' }}
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Call modal -->
     <div v-if="callModal.open" class="pcw-modal-backdrop" @click.self="callModal.open = false">
@@ -349,9 +515,6 @@
           <option value="">Select</option>
           <option v-for="o in SPOKEN_TO" :key="o" :value="o">{{ o }}</option>
         </select>
-
-        <label class="pcw-modal-label">Name / number spoken to</label>
-        <input type="text" class="form-control" v-model="callModal.spoken_to_name" />
 
         <label class="pcw-modal-label">When was the call made?</label>
         <input type="datetime-local" class="form-control" v-model="callModal.called_on" />
@@ -387,6 +550,11 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import { serverToday, loadServerToday } from '@/data/serverDate'
+import CallOutcomeModal from '@/components/CallOutcomeModal.vue'
+import ComplaintModal from '@/components/ComplaintModal.vue'
+
+// Mirrors MEETING_THRESHOLD in bb_academy/attendance_calls.py.
+const MEETING_THRESHOLD = 5
 
 // Mirrors PRIORITIES in bb_academy/attendance_calls.py; replaced by the
 // server's copy on load.
@@ -706,6 +874,18 @@ function openCall(record) {
   })
 }
 
+// Not Attended / Close
+const outcome = reactive({ open: false, mode: 'not_attended', record: null })
+
+function openOutcome(mode, record) {
+  Object.assign(outcome, { open: true, mode, record })
+}
+
+async function onOutcomeSaved() {
+  outcome.open = false
+  await load()
+}
+
 async function saveCall() {
   callModal.saving = true
   callModal.error = ''
@@ -713,7 +893,6 @@ async function saveCall() {
     await logResource.submit({
       student: callModal.record.student,
       spoken_to: callModal.spoken_to,
-      spoken_to_name: callModal.spoken_to_name,
       called_on: fromInputDateTime(callModal.called_on),
       called_by: callModal.called_by,
       call_notes: callModal.call_notes,
@@ -724,6 +903,139 @@ async function saveCall() {
     callModal.error = errorText(e)
   } finally {
     callModal.saving = false
+  }
+}
+
+// What still stops Close, or '' when it may go ahead.
+function closeBlocker(r) {
+  if (r.open_complaints) return 'Solve the complaint on Complaint Calls first'
+  if (r.meeting_required && !r.meeting_complete) return 'Finish the parent meeting first'
+  return ''
+}
+
+// Complaint
+const complaint = reactive({ open: false, record: null })
+
+function openComplaint(record) {
+  Object.assign(complaint, { open: true, record })
+}
+
+async function onComplaintSaved() {
+  complaint.open = false
+  await load()
+}
+
+// Parent meeting
+const meetModal = reactive({
+  open: false,
+  record: null,
+  name: null,
+  parents_informed: false,
+  meeting_done: false,
+  met_staff: '',
+  meeting_on: '',
+  meeting_notes: '',
+  photo: '',
+  uploading: false,
+  saving: false,
+  error: '',
+})
+
+const meetingResource = createResource({
+  url: 'bb_tution_management.bb_academy.attendance_calls.record_meeting',
+})
+const attachResource = createResource({
+  url: 'bb_tution_management.bb_academy.attendance_calls.attach_meeting_photo',
+})
+
+const canSaveMeeting = computed(() => {
+  if (!meetModal.meeting_done) return true
+  return !!meetModal.met_staff && !!meetModal.photo
+})
+
+function toInputDateTime(value) {
+  if (!value) return ''
+  return String(value).replace(' ', 'T').slice(0, 16)
+}
+
+function openMeeting(record) {
+  const m = record.meeting || {}
+  Object.assign(meetModal, {
+    open: true,
+    record,
+    name: m.name || null,
+    parents_informed: !!m.parents_informed,
+    meeting_done: !!m.meeting_done,
+    met_staff: m.met_staff || '',
+    meeting_on: toInputDateTime(m.meeting_on) || nowForInput(),
+    meeting_notes: m.meeting_notes || '',
+    photo: m.meeting_photo || '',
+    uploading: false,
+    saving: false,
+    error: '',
+  })
+}
+
+function meetingPayload() {
+  return {
+    student: meetModal.record.student,
+    parents_informed: meetModal.parents_informed ? 1 : 0,
+    meeting_done: meetModal.meeting_done ? 1 : 0,
+    met_staff: meetModal.met_staff || null,
+    meeting_on: fromInputDateTime(meetModal.meeting_on),
+    meeting_notes: meetModal.meeting_notes,
+  }
+}
+
+async function onPhotoPicked(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  meetModal.uploading = true
+  meetModal.error = ''
+  try {
+    // The meeting must exist before a file can be attached to it.
+    const saved = await meetingResource.submit(meetingPayload())
+    meetModal.name = saved?.name
+
+    const form = new FormData()
+    form.append('file', file, file.name)
+    form.append('is_private', '1')
+    form.append('doctype', 'Attendance Parent Meeting')
+    form.append('docname', meetModal.name)
+    form.append('fieldname', 'meeting_photo')
+
+    const res = await fetch('/api/method/upload_file', {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'X-Frappe-CSRF-Token': window.csrf_token },
+      body: form,
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data?.exception || data?._error_message || 'Upload failed')
+    const fileUrl = data?.message?.file_url
+    if (!fileUrl) throw new Error('Upload returned no file')
+
+    const attached = await attachResource.submit({ name: meetModal.name, file_url: fileUrl })
+    meetModal.photo = attached?.meeting_photo || fileUrl
+  } catch (e) {
+    meetModal.error = errorText(e)
+  } finally {
+    meetModal.uploading = false
+  }
+}
+
+async function saveMeeting() {
+  meetModal.saving = true
+  meetModal.error = ''
+  try {
+    await meetingResource.submit(meetingPayload())
+    meetModal.open = false
+    await load()
+  } catch (e) {
+    meetModal.error = errorText(e)
+  } finally {
+    meetModal.saving = false
   }
 }
 
@@ -849,7 +1161,7 @@ onMounted(async () => {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px;
+  gap: 4px 8px;
   padding: 3px 8px;
   font-size: 12px;
   color: var(--text-color);
@@ -860,6 +1172,27 @@ onMounted(async () => {
 }
 
 .acw-missed-item b { font-weight: 700; }
+
+.acw-missed-block {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.acw-missed-block + .acw-missed-block {
+  padding-left: 10px;
+  border-left: 1px solid var(--border-color);
+}
+
+.acw-missed-field em {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
 .acw-missed-item[data-category='Class'] { border-left-color: var(--blue-500, #3b82f6); }
 .acw-missed-item[data-category='Study'] { border-left-color: var(--green-600, #16a34a); }
 .acw-missed-item[data-category='Test'] { border-left-color: var(--purple-500, #8b5cf6); }

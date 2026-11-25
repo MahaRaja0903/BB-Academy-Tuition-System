@@ -1,8 +1,19 @@
-"""Starting Payment & Monthly Fees report: the data layer.
+"""Starting Payment, Monthly & Yearly Fees report: the data layer.
 
-Every figure comes from the Student `payment_details` table, the ledger the fee
-invoices keep up to date. It has one "Starting Payment" row plus one row per
-month of the student's Academic Year.
+The Starting Payment and Monthly Fees figures come from the Student
+`payment_details` table, the ledger the fee invoices keep up to date. It has one
+"Starting Payment" row plus one row per month of the student's Academic Year.
+
+Yearly Fees are reported on their own, one entry per yearly-fee student:
+  * Total = the student's Yearly Fees Amount, Pending = Yearly Fees Pending
+    Amount (Active students only), Paid = the difference.
+  * Paid Date = the latest row on the student's yearly payment table.
+  * Like the starting payment, it covers the whole academic year: the year of
+    the Admission Date places it, and the Month filter never narrows it.
+  * A yearly student's ledger rows are left out of the Starting Payment and
+    Monthly sections, so nothing is counted twice: a manually entered yearly
+    fee never touches the ledger (its Starting Payment row stays Not Paid
+    forever), and an auto calculated one spreads the same yearly money over it.
 
 Year / month of a row:
   * Starting Payment: the year of the student's Admission Date (or the row's
@@ -35,10 +46,7 @@ Pending amount of a row:
     be stale after a batch change.
   * Not Paid starting payment rows use the row amount, else the student's
     Starting Payment.
-  * Yearly-fee and scholarship students owe nothing month by month -- except a
-    yearly student whose yearly fee was auto calculated at admission: their
-    year is split month-wise on the ledger, so each Not Paid month uses the
-    amount stored on its row (a pro-rated joining month, or the monthly fee).
+  * Scholarship students owe nothing month by month.
 
 Total = Paid + Pending. Paid Amount also includes what has been collected on
 Partial rows, so the three cards always add up. Total Count also counts the
@@ -65,7 +73,11 @@ PAID_STATUSES = {"Paid"}
 PENDING_STATUSES = {"Not Paid", "Partial", "Reserved"}
 NO_FEES = "No Fees"
 
-SECTIONS = ("starting", "monthly", "overall")
+YEARLY_FEE = "Yearly Fee"
+
+SECTIONS = ("starting", "monthly", "yearly", "overall")
+# Sections that cover the whole academic year: the Month filter skips them.
+YEAR_SECTIONS = {"starting", "yearly"}
 KINDS = ("total", "paid", "pending", "no_fee")
 
 
@@ -82,13 +94,14 @@ def _ledger_rows():
 		select
 			s.name as student, s.student_name, s.status as student_status, s.gender,
 			s.standard, s.admission_date, s.monthly_fee, s.starting_payment,
-			s.yearly_fees_student, s.yearly_fees_auto_calculated, s.scholarship_student, s.current_batch,
+			s.yearly_fees_student, s.scholarship_student, s.current_batch,
 			ay.start_date as ay_start,
 			d.month, d.status, d.date, d.pending_amount_paid_date, d.amount_need_to_pay, d.amount_paid, d.pending
 		from `tabStudent` s
 		inner join `tabStudent Payment Detail` d
 			on d.parent = s.name and d.parenttype = 'Student' and d.parentfield = 'payment_details'
 		left join `tabAcademic Year` ay on ay.name = s.academic_year
+		where ifnull(s.yearly_fees_student, 0) = 0
 		order by s.name, d.idx
 		""",
 		as_dict=True,
@@ -168,16 +181,13 @@ def _entries():
 		elif r.status in PENDING_STATUSES:
 			if r.student_status != "Active":
 				continue
-			split_yearly = cint(r.yearly_fees_student) and cint(r.yearly_fees_auto_calculated)
-			if not is_starting and not split_yearly and (cint(r.yearly_fees_student) or cint(r.scholarship_student)):
+			if not is_starting and cint(r.scholarship_student):
 				continue
 			if r.status != "Not Paid" and flt(r.pending) > 0:
 				pending = flt(r.pending)
 			elif is_starting:
 				expected = flt(r.amount_need_to_pay) or flt(r.starting_payment)
 				pending = flt(r.pending) if flt(r.pending) > 0 else max(expected - paid, 0.0)
-			elif split_yearly:
-				pending = max(flt(r.amount_need_to_pay) - paid, 0.0)
 			else:
 				pending = max(flt(r.monthly_fee) - paid, 0.0)
 			if not pending and not paid:
@@ -204,21 +214,78 @@ def _entries():
 				status=r.status,
 			)
 		)
+	return entries + _yearly_entries()
+
+
+def _yearly_entries():
+	"""One entry per yearly-fee student: their whole yearly fee."""
+	last_paid = {
+		r.parent: r.payment_date
+		for r in frappe.db.sql(
+			"""
+			select parent, max(payment_date) as payment_date
+			from `tabYearly Payment Details`
+			where parenttype = 'Student' and parentfield = 'yearly_payment_details'
+			group by parent
+			""",
+			as_dict=True,
+		)
+	}
+	entries = []
+	for s in frappe.db.sql(
+		"""
+		select name as student, student_name, status as student_status, gender, standard,
+			current_batch, admission_date, creation, yearly_fees_amount, yearly_fees_pending_amount
+		from `tabStudent`
+		where yearly_fees_student = 1
+		""",
+		as_dict=True,
+	):
+		total = flt(s.yearly_fees_amount)
+		pending = min(max(flt(s.yearly_fees_pending_amount), 0.0), total)
+		paid = total - pending
+		if s.student_status != "Active":
+			# Nothing is collected from a student who has left.
+			pending = 0.0
+		if not paid and not pending:
+			continue
+
+		when = getdate(s.admission_date or last_paid.get(s.student) or s.creation)
+		status = "Paid" if not pending else ("Partial" if paid else "Not Paid")
+		entries.append(
+			frappe._dict(
+				section="yearly",
+				year=when.year,
+				month=when.month,
+				is_paid=not pending,
+				is_no_fee=False,
+				paid=paid,
+				pending=pending,
+				waived=0.0,
+				student=s.student,
+				student_name=s.student_name,
+				standard=s.standard,
+				batch=s.current_batch,
+				gender=s.gender,
+				paid_date=last_paid.get(s.student) if paid else None,
+				status=status,
+			)
+		)
 	return entries
 
 
 def _filter(entries, year, month):
 	"""Entries in the selected year / month.
 
-	The starting payment is a one-time fee that covers the whole academic
-	year, so the Month filter does not apply to it; only the Year does.
+	The starting payment and the yearly fee cover the whole academic year,
+	so the Month filter does not apply to them; only the Year does.
 	"""
 	year, month = cint(year), cint(month)
 	return [
 		e
 		for e in entries
 		if (not year or e.year == year)
-		and (not month or e.section == "starting" or e.month == month)
+		and (not month or e.section in YEAR_SECTIONS or e.month == month)
 	]
 
 
@@ -284,7 +351,9 @@ def get_breakdown(section, kind, year=None, month=None):
 				"batch": e.batch,
 				"gender": e.gender,
 				"paid_date": e.paid_date,
-				"fee": _("Starting Payment") if e.section == "starting" else _(MONTH_NAMES[e.month - 1]),
+				"fee": _(STARTING) if e.section == "starting"
+				else _(YEARLY_FEE) if e.section == "yearly"
+				else _(MONTH_NAMES[e.month - 1]),
 				"period": f"{MONTH_NAMES[e.month - 1][:3]} {e.year}",
 				"status": e.status,
 				"paid": e.paid,

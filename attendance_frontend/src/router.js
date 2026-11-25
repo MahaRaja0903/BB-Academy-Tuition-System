@@ -10,6 +10,8 @@ import AttendanceReports from '@/pages/AttendanceReports.vue'
 import StudentMistakes from '@/pages/StudentMistakes.vue'
 import PendingCalls from '@/pages/PendingCalls.vue'
 import AttendanceCalls from '@/pages/AttendanceCalls.vue'
+import NotAttendedCalls from '@/pages/NotAttendedCalls.vue'
+import ComplaintCalls from '@/pages/ComplaintCalls.vue'
 import Login from '@/pages/Login.vue'
 import { sessionUser } from '@/data/session'
 import { userResource } from '@/data/user'
@@ -73,6 +75,18 @@ const routes = [
         name: 'AttendanceCalls',
         component: AttendanceCalls,
         meta: { title: 'Attendance Call Works' },
+      },
+      {
+        path: 'not-attended-calls',
+        name: 'NotAttendedCalls',
+        component: NotAttendedCalls,
+        meta: { title: 'Call Not Attended' },
+      },
+      {
+        path: 'complaint-calls',
+        name: 'ComplaintCalls',
+        component: ComplaintCalls,
+        meta: { title: 'Complaint Calls' },
       },
       {
         path: 'reports',

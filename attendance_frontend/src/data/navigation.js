@@ -50,6 +50,8 @@ export const NAV_GROUPS = [
       { name: 'StudentMistakes', label: 'Mistakes', icon: 'fa-exclamation-triangle' },
       { name: 'PendingCalls', label: 'Pending Calls', icon: 'fa-phone' },
       { name: 'AttendanceCalls', label: 'Attendance Calls', icon: 'fa-phone-square' },
+      { name: 'NotAttendedCalls', label: 'Call Not Attended', icon: 'fa-phone-square' },
+      { name: 'ComplaintCalls', label: 'Complaint Calls', icon: 'fa-bullhorn' },
     ],
   },
 ]

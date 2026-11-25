@@ -7,6 +7,19 @@ const MONTH_NAMES = [
 ];
 
 frappe.ui.form.on("Student", {
+	status(frm) {
+		// Discontinuing a student who rejoined: the previous Discontinued Date
+		// is still on the form -- clear it so the new date has to be entered.
+		if (
+			frm.doc.status === "Discontinued" &&
+			frm.doc.rejoined_date &&
+			frm.doc.discontinued__date &&
+			frm.doc.discontinued__date <= frm.doc.rejoined_date
+		) {
+			frm.set_value("discontinued__date", null);
+		}
+	},
+
 	refresh(frm) {
 		if (frm.is_new()) return;
 

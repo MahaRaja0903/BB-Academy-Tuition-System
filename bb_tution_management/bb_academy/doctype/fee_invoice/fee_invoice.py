@@ -153,10 +153,42 @@ def get_row_default_amount(student_doc, month):
 	amount = get_month_amount(student_doc, month)
 
 	row = get_payment_row(student_doc, month)
+	if row and row.status == PAID_BY_STARTING_PAYMENT:
+		# Settled out of the starting payment -- nothing left to collect.
+		return 0
 	if row:
+		# Once a month has been paid into, its billed figure is fixed on the
+		# Student (it may have been edited, e.g. a rejoin month), so the balance
+		# is measured against that rather than recomputed.
+		if month != STARTING_PAYMENT and flt(row.amount_paid) > 0 and flt(row.amount_need_to_pay) > 0:
+			amount = flt(row.amount_need_to_pay)
 		amount -= flt(row.amount_paid)
 
 	return max(0, round(amount))
+
+
+def get_editable_rejoin_month(student_doc):
+	"""The month whose Amount Need to Pay the cashier may edit on an invoice.
+
+	Only a rejoined student's rejoin month, whose amount the system works out
+	from the rejoin date, and only while nothing has been paid for it -- once
+	paid, the billed figure is fixed on the Student.
+	"""
+	rejoined_date = student_doc.get("rejoined_date")
+	if not rejoined_date or student_doc.get("yearly_fees_student"):
+		return None
+
+	month = MONTH_NAMES[getdate(rejoined_date).month - 1]
+	if month not in get_academic_months(student_doc.academic_year):
+		return None
+
+	row = get_payment_row(student_doc, month)
+	if row and (
+		row.status in SETTLED_STATUSES or row.status == NO_FEES or flt(row.amount_paid) > 0
+	):
+		return None
+
+	return month
 
 
 def get_advance_months(student_doc):
@@ -311,9 +343,23 @@ def get_student_fee_data(student):
 				"payment_date": str(row.payment_date) if row.payment_date else None,
 			})
 
+	# Students who rejoined before the date was kept on the Student only have
+	# it in their latest Rejoin Log.
+	discontinued_date = student_doc.get("discontinued__date")
+	if not discontinued_date and student_doc.get("rejoined_date"):
+		discontinued_date = frappe.db.get_value(
+			"Student Rejoin Log",
+			{"student": student_doc.name, "discontinued_date": ["is", "set"]},
+			"discontinued_date",
+			order_by="rejoined_date desc, creation desc",
+		)
+
 	return {
 		"student_name": student_doc.student_name,
+		"status": student_doc.status,
 		"admission_date": str(student_doc.admission_date) if student_doc.admission_date else None,
+		"rejoined_date": str(student_doc.rejoined_date) if student_doc.get("rejoined_date") else None,
+		"discontinued_date": str(discontinued_date) if discontinued_date else None,
 		"standard": student_doc.standard,
 		"current_batch": student_doc.current_batch,
 		"academic_year": student_doc.academic_year or "Current",
@@ -325,6 +371,7 @@ def get_student_fee_data(student):
 		"academic_months": academic_months,
 		"row_amounts": row_amounts,
 		"advance_months": [m for m in (first_month, last_month) if m],
+		"editable_rejoin_month": get_editable_rejoin_month(student_doc),
 		"total_paid_amount": float(student_doc.total_paid_amount or 0),
 		"total_pending_amount": float(student_doc.total_pending_amount or 0),
 		"yearly_fees_student": getattr(student_doc, "yearly_fees_student", 0),
@@ -409,15 +456,45 @@ def get_invoice_prefill(student):
 
 class FeeInvoice(Document):
 	def validate(self):
+		self.set_yearly_fee()
 		self.validate_no_fee()
 		self.set_row_amounts()
 		self.validate_duplicate_rows()
 		self.validate_duplicate_invoice()
+		self.validate_starting_payment_months()
 		self.validate_coupons()
 		self.validate_discount_amount()
 		self.calculate_outstanding()
 		self.validate_split_up_payment()
 		# self.update_status()
+
+	def set_yearly_fee(self):
+		"""A yearly student pays a lump sum against the yearly fee, in parts if
+		they like: no month rows, the amount due is whatever is still pending on
+		the student, and the cashier enters what was actually collected."""
+		if not self.student:
+			return
+
+		student_doc = frappe.get_doc("Student", self.student)
+		self.yearly_fees_student = 1 if student_doc.yearly_fees_student else 0
+		if not self.yearly_fees_student or self.docstatus != 0:
+			return
+
+		self.set("fees_details", [])
+		self.is_starting_fee = 0
+		self.monthly_fee = flt(student_doc.yearly_fees_pending_amount)
+
+		if self.monthly_fee <= 0:
+			frappe.throw(_("The yearly fees of {0} are already fully paid.").format(self.student_name or self.student))
+
+		if flt(self.paid_amount) <= 0 and not flt(self.coupon_amount):
+			frappe.throw(_("Enter the Paid Amount collected from the student."))
+
+		if flt(self.paid_amount) > self.monthly_fee:
+			frappe.throw(_("Paid Amount ({0}) cannot be more than the pending yearly fees ({1}).").format(
+				frappe.format_value(self.paid_amount, {"fieldtype": "Currency"}),
+				frappe.format_value(self.monthly_fee, {"fieldtype": "Currency"}),
+			))
 
 	def validate_no_fee(self):
 		"""A No Fee invoice waives its months: nothing is collected, so the
@@ -598,12 +675,24 @@ class FeeInvoice(Document):
 			return
 
 		student_doc = frappe.get_doc("Student", self.student)
+		rejoin_month = get_editable_rejoin_month(student_doc)
 		for row in self.get("fees_details", []):
 			if not row.month:
 				continue
 
 			if not row.amount_need_to_pay:
 				row.amount_need_to_pay = get_row_default_amount(student_doc, row.month)
+
+			# The rejoin month's amount may be edited by hand, but never above a
+			# full month's fee.
+			if row.month == rejoin_month and self.docstatus == 0:
+				monthly_fee = round(flt(student_doc.monthly_fee))
+				if flt(row.amount_need_to_pay) > monthly_fee:
+					frappe.throw(
+						_("Row {0}: Amount Need to Pay ({1}) for the rejoin month {2} cannot be more than the monthly fee ({3}).").format(
+							row.idx, row.amount_need_to_pay, row.month, monthly_fee
+						)
+					)
 
 			if flt(row.paid_amount) > flt(row.amount_need_to_pay):
 				frappe.throw(
@@ -656,6 +745,53 @@ class FeeInvoice(Document):
 					existing[0][0], self.student, month
 				)
 			)
+
+	def validate_starting_payment_months(self):
+		"""Never bill a month the starting payment pays for on its own.
+
+		A month already Paid By Starting Payment needs no money; billing it
+		again collects the fee twice and overwrites the status with plain Paid.
+		The first full month and the last month of the year are settled by the
+		starting payment, so while it is still outstanding they are collected by
+		paying the rest of the starting payment, not by a monthly row.
+		"""
+		if not self.student or self.no_fee:
+			return
+
+		student_doc = frappe.get_doc("Student", self.student)
+		if student_doc.yearly_fees_student:
+			return
+
+		advance_months = [m for m in get_advance_months(student_doc) if m]
+		starting_row = get_payment_row(student_doc, STARTING_PAYMENT)
+		starting_open = (
+			flt(student_doc.starting_payment) > 0
+			and starting_row is not None
+			and starting_row.status not in (REFUNDED, NO_FEES)
+			and flt(starting_row.pending) > 0
+		)
+
+		for detail in self.get("fees_details", []):
+			month = detail.month
+			if not month or month == STARTING_PAYMENT:
+				continue
+
+			row = get_payment_row(student_doc, month)
+			if row and row.status == PAID_BY_STARTING_PAYMENT:
+				frappe.throw(
+					_("Row {0}: {1} is already Paid By Starting Payment for Student {2}. Remove it from this invoice.").format(
+						detail.idx, month, self.student
+					),
+					title=_("Month Already Paid"),
+				)
+
+			if starting_open and month in advance_months and not (row and flt(row.amount_paid) > 0):
+				frappe.throw(
+					_("Row {0}: {1} is covered by the Starting Payment, which still has {2} pending. Collect the Starting Payment balance instead of billing {1} separately.").format(
+						detail.idx, month, frappe.format_value(flt(starting_row.pending), {"fieldtype": "Currency"})
+					),
+					title=_("Covered by Starting Payment"),
+				)
 
 	def calculate_outstanding(self):
 		if self.get("fees_details"):

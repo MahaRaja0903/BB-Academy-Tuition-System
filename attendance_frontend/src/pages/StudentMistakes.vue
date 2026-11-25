@@ -141,7 +141,7 @@
       v-for="r in visibleRecords"
       :key="r.name"
       class="smr-card"
-      :data-level="r.action_level"
+      :data-level="overallLevel(r)"
       :data-status="r.status"
     >
       <header class="smr-card-head">
@@ -184,34 +184,101 @@
 
           <div class="smr-badges">
             <span class="smr-count-badge" :title="countTitle(r)">
-              <i class="fa fa-exclamation-triangle"></i> {{ r.mistake_count }} mistakes
+              <i class="fa fa-exclamation-triangle"></i> {{ headlineCount(r) }}
             </span>
             <!-- Without this the count reads as a data error: a student everyone
                  remembers having a bad month shows 1. -->
             <span v-if="r.batch_changed_on" class="smr-reset-badge" :title="countTitle(r)">
               <i class="fa fa-exchange"></i> Counting from {{ prettyDate(r.batch_changed_on) }}
             </span>
-            <span class="smr-level-badge" :data-level="r.action_level">{{ r.action_level }}</span>
+            <span v-if="overallLevel(r)" class="smr-level-badge" :data-level="overallLevel(r)">{{
+              overallLevel(r)
+            }}</span>
             <span v-if="r.status === 'Closed'" class="smr-closed-badge">
               <i class="fa fa-check"></i> Closed
             </span>
             <span v-if="r.reopened_on && r.status === 'Open'" class="smr-reopened-badge">
               Reopened
             </span>
+            <router-link
+              v-if="r.open_complaints"
+              class="pcw-complaint-tag"
+              :to="{ name: 'ComplaintCalls' }"
+              title="Open complaint — solve it on Complaint Calls before closing"
+            >
+              <i class="fa fa-bullhorn"></i> Complaint open
+            </router-link>
+            <span
+              v-for="m in r.missed || []"
+              :key="m.from"
+              class="pcw-missed-tag"
+              :title="`The count reached ${m.from} and went past it with no ${m.kind === 'call' ? 'call home' : 'parent meeting'}`"
+            >
+              <i class="fa fa-exclamation-triangle"></i>
+              Missed {{ m.kind === 'call' ? 'call' : 'meeting' }} at {{ m.from }} ({{ m.label }})
+            </span>
+            <span
+              v-if="r.not_attended"
+              class="pcw-not-attended-badge"
+              title="Calls this month nobody picked up"
+            >
+              <i class="fa fa-phone-square"></i> Not attended {{ r.not_attended }}×
+            </span>
+          </div>
+
+          <div v-if="r.father_mobile_number || r.mother_mobile_number" class="pcw-phones smr-phones">
+            <a
+              v-if="r.father_mobile_number"
+              class="pcw-phone"
+              :href="`tel:${r.father_mobile_number}`"
+              title="Call Father"
+            >
+              <i class="fa fa-phone"></i>
+              <span>Father{{ r.father_name ? ` (${r.father_name})` : '' }}</span>
+              <b>{{ r.father_mobile_number }}</b>
+            </a>
+            <a
+              v-if="r.mother_mobile_number"
+              class="pcw-phone"
+              :href="`tel:${r.mother_mobile_number}`"
+              title="Call Mother"
+            >
+              <i class="fa fa-phone"></i>
+              <span>Mother{{ r.mother_name ? ` (${r.mother_name})` : '' }}</span>
+              <b>{{ r.mother_mobile_number }}</b>
+            </a>
           </div>
         </div>
       </header>
 
       <!-- Where the mistakes came from -->
       <div class="smr-tally">
-        <span
+        <!-- Clickable even under a category filter, so the staff can still see
+             the Study and Behaviour mistakes of a student listed for Test. -->
+        <button
           v-for="c in CATEGORIES"
           :key="c.key"
+          type="button"
           class="smr-tally-chip"
-          :class="{ 'is-zero': !r[c.field], 'is-selected': categoryFilter === c.key }"
+          :class="{
+            'is-zero': !r[c.field],
+            'is-selected': expanded.has(r.name) ? detailCategory(r) === c.key : categoryFilter === c.key,
+          }"
+          :title="`Show ${c.key} mistakes`"
+          @click="showDetailCategory(r, c.key)"
         >
           {{ c.key }} <b>{{ r[c.field] }}</b>
-        </span>
+        </button>
+        <button
+          v-if="expanded.has(r.name)"
+          type="button"
+          class="smr-tally-chip"
+          :class="{ 'is-selected': !detailCategory(r) }"
+          title="Show every mistake this month"
+          @click="showDetailCategory(r, null)"
+        >
+          All
+        </button>
         <button type="button" class="smr-link-btn" @click="toggleDetail(r)">
           <i class="fa" :class="expanded.has(r.name) ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
           {{ expanded.has(r.name) ? 'Hide' : 'View' }} mistakes
@@ -227,27 +294,57 @@
               <th>Date</th>
               <th>Category</th>
               <th>Result</th>
+              <th>Subject / Lesson / Portion</th>
               <th>What Happened</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="m in detailRows(r)" :key="m.name">
-              <td class="smr-detail-date">{{ formatDate(m.date) }}</td>
+            <tr
+              v-for="m in detailRows(r)"
+              :key="m.name"
+              :class="{ 'smr-same-day': sameDayCount(r, m) > 1 }"
+            >
+              <td class="smr-detail-date">
+                {{ formatDate(m.date) }}
+                <span
+                  v-if="sameDayCount(r, m) > 1"
+                  class="smr-day-count"
+                  :title="`${sameDayCount(r, m)} mistakes on this date`"
+                >
+                  {{ sameDayCount(r, m) }} on this day
+                </span>
+              </td>
               <td>{{ m.category }}</td>
               <td>
                 <span class="smr-result-badge" :data-result="m.result">{{ m.result }}</span>
               </td>
+              <td class="smr-detail-syllabus">
+                <template v-if="hasSyllabus(m)">
+                  <div v-if="m.subjects && m.subjects.length">
+                    <span class="smr-syl-label">Subject</span>
+                    <b>{{ m.subjects.join(', ') }}</b>
+                  </div>
+                  <div v-if="m.lessons && m.lessons.length">
+                    <span class="smr-syl-label">Lesson</span>{{ m.lessons.join(', ') }}
+                  </div>
+                  <div v-if="m.portions && m.portions.length">
+                    <span class="smr-syl-label">Portion</span>{{ m.portions.join(', ') }}
+                  </div>
+                </template>
+                <span v-else class="smr-syl-none">—</span>
+              </td>
               <td class="smr-detail-what">
                 <span v-if="m.reasons && m.reasons.length">{{ m.reasons.join(', ') }}</span>
-                <span v-else-if="m.total_marks">{{ m.marks_obtained }} / {{ m.total_marks }}</span>
-                <span v-else-if="m.subject">{{ m.subject }}</span>
+                <span v-else-if="m.total_marks">
+                  Marks {{ m.marks_obtained ?? 0 }} / {{ m.total_marks }}
+                </span>
                 <em v-if="m.remarks" class="smr-detail-remarks">{{ m.remarks }}</em>
               </td>
             </tr>
           </tbody>
         </table>
         <p v-else class="smr-detail-empty">
-          No {{ categoryFilter ? categoryFilter + ' ' : '' }}mistakes found for this month.
+          No {{ detailCategory(r) ? detailCategory(r) + ' ' : '' }}mistakes found for this month.
         </p>
       </div>
 
@@ -261,7 +358,10 @@
       </div>
 
       <!-- Recorded follow-up -->
-      <div v-if="r.call_done || r.meeting_done || r.parents_informed" class="smr-done">
+      <div
+        v-if="r.call_done || r.meeting_done || r.parents_informed || (r.call_logs || []).length"
+        class="smr-done"
+      >
         <div v-if="r.call_done" class="smr-done-row">
           <i class="fa fa-phone"></i>
           <span>
@@ -272,6 +372,17 @@
           </span>
         </div>
         <div v-if="r.call_notes" class="smr-done-notes">“{{ r.call_notes }}”</div>
+        <template v-for="c in r.call_logs || []" :key="c.name">
+          <div class="smr-done-row">
+            <i class="fa fa-phone"></i>
+            <span>
+              Called <b>{{ c.spoken_to || 'family' }}</b>
+              on {{ formatDateTime(c.called_on) }}
+              <template v-if="c.called_by"> by <b>{{ c.called_by }}</b></template>
+            </span>
+          </div>
+          <div v-if="c.call_notes" class="smr-done-notes">“{{ c.call_notes }}”</div>
+        </template>
         <div v-if="r.parents_informed" class="smr-done-row">
           <i class="fa fa-bullhorn"></i>
           <span>Parents informed on {{ formatDateTime(r.parents_informed_on) }}</span>
@@ -306,6 +417,23 @@
             @click="openCall(r)"
           >
             <i class="fa fa-phone"></i> {{ r.call_done ? 'Edit Call' : 'Log Call' }}
+          </button>
+          <button
+            v-if="r.call_done || !r.call_required"
+            type="button"
+            class="smr-btn smr-btn-primary"
+            @click="openCall(r, true)"
+          >
+            <i class="fa fa-plus"></i> Add Call Log
+          </button>
+          <!-- Always offered, like Pending Calls: a follow-up call after the
+               first one can go unanswered too. -->
+          <button
+            type="button"
+            class="smr-btn pcw-btn-warn"
+            @click="openNotAttended(r)"
+          >
+            <i class="fa fa-phone-square"></i> Not Attended
           </button>
           <button
             v-if="r.meeting_required"
@@ -345,19 +473,54 @@
             Closed on {{ formatDateTime(r.closed_on) }}
             <template v-if="r.closed_by"> by {{ r.closed_by }}</template>
           </span>
+          <button type="button" class="smr-btn smr-btn-primary" @click="openCall(r, true)">
+            <i class="fa fa-plus"></i> Add Call Log
+          </button>
           <button type="button" class="smr-btn smr-btn-ghost" @click="reopen(r)">
             <i class="fa fa-undo"></i> Reopen
           </button>
         </template>
       </div>
+
+      <!-- A parent's complaint: keeps the record open until it is solved on
+           Complaint Calls. -->
+      <div v-if="r.status === 'Open'" class="pcw-complaint-row">
+        <button type="button" class="pcw-btn pcw-btn-complaint" @click="openComplaint(r)">
+          <i class="fa fa-bullhorn"></i> Complaint
+        </button>
+      </div>
     </article>
+
+    <ComplaintModal
+      :open="complaint.open"
+      :record="complaint.record"
+      complaint-for="Mistakes"
+      reference-doctype="Student Mistake Record"
+      :reference-name="complaint.record?.name"
+      :staff-list="staffList"
+      @close="complaint.open = false"
+      @saved="onComplaintSaved"
+    />
+
+    <CallOutcomeModal
+      :open="notAttended.open"
+      mode="not_attended"
+      :record="notAttended.record"
+      call-for="Mistakes"
+      :staff-list="staffList"
+      @close="notAttended.open = false"
+      @saved="onNotAttendedSaved"
+    />
 
     <!-- Call modal -->
     <div v-if="callModal.open" class="smr-modal-backdrop" @click.self="callModal.open = false">
       <div class="smr-modal">
-        <h3><i class="fa fa-phone"></i> Call Home — {{ callModal.record?.student_name }}</h3>
+        <h3>
+          <i class="fa fa-phone"></i> {{ callModal.adding ? 'Add Call Log' : 'Call Home' }} —
+          {{ callModal.record?.student_name }}
+        </h3>
         <p class="smr-modal-hint">
-          {{ callModal.record?.mistake_count }} mistakes this month. Record who was spoken to, what
+          {{ breakdownText(callModal.record) }} this month. Record who was spoken to, what
           was said, when, and who spoke from the tuition.
         </p>
 
@@ -366,9 +529,6 @@
           <option value="">Select</option>
           <option v-for="o in SPOKEN_TO" :key="o" :value="o">{{ o }}</option>
         </select>
-
-        <label class="smr-modal-label">Name / number spoken to</label>
-        <input type="text" class="form-control" v-model="callModal.spoken_to_name" />
 
         <label class="smr-modal-label">When was the call made?</label>
         <input type="datetime-local" class="form-control" v-model="callModal.called_on" />
@@ -403,7 +563,7 @@
       <div class="smr-modal">
         <h3><i class="fa fa-handshake-o"></i> Parent Meeting — {{ meetModal.record?.student_name }}</h3>
         <p class="smr-modal-hint">
-          {{ meetModal.record?.mistake_count }} mistakes this month. The parents must be informed,
+          {{ breakdownText(meetModal.record) }} this month. The parents must be informed,
           must meet the staff, and a photo of the meeting must be uploaded.
         </p>
 
@@ -466,7 +626,7 @@
       <div class="smr-modal smr-modal-wide">
         <h3><i class="fa fa-list-ul"></i> Monthly Review — {{ reviewModal.record?.student_name }}</h3>
         <p class="smr-modal-hint">
-          {{ reviewModal.record?.mistake_count }} mistakes in
+          {{ breakdownText(reviewModal.record) }} in
           {{ reviewModal.record?.month_label }}. Test, Study and Behaviour are recorded and reviewed
           separately.
         </p>
@@ -531,6 +691,8 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import { serverToday, loadServerToday } from '@/data/serverDate'
+import CallOutcomeModal from '@/components/CallOutcomeModal.vue'
+import ComplaintModal from '@/components/ComplaintModal.vue'
 
 const SPOKEN_TO = ['Father', 'Mother', 'Guardian', 'Student', 'Other']
 
@@ -538,12 +700,13 @@ const SPOKEN_TO = ['Father', 'Mother', 'Guardian', 'Student', 'Other']
 // levels are cumulative, so the bands are what a student is *currently* in:
 // a student on 6 is one Parent Meeting student, not one of each.
 const LEVELS = [
-  { level: 'Call', label: '3 Mistakes', sub: 'Call home', band: '3–4', cls: 'smr-kpi-call' },
+  { level: 'Call', label: '3 Mistakes', sub: 'Call home', band: '3 or more', cls: 'smr-kpi-call' },
   {
+    // Judged per category: 5 Test mistakes, not 5 spread over Test/Study/Behaviour.
     level: 'Parent Meeting',
     label: '5 Mistakes',
-    sub: 'Parent meeting',
-    band: '5–9',
+    sub: 'Parent meeting · in one category',
+    band: '5 or more (in one category)',
     cls: 'smr-kpi-meeting',
   },
   {
@@ -595,10 +758,10 @@ const callModal = reactive({
   open: false,
   record: null,
   spoken_to: '',
-  spoken_to_name: '',
   called_on: '',
   called_by: '',
   call_notes: '',
+  adding: false,
   saving: false,
   error: '',
 })
@@ -643,8 +806,19 @@ function countOf(r) {
   return selectedCategory.value ? Number(r[selectedCategory.value.field]) || 0 : r.mistake_count
 }
 
+// Overall: Category Review on the total (10+), but Call / Parent Meeting on the
+// worst single category -- 1 Study + 1 Test + 2 Behaviour is in no band.
+function overallLevel(r) {
+  if ((Number(r.mistake_count) || 0) >= 10) return 'Category Review'
+  const worst = Math.max(
+    ...CATEGORIES.map((c) => Number(r[c.field]) || 0)
+  )
+  const level = bandFor(worst)
+  return level === 'Category Review' ? 'Parent Meeting' : level
+}
+
 function levelOf(r) {
-  return selectedCategory.value ? bandFor(countOf(r)) : r.action_level
+  return selectedCategory.value ? bandFor(countOf(r)) : overallLevel(r)
 }
 
 // Narrowed to students who have at least one mistake in the selected category,
@@ -687,12 +861,50 @@ function toggleCategory(key) {
   categoryFilter.value = categoryFilter.value === key ? null : key
 }
 
-// With a category picked, the expanded mistake list shows only that category.
+// Per-record override of which category the expanded list shows. Absent means
+// "follow the page filter"; null means every category.
+const detailCat = reactive({})
+
+function detailCategory(r) {
+  return r.name in detailCat ? detailCat[r.name] : categoryFilter.value
+}
+
+async function showDetailCategory(r, key) {
+  detailCat[r.name] = key
+  if (!expanded.value.has(r.name)) await toggleDetail(r)
+}
+
+// The expanded mistake list, narrowed to the category chosen for this record.
 function detailRows(r) {
   const rows = details[r.name] || []
-  if (!categoryFilter.value) return rows
-  return rows.filter((m) => (m.bucket || m.category) === categoryFilter.value)
+  const cat = detailCategory(r)
+  if (!cat) return rows
+  return rows.filter((m) => (m.bucket || m.category) === cat)
 }
+
+// How many of the student's mistakes this month fall on the same date as `m`,
+// so the detail table can flag days with multiple mistakes (e.g. "3 on this
+// day"). Counted over every category, not just the rows visible under the
+// Study / Test / Behaviour chip — otherwise a day with 1 Test + 2 Behaviour
+// mistakes would show no count when Test is picked.
+function dayKey(value) {
+  return value ? String(value).slice(0, 10) : ''
+}
+
+function sameDayCount(r, m) {
+  const key = dayKey(m.date)
+  if (!key) return 0
+  return (details[r.name] || []).reduce((n, x) => n + (dayKey(x.date) === key ? 1 : 0), 0)
+}
+
+function hasSyllabus(m) {
+  return Boolean(m.subjects?.length || m.lessons?.length || m.portions?.length)
+}
+
+// A new page filter takes over again from any per-record choice.
+watch(categoryFilter, () => {
+  for (const k of Object.keys(detailCat)) delete detailCat[k]
+})
 
 const kpis = computed(() => [
   {
@@ -711,9 +923,11 @@ const kpis = computed(() => [
     sub: l.sub,
     cls: l.cls,
     value: levelCounts.value[l.level],
-    title: `Show only students with ${l.band} ${
+    title: `Show only students with ${l.band.replace(' (in one category)', '')} ${
       categoryFilter.value ? categoryFilter.value + ' ' : ''
-    }mistakes this month`,
+    }mistakes${
+      !categoryFilter.value && l.band.includes('one category') ? ' in a single category' : ''
+    } this month`,
   })),
 ])
 
@@ -743,10 +957,31 @@ function prettyDate(value) {
 
 // A record whose count restarted mid-month has to say so, or the number looks
 // like a bug to whoever remembers the student's actual month.
+// Mistakes are judged per category, so they are never shown as one combined
+// total: "Behaviour 3 · Study 2", not "5 mistakes".
+function breakdownText(r) {
+  if (!r) return ''
+  const parts = CATEGORIES.map((c) => ({ key: c.key, n: Number(r[c.field]) || 0 }))
+    .filter((p) => p.n > 0)
+    .sort((a, b) => b.n - a.n)
+    .map((p) => `${p.key} ${p.n}`)
+  return parts.length ? parts.join(' · ') : 'No mistakes'
+}
+
+// The header badge: the selected category's count, or else the category that
+// put the student on the list (the highest one).
+function headlineCount(r) {
+  const cat =
+    selectedCategory.value ||
+    CATEGORIES.reduce((best, c) => ((Number(r[c.field]) || 0) > (Number(r[best.field]) || 0) ? c : best))
+  const n = Number(r[cat.field]) || 0
+  return `${n} ${cat.key} mistake${n === 1 ? '' : 's'}`
+}
+
 function countTitle(r) {
-  if (!r.batch_changed_on) return `${r.mistake_count} mistakes in ${r.month_label}`
+  if (!r.batch_changed_on) return `${breakdownText(r)} in ${r.month_label}`
   return (
-    `${r.mistake_count} mistakes since the batch changed on ${prettyDate(r.batch_changed_on)}. ` +
+    `${breakdownText(r)} since the batch changed on ${prettyDate(r.batch_changed_on)}. ` +
     `Anything before that belongs to the old batch.`
   )
 }
@@ -806,6 +1041,9 @@ const detailResource = createResource({
   url: 'bb_tution_management.bb_academy.mistakes.get_mistake_detail',
 })
 const callResource = createResource({ url: 'bb_tution_management.bb_academy.mistakes.record_call' })
+const addCallResource = createResource({
+  url: 'bb_tution_management.bb_academy.mistakes.add_call_log',
+})
 const meetingResource = createResource({
   url: 'bb_tution_management.bb_academy.mistakes.record_meeting',
 })
@@ -878,6 +1116,30 @@ function errorText(e) {
   return e?.messages?.[0] || e?.message || String(e || 'Something went wrong')
 }
 
+// A parent's complaint, raised from the card.
+const complaint = reactive({ open: false, record: null })
+
+function openComplaint(record) {
+  Object.assign(complaint, { open: true, record })
+}
+
+async function onComplaintSaved() {
+  complaint.open = false
+  await load()
+}
+
+// A ring nobody picked up: counted on the card, the call stays owed.
+const notAttended = reactive({ open: false, record: null })
+
+function openNotAttended(record) {
+  Object.assign(notAttended, { open: true, record })
+}
+
+async function onNotAttendedSaved() {
+  notAttended.open = false
+  await load()
+}
+
 async function load() {
   loading.value = true
   try {
@@ -925,15 +1187,16 @@ async function toggleDetail(record) {
   }
 }
 
-function openCall(record) {
+// `adding`: a fresh call on top of what is recorded -- never overwrites it.
+function openCall(record, adding = false) {
   Object.assign(callModal, {
     open: true,
     record,
-    spoken_to: record.spoken_to || '',
-    spoken_to_name: record.spoken_to_name || '',
-    called_on: toInputDateTime(record.called_on) || nowForInput(),
-    called_by: record.called_by || '',
-    call_notes: record.call_notes || '',
+    adding,
+    spoken_to: adding ? '' : record.spoken_to || '',
+    called_on: adding ? nowForInput() : toInputDateTime(record.called_on) || nowForInput(),
+    called_by: adding ? '' : record.called_by || '',
+    call_notes: adding ? '' : record.call_notes || '',
     saving: false,
     error: '',
   })
@@ -943,10 +1206,9 @@ async function saveCall() {
   callModal.saving = true
   callModal.error = ''
   try {
-    await callResource.submit({
+    await (callModal.adding ? addCallResource : callResource).submit({
       record: callModal.record.name,
       spoken_to: callModal.spoken_to,
-      spoken_to_name: callModal.spoken_to_name,
       called_on: fromInputDateTime(callModal.called_on),
       called_by: callModal.called_by,
       call_notes: callModal.call_notes,
@@ -1148,6 +1410,8 @@ onMounted(async () => {
 </script>
 
 <style>
+.smr-phones { margin-top: 6px; }
+
 /* Student Mistakes — the monthly follow-up list.
    Card-based rather than a table: every row carries a photo, a tally, the
    follow-up already recorded and up to four actions, which a table cannot hold
@@ -1581,6 +1845,9 @@ onMounted(async () => {
 }
 
 .smr-tally-chip {
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
   font-size: 11.5px;
   color: var(--text-muted);
   background: var(--subtle-fg, var(--gray-100));
@@ -1625,7 +1892,7 @@ onMounted(async () => {
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
-  min-width: 420px;
+  min-width: 560px;
 }
 
 .smr-detail-table th {
@@ -1650,7 +1917,33 @@ onMounted(async () => {
 .smr-detail-table tr:last-child td { border-bottom: none; }
 .smr-detail-date { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .smr-detail-what { color: var(--text-muted); }
+.smr-same-day td { background: var(--orange-50, #fff7ed); }
+.smr-day-count {
+  display: block;
+  width: max-content;
+  margin-top: 3px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--orange-700, #c2410c);
+  background: var(--orange-100, #ffedd5);
+  border: 1px solid var(--orange-200, #fed7aa);
+}
 
+.smr-tally-chip:hover { border-color: var(--border-color, var(--gray-300)); }
+.smr-detail-syllabus { font-size: 12px; line-height: 1.45; min-width: 160px; }
+.smr-detail-syllabus b { color: var(--heading-color); font-weight: 600; }
+.smr-syl-label {
+  display: inline-block;
+  min-width: 52px;
+  margin-right: 4px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+.smr-syl-none { color: var(--text-muted); }
 .smr-detail-remarks {
   display: block;
   margin-top: 2px;

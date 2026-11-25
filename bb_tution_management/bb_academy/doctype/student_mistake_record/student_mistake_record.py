@@ -41,17 +41,27 @@ class StudentMistakeRecord(Document):
 		)
 
 		count = cint(self.mistake_count)
+		# The call and the parent meeting are judged per category, not on the
+		# total: 3 Test mistakes need a call, 1 Test + 1 Study + 1 Behaviour do
+		# not; 5 Test mistakes call the parents in, 2 Test + 2 Study + 1 do not.
+		worst_category = max(
+			cint(self.test_count), cint(self.study_count), cint(self.behaviour_count)
+		)
 
-		self.call_required = 1 if count >= THRESHOLD_CALL else 0
-		self.meeting_required = 1 if count >= THRESHOLD_MEETING else 0
+		self.call_required = 1 if worst_category >= THRESHOLD_CALL else 0
+		self.meeting_required = 1 if worst_category >= THRESHOLD_MEETING else 0
 		self.category_review_required = 1 if count >= THRESHOLD_CATEGORY else 0
 
 		if count >= THRESHOLD_CATEGORY:
 			self.action_level = LEVEL_CATEGORY
-		elif count >= THRESHOLD_MEETING:
+		elif self.meeting_required:
 			self.action_level = LEVEL_MEETING
-		else:
+		elif self.call_required:
 			self.action_level = LEVEL_CALL
+		else:
+			# Below 3 in every category -- kept only as history (a call already
+			# made, a complaint open), so it sits in no threshold band.
+			self.action_level = ""
 
 	def stamp_action_times(self):
 		"""Ticking the box is the moment it happened, unless staff say otherwise."""
@@ -120,6 +130,13 @@ class StudentMistakeRecord(Document):
 				missing.append("the Test / Study / Behaviour review has not been recorded")
 			elif unreviewed:
 				missing.append(f"these categories are not reviewed yet: {', '.join(unreviewed)}")
+
+		from bb_tution_management.bb_academy.complaints import has_open_complaint
+
+		if has_open_complaint(reference_name=self.name):
+			missing.append(
+				"the parents' complaint is still open — call them back and solve it on Complaint Calls"
+			)
 
 		if missing:
 			frappe.throw(

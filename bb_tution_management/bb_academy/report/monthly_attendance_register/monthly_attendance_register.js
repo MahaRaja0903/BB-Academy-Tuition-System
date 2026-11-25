@@ -13,7 +13,7 @@ frappe.query_reports["Monthly Attendance Register"] = {
     // the first attendance was marked, "PP"/"PL"/"AP"/"LL"/... when the second
     // one was too. Each character is coloured on its own so a mixed day reads
     // at a glance.
-    "status_colors": { P: "green", A: "red", L: "orange", E: "#9c27b0", H: "blue" },
+    "status_colors": { P: "green", A: "red", L: "orange", E: "#9c27b0", H: "blue", D: "#78716c" },
 
     "formatter": function(value, row, column, data, default_formatter) {
         value = default_formatter(value, row, column, data);
@@ -21,7 +21,7 @@ frappe.query_reports["Monthly Attendance Register"] = {
             // default_formatter may wrap the value in markup, so work off the text.
             var text = String(value).replace(/<[^>]*>/g, "").trim();
             var colors = frappe.query_reports["Monthly Attendance Register"].status_colors;
-            if (/^[PALEH]{1,2}$/.test(text)) {
+            if (/^[PALEHD]{1,2}$/.test(text)) {
                 value = text
                     .split("")
                     .map(function (ch) {

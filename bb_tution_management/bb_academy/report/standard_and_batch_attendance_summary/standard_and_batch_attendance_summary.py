@@ -23,6 +23,7 @@ def execute(filters=None):
         FROM `tabStudent Attendance` a
         JOIN `tabStudent` s ON a.student = s.name
         WHERE a.attendance_date BETWEEN %(from_date)s AND %(to_date)s
+          AND a.status != 'Discontinued'
         GROUP BY a.standard, s.current_batch
     """, filters, as_dict=True)
     

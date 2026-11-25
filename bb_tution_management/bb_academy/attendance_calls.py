@@ -24,15 +24,20 @@ reach. So a row re-marked Present simply drops out of both counts.
 import json
 
 import frappe
-from frappe.utils import add_months, cint, get_datetime, getdate, now_datetime, today
+from frappe.utils import add_months, cint, getdate, today
 
 from bb_tution_management.bb_academy.pending_calls import (
+	ATTENDED,
+	CLOSED,
 	DOCTYPE,
+	NOT_ATTENDED,
 	PRIORITIES,
 	_guard,
 	_phones,
 	_resolve_month,
 	missed_calls,
+	new_call_log,
+	not_attended_counts,
 	priority_level,
 )
 from bb_tution_management.bb_academy.pending_calls import priority_label as _priority_label
@@ -46,6 +51,51 @@ from bb_tution_management.bb_academy.syllabus import (
 ATTENDANCE_DOCTYPE = "Student Attendance"
 CATEGORY = "Attendance"
 STATUSES = ["Absent", "Late"]
+
+# Absent + Late days in a month at which the parents must also come in and meet
+# the staff -- the same 5 as Student Mistakes. Until that meeting is on file
+# (informed, met, staff named, photo uploaded) the card stays on the list and
+# cannot be closed.
+MEETING_THRESHOLD = 5
+MEETING_DOCTYPE = "Attendance Parent Meeting"
+MEETING_FIELDS = [
+	"name",
+	"student",
+	"parents_informed",
+	"parents_informed_on",
+	"meeting_done",
+	"met_staff",
+	"meeting_on",
+	"meeting_photo",
+	"meeting_notes",
+]
+
+
+def meeting_name(student, month_start):
+	from bb_tution_management.bb_academy.performance_config import slug
+
+	return f"APM-{getdate(month_start).strftime('%Y-%m')}-{slug(student)}"
+
+
+def meeting_complete(meeting):
+	return bool(
+		meeting
+		and cint(meeting.get("parents_informed"))
+		and cint(meeting.get("meeting_done"))
+		and meeting.get("met_staff")
+		and meeting.get("meeting_photo")
+	)
+
+
+def _meetings(first_day, students=None):
+	filters = {"month_start": first_day}
+	if students is not None:
+		filters["student"] = ["in", list(students) or [""]]
+	return {
+		m.student: m
+		for m in frappe.get_all(MEETING_DOCTYPE, filters=filters, fields=MEETING_FIELDS)
+	}
+
 
 def _month_rows(first_day, student=None, standard=None, batch=None, gender=None):
 	"""Every Absent / Late row of Active students in the month, oldest first,
@@ -103,12 +153,34 @@ def get_pending_calls(standard=None, batch=None, gender=None):
 	for row in _month_rows(first_day, standard=standard, batch=batch, gender=gender):
 		by_student.setdefault(row.student, []).append(row)
 
+	from bb_tution_management.bb_academy.complaints import open_complaints
+
+	meetings = _meetings(first_day)
+	complaints = open_complaints(complaint_for="Attendance")
+
+	# Listed while a call is owed, while a parent meeting the count demands is
+	# not yet on file, or while a parent's complaint is unsolved.
 	pending = {}
 	for student, rows in by_student.items():
 		level = priority_level(len(rows))
 		called_level = priority_level(sum(1 for r in rows if r.called))
-		if level > called_level:
+		meeting_due = len(rows) >= MEETING_THRESHOLD and not meeting_complete(meetings.get(student))
+		if level > called_level or meeting_due or complaints.get(student):
 			pending[student] = (rows, level, called_level)
+
+	# A complaint keeps the student listed even with no Absent day this month.
+	extra = [s for s in complaints if s not in pending]
+	if extra:
+		student_filters = {"name": ["in", extra], "status": "Active"}
+		for field, column, value in (
+			("standard", "standard", standard),
+			("batch", "current_batch", batch),
+			("gender", "gender", gender),
+		):
+			if value:
+				student_filters[column] = value
+		for s in frappe.get_all("Student", filters=student_filters, pluck="name"):
+			pending[s] = (by_student.get(s, []), 0, 0)
 
 	result = {
 		"records": [],
@@ -144,7 +216,8 @@ def get_pending_calls(standard=None, batch=None, gender=None):
 	last_calls = {}
 	for call in frappe.db.sql(
 		"""
-		SELECT c.student, c.called_on, c.called_by, c.spoken_to
+		SELECT c.student, c.called_on, c.called_by, c.spoken_to,
+			IFNULL(c.call_status, 'Attended') AS call_status
 		FROM `tabParent Call Log` c
 		WHERE c.student IN %(students)s
 			AND EXISTS (
@@ -158,6 +231,8 @@ def get_pending_calls(standard=None, batch=None, gender=None):
 	):
 		last_calls.setdefault(call.student, call)
 
+	not_attended = not_attended_counts(list(pending), "Attendance", first_day)
+
 	records = []
 	for student_id, (rows, level, called_level) in pending.items():
 		student = students.get(student_id)
@@ -165,7 +240,13 @@ def get_pending_calls(standard=None, batch=None, gender=None):
 			continue
 
 		# The day the count entered its current priority.
-		due_since = getdate(rows[PRIORITIES[level - 1][0] - 1].date)
+		if level:
+			due_since = getdate(rows[PRIORITIES[level - 1][0] - 1].date)
+		elif rows:
+			due_since = getdate(rows[-1].date)
+		else:
+			due_since = getdate(today())
+		meeting = meetings.get(student_id)
 		records.append(
 			{
 				"student": student_id,
@@ -188,6 +269,13 @@ def get_pending_calls(standard=None, batch=None, gender=None):
 				"due_since": due_since,
 				"days_pending": (getdate(today()) - due_since).days,
 				"last_call": last_calls.get(student_id),
+				"not_attended": not_attended.get(student_id, 0),
+				# Uncovered days a call or Close can still pin.
+				"call_due": level > called_level,
+				"meeting_required": len(rows) >= MEETING_THRESHOLD,
+				"meeting": meeting,
+				"meeting_complete": meeting_complete(meeting),
+				"open_complaints": complaints.get(student_id, 0),
 			}
 		)
 
@@ -289,6 +377,16 @@ def _attach_missed_sessions(rows):
 				"name": s.name,
 				"category": s.category,
 				"topic": syllabus_text(syllabus.get(s.name, []), titles) or s.subject or "",
+				# Subject / Lesson / Portion kept apart so the screen can label each.
+				"blocks": [
+					{
+						"subject": block["subject"],
+						"lessons": [titles.get(n, n) for n in block["lessons"]],
+						"portions": block["portions"],
+					}
+					for block in syllabus.get(s.name, [])
+				]
+				or ([{"subject": s.subject, "lessons": [], "portions": []}] if s.subject else []),
 				"total_marks": s.total_marks,
 				"pass_marks": s.pass_marks,
 				"no_session": cint(s.no_session),
@@ -324,27 +422,124 @@ def log_call(student, spoken_to=None, spoken_to_name=None, called_on=None, calle
 	if not rows:
 		frappe.throw(frappe._("There are no Absent or Late days this month left to inform."))
 
-	doc = frappe.new_doc(DOCTYPE)
-	doc.student = student
-	doc.spoken_to = spoken_to
-	doc.spoken_to_name = spoken_to_name
-	doc.called_on = get_datetime(called_on) if called_on else now_datetime()
-	doc.called_by = called_by
-	doc.call_notes = call_notes
-	for row in rows:
-		doc.append(
-			"mistakes",
-			{
-				"category": CATEGORY,
-				"mistake_date": row.date,
-				"result": row.status,
-				"details": (row.remarks or "")[:140],
-				"reference_doctype": ATTENDANCE_DOCTYPE,
-				"reference_name": row.reference_name,
-			},
-		)
-	doc.insert(ignore_permissions=True)
+	doc = new_call_log(
+		student,
+		ATTENDED,
+		"Attendance",
+		_items(rows),
+		spoken_to=spoken_to,
+		spoken_to_name=spoken_to_name,
+		called_on=called_on,
+		called_by=called_by,
+		call_notes=call_notes,
+	)
 	return {"name": doc.name, "days": len(rows)}
+
+
+def _items(rows):
+	return [
+		{
+			"category": CATEGORY,
+			"mistake_date": row.date,
+			"result": row.status,
+			"details": (row.remarks or "")[:140],
+			"reference_doctype": ATTENDANCE_DOCTYPE,
+			"reference_name": row.reference_name,
+		}
+		for row in rows
+	]
+
+
+@frappe.whitelist()
+def close_student(student, call_notes=None):
+	"""Take the student off the list without a call. The month's uncovered
+	days are pinned to a Closed log, so -- like a call -- the student returns
+	only on reaching the next priority."""
+	_guard("create")
+	_guard_close(student)
+
+	rows = [r for r in _month_rows(_this_month(), student=student) if not r.called]
+	if not rows:
+		frappe.throw(frappe._("There are no Absent or Late days this month left to close."))
+
+	doc = new_call_log(student, CLOSED, "Attendance", _items(rows), call_notes=call_notes)
+	return {"name": doc.name, "days": len(rows)}
+
+
+def _guard_close(student):
+	"""Close is refused while the parents still have something owed to them."""
+	from bb_tution_management.bb_academy.complaints import has_open_complaint
+
+	missing = []
+	if has_open_complaint(student, "Attendance"):
+		missing.append(
+			"the parents' complaint is still open — call them back and solve it on Complaint Calls"
+		)
+	first_day = _this_month()
+	if len(_month_rows(first_day, student=student)) >= MEETING_THRESHOLD and not meeting_complete(
+		_meetings(first_day, [student]).get(student)
+	):
+		missing.append(
+			"the parent meeting is not complete (informed, met, staff and photo are all needed)"
+		)
+	if missing:
+		frappe.throw(
+			frappe._("This student cannot be closed yet — {0}.").format("; ".join(missing)),
+			title=frappe._("Follow-up Incomplete"),
+		)
+
+
+def _meeting_doc(student):
+	first_day = _this_month()
+	name = meeting_name(student, first_day)
+	if frappe.db.exists(MEETING_DOCTYPE, name):
+		return frappe.get_doc(MEETING_DOCTYPE, name)
+	doc = frappe.new_doc(MEETING_DOCTYPE)
+	doc.student = student
+	doc.month_start = first_day
+	return doc
+
+
+@frappe.whitelist()
+def record_meeting(
+	student,
+	parents_informed=None,
+	meeting_done=None,
+	met_staff=None,
+	meeting_on=None,
+	meeting_notes=None,
+):
+	"""This month's parent meeting for one student: informed, met, notes."""
+	_guard("create")
+	doc = _meeting_doc(student)
+	doc.absent_late_count = len(_month_rows(_this_month(), student=student))
+	doc.parents_informed = cint(parents_informed)
+	doc.meeting_done = cint(meeting_done)
+	doc.met_staff = met_staff or None
+	if meeting_on:
+		doc.meeting_on = meeting_on
+	doc.meeting_notes = meeting_notes
+	doc.save(ignore_permissions=True)
+	return {"name": doc.name}
+
+
+@frappe.whitelist()
+def attach_meeting_photo(name, file_url):
+	"""Point the meeting at a photo already uploaded through upload_file."""
+	_guard("create")
+	doc = frappe.get_doc(MEETING_DOCTYPE, name)
+
+	owner_doctype, owner_name = frappe.db.get_value(
+		"File", {"file_url": file_url}, ["attached_to_doctype", "attached_to_name"]
+	) or (None, None)
+	if not frappe.db.exists("File", {"file_url": file_url}):
+		frappe.throw(frappe._("Upload the photo first."))
+	if owner_doctype and (owner_doctype != MEETING_DOCTYPE or owner_name != doc.name):
+		frappe.throw(frappe._("That file belongs to another document."))
+
+	doc.meeting_photo = file_url
+	doc.save(ignore_permissions=True)
+	return {"name": doc.name, "meeting_photo": doc.meeting_photo}
 
 
 @frappe.whitelist()
@@ -359,8 +554,13 @@ def get_call_history(month=None, standard=None, batch=None, gender=None):
 		"next_month": add_months(first_day, 1),
 		"doctype": DOCTYPE,
 		"category": CATEGORY,
+		"not_attended": NOT_ATTENDED,
 	}
-	conditions = ["c.called_on >= %(first_day)s", "c.called_on < %(next_month)s"]
+	conditions = [
+		"c.called_on >= %(first_day)s",
+		"c.called_on < %(next_month)s",
+		"(i.name IS NOT NULL OR (c.call_for = 'Attendance' AND c.call_status = %(not_attended)s))",
+	]
 	for field, column, value in (
 		("standard", "c.standard", standard),
 		("batch", "c.batch", batch),
@@ -374,11 +574,12 @@ def get_call_history(month=None, standard=None, batch=None, gender=None):
 		f"""
 		SELECT c.name, c.student, c.student_name, c.standard, c.batch, s.gender, s.image,
 			c.called_on, c.called_by, c.spoken_to, c.spoken_to_name, c.call_notes,
+			IFNULL(c.call_status, 'Attended') AS call_status, c.owner,
 			SUM(i.result = 'Absent') AS absent,
 			SUM(i.result = 'Late') AS late,
 			MIN(i.mistake_date) AS first_day
 		FROM `tabParent Call Log` c
-		INNER JOIN `tabParent Call Log Item` i
+		LEFT JOIN `tabParent Call Log Item` i
 			ON i.parent = c.name AND i.parenttype = %(doctype)s AND i.category = %(category)s
 		LEFT JOIN `tabStudent` s ON s.name = c.student
 		WHERE {" AND ".join(conditions)}
@@ -390,6 +591,12 @@ def get_call_history(month=None, standard=None, batch=None, gender=None):
 	)
 
 	for call in calls:
+		call["closed_by"] = frappe.utils.get_fullname(call.owner)
+		if call.call_status == NOT_ATTENDED:
+			# Covered nothing: no count or priority of its own.
+			call["count"] = None
+			call["priority"] = None
+			continue
 		# Days this call and every earlier attendance call covered in the same
 		# month: the count the student had reached when the call was made.
 		month_start = _resolve_month(call.first_day)

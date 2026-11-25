@@ -8,8 +8,9 @@ correcting a wrongly graded test corrects the follow-up with it.
 Three thresholds, cumulative -- a student on 6 still owes the call that fell due
 at 3:
 
-      3-4   call home, recording whom was spoken to, what, when and by whom
-      5-9   parents informed, parents meet the staff, photo taken and uploaded
+      3     in any ONE category: call home, recording whom was spoken to, what, when and by whom
+      5     in any ONE category (Test, Study or Behaviour -- not the total):
+            parents informed, parents meet the staff, photo taken and uploaded
       10+   Test / Study / Behaviour each reviewed separately for the month
 
 The record stays on the staff's list until it is closed, and closing is refused
@@ -211,7 +212,11 @@ def sync_student_month(student, date=None):
 	name = record_name(student, month_start)
 	exists = frappe.db.exists(DOCTYPE, name)
 
-	if total < THRESHOLD_CALL:
+	# The call is judged per category, like the parent meeting: 3 Test mistakes
+	# put the student on the list, 1 Study + 1 Test + 1 Behaviour do not.
+	worst_category = max(tally["counts"].values(), default=0)
+
+	if worst_category < THRESHOLD_CALL:
 		# Dropped back under the first threshold -- a mis-grade that was
 		# corrected, or a batch move that restarted the count. Drop the record
 		# only if no one has acted on it yet.
@@ -422,7 +427,8 @@ def get_mistake_students(
 			r.meeting_done, r.met_staff, r.meeting_on, r.meeting_photo, r.meeting_notes,
 			r.category_review_required, r.closure_notes, r.closed_on, r.closed_by,
 			r.reopened_on,
-			s.image
+			s.image, s.father_name, s.mother_name,
+			s.father_mobile_number, s.mother_mobile_number
 		FROM `tabStudent Mistake Record` r
 		LEFT JOIN `tabStudent` s ON s.name = r.student
 		{where}
@@ -446,11 +452,59 @@ def get_mistake_students(
 		by_parent = {}
 		for row in breakdowns:
 			by_parent.setdefault(row.parent, []).append(row)
+
+		# Open complaints keep the record from closing until they are solved.
+		open_by_record = {
+			row[0]: row[1]
+			for row in frappe.db.sql(
+				"""
+				SELECT reference_name, COUNT(name) FROM `tabParent Complaint`
+				WHERE status = 'Open' AND reference_doctype = %(doctype)s
+					AND reference_name IN %(parents)s
+				GROUP BY reference_name
+				""",
+				{"doctype": DOCTYPE, "parents": tuple(r.name for r in records)},
+			)
+		}
 		for record in records:
 			record["category_breakdown"] = by_parent.get(record.name, [])
+			record["open_complaints"] = open_by_record.get(record.name, 0)
 			record["pending"] = _pending_actions(record)
+			record["missed"] = _missed_steps(record)
+
+		# Rings nobody picked up, counted per record month.
+		from bb_tution_management.bb_academy.pending_calls import not_attended_counts
+
+		by_month = {}
+		for record in records:
+			by_month.setdefault(getdate(record.month_start), []).append(record.student)
+		counts = {
+			(month_start, student): n
+			for month_start, students in by_month.items()
+			for student, n in not_attended_counts(students, "Mistakes", month_start).items()
+		}
+		for record in records:
+			record["not_attended"] = counts.get((getdate(record.month_start), record.student), 0)
+
+		extra = _extra_calls(records)
+		for record in records:
+			record["call_logs"] = extra.get((getdate(record.month_start), record.student), [])
 
 	return {"records": records}
+
+
+def _missed_steps(record):
+	"""Thresholds the count went past with their action never done -- e.g. the
+	call due at 3 that nobody made before the student reached 5. Same idea as
+	the "Missed call at" tags on Attendance Calls."""
+	count = cint(record.get("mistake_count"))
+	meeting_due = cint(record.get("meeting_required"))
+	missed = []
+	if meeting_due and not cint(record.get("call_done")):
+		missed.append({"from": THRESHOLD_CALL, "label": "Call", "kind": "call"})
+	if count >= THRESHOLD_CATEGORY and meeting_due and not cint(record.get("meeting_done")):
+		missed.append({"from": THRESHOLD_MEETING, "label": "Parent Meeting", "kind": "meeting"})
+	return missed
 
 
 def _pending_actions(record):
@@ -473,6 +527,9 @@ def _pending_actions(record):
 			pending.append("Category review")
 		elif unreviewed:
 			pending.append("Review " + ", ".join(unreviewed))
+
+	if cint(record.get("open_complaints")):
+		pending.append("Solve complaint")
 
 	return pending
 
@@ -521,11 +578,69 @@ def get_mistake_detail(record):
 		by_parent = {}
 		for row in reasons:
 			by_parent.setdefault(row.parent, []).append(row.behaviour_reason)
+
+		# What the test or study covered, so the staff calling home can tell
+		# the parents exactly which subject, lesson and portion went wrong.
+		syllabus = _syllabus_for([r.name for r in rows])
+
 		for row in rows:
 			row["reasons"] = by_parent.get(row.name, [])
 			row["bucket"] = bucket_for_category(row.category)
+			covered = syllabus.get(row.name, {})
+			subjects = covered.get("subjects") or ([row.subject] if row.subject else [])
+			row["subjects"] = subjects
+			row["lessons"] = covered.get("lessons") or ([row.lesson] if row.lesson else [])
+			row["portions"] = covered.get("portions") or []
 
 	return {"mistakes": rows}
+
+
+def _syllabus_for(tracker_names):
+	"""Subjects, lessons and portions on each tracker row, keyed by row name."""
+	out = {}
+	if not tracker_names:
+		return out
+	params = {"parents": tuple(tracker_names)}
+
+	def collect(key, sql):
+		for row in frappe.db.sql(sql, params, as_dict=True):
+			if row.label:
+				out.setdefault(row.parent, {}).setdefault(key, []).append(row.label)
+
+	collect(
+		"subjects",
+		"""
+		SELECT parent, subject AS label FROM `tabSubject Item`
+		WHERE parenttype = 'Student Performance Tracker' AND parent IN %(parents)s
+		ORDER BY idx
+		""",
+	)
+	collect(
+		"lessons",
+		"""
+		SELECT i.parent,
+			CASE
+				WHEN l.lesson_name IS NULL OR l.lesson_name = '' THEN i.lesson
+				WHEN l.lesson_name REGEXP '^[0-9]+$' THEN CONCAT('Lesson ', l.lesson_name)
+				ELSE l.lesson_name
+			END AS label
+		FROM `tabLesson Item` i
+		LEFT JOIN `tabLesson` l ON l.name = i.lesson
+		WHERE i.parenttype = 'Student Performance Tracker' AND i.parent IN %(parents)s
+		ORDER BY i.idx
+		""",
+	)
+	collect(
+		"portions",
+		"""
+		SELECT i.parent, COALESCE(p.portion_name, i.portion) AS label
+		FROM `tabPortion Item` i
+		LEFT JOIN `tabPortion` p ON p.name = i.portion
+		WHERE i.parenttype = 'Student Performance Tracker' AND i.parent IN %(parents)s
+		ORDER BY i.idx
+		""",
+	)
+	return out
 
 
 def _editable(record):
@@ -542,12 +657,71 @@ def record_call(
 	doc = _editable(record)
 	doc.call_done = 1
 	doc.spoken_to = spoken_to
-	doc.spoken_to_name = spoken_to_name
+	# No longer asked for on the screen; keep what older calls recorded.
+	if spoken_to_name is not None:
+		doc.spoken_to_name = spoken_to_name
 	doc.called_on = called_on or now_datetime()
 	doc.called_by = called_by
 	doc.call_notes = call_notes
 	doc.save(ignore_permissions=True)
 	return {"name": doc.name}
+
+
+@frappe.whitelist()
+def add_call_log(record, spoken_to=None, called_on=None, called_by=None, call_notes=None):
+	"""Another call home -- as many as needed, open or closed.
+
+	The first call of the month is what the level demands, so it fills the
+	record itself (exactly as `record_call`). Every later call is kept as its
+	own Parent Call Log, so nothing earlier is overwritten."""
+	doc = _editable(record)
+
+	if not doc.call_done and doc.status == "Open":
+		return record_call(
+			record, spoken_to=spoken_to, called_on=called_on, called_by=called_by, call_notes=call_notes
+		)
+
+	from bb_tution_management.bb_academy.pending_calls import new_call_log
+
+	log = new_call_log(
+		doc.student,
+		"Attended",
+		"Mistakes",
+		called_on=called_on,
+		called_by=called_by,
+		spoken_to=spoken_to,
+		call_notes=call_notes,
+	)
+	return {"name": doc.name, "call_log": log.name}
+
+
+def _extra_calls(records):
+	"""Answered Mistakes calls logged on top of the record's own call, per record month."""
+	from frappe.utils import add_months
+
+	out = {}
+	by_month = {}
+	for record in records:
+		by_month.setdefault(getdate(record.month_start), []).append(record.student)
+	for month_start, students in by_month.items():
+		for row in frappe.db.sql(
+			"""
+			SELECT name, student, called_on, called_by, spoken_to, call_notes
+			FROM `tabParent Call Log`
+			WHERE student IN %(students)s AND call_for = 'Mistakes'
+				AND IFNULL(call_status, 'Attended') = 'Attended'
+				AND called_on >= %(first_day)s AND called_on < %(next_month)s
+			ORDER BY called_on ASC
+			""",
+			{
+				"students": tuple(students),
+				"first_day": month_start,
+				"next_month": add_months(month_start, 1),
+			},
+			as_dict=True,
+		):
+			out.setdefault((month_start, row.student), []).append(row)
+	return out
 
 
 @frappe.whitelist()

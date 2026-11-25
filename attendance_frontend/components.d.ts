@@ -10,6 +10,8 @@ declare module 'vue' {
   export interface GlobalComponents {
     AttendanceAppLayout: typeof import('./src/components/AttendanceAppLayout.vue')['default']
     BottomNav: typeof import('./src/components/BottomNav.vue')['default']
+    CallOutcomeModal: typeof import('./src/components/CallOutcomeModal.vue')['default']
+    ComplaintModal: typeof import('./src/components/ComplaintModal.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SyllabusEditor: typeof import('./src/components/SyllabusEditor.vue')['default']

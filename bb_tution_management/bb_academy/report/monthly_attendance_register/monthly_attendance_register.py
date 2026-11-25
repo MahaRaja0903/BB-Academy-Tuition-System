@@ -2,6 +2,8 @@ import frappe
 from frappe.utils import getdate, add_days, get_first_day, get_last_day
 from collections import defaultdict
 
+from bb_tution_management.bb_academy.discontinue import get_discontinued_periods, is_discontinued_on
+
 def execute(filters=None):
     from_date = getdate(filters.get("from_date"))
     to_date = getdate(filters.get("to_date"))
@@ -121,6 +123,9 @@ def execute(filters=None):
     for sh in student_holidays:
         student_holidays_by_student[sh.student].append((getdate(sh.from_date), getdate(sh.to_date)))
 
+    # Days a rejoined student was discontinued read "D", not a blank to chase.
+    discontinued = get_discontinued_periods(list(students_map), from_date, to_date)
+
     def _covers(rule, row):
         """Does a holiday / special-class rule apply to this student's row?"""
         if rule.scope == 'Entire School':
@@ -150,7 +155,12 @@ def execute(filters=None):
                     is_holiday = any(
                         f <= d <= t for f, t in student_holidays_by_student.get(stu, [])
                     )
-                row[col] = "H" if is_holiday else "-"
+                if is_holiday:
+                    row[col] = "H"
+                elif is_discontinued_on(discontinued, stu, d):
+                    row[col] = "D"
+                else:
+                    row[col] = "-"
                 
         out.append(row)
         

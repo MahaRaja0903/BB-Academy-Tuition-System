@@ -124,9 +124,21 @@
             {{ student.student_name }}
             <span class="prof-status-badge" :data-status="student.status">{{ student.status }}</span>
           </h2>
-          <p v-if="student.discontinued__date" class="prof-discontinued-note">
-            <i class="fa fa-info-circle"></i> Discontinued on {{ prettyDate(student.discontinued__date) }}
-          </p>
+          <ul v-if="discontinueHistory.length" class="prof-discontinue-list">
+            <li v-for="(h, hi) in discontinueHistory" :key="hi" class="prof-discontinue-item">
+              <span class="prof-discontinue-chip prof-discontinue-left">
+                <i class="fa fa-sign-out"></i>
+                Discontinued {{ h.discontinued_date ? prettyDate(h.discontinued_date) : '(date not recorded)' }}
+              </span>
+              <span v-if="h.rejoined_date" class="prof-discontinue-chip prof-discontinue-back">
+                <i class="fa fa-sign-in"></i> Rejoined {{ prettyDate(h.rejoined_date) }}
+              </span>
+              <span v-else class="prof-discontinue-chip prof-discontinue-open">Not rejoined</span>
+              <span v-if="h.reason_category || h.reason" class="prof-discontinue-reason">
+                {{ [h.reason_category, h.reason].filter(Boolean).join(' — ') }}
+              </span>
+            </li>
+          </ul>
           <div class="prof-identity-line">
             <span><i class="fa fa-id-badge"></i> {{ student.name }}</span>
             <span><i class="fa fa-graduation-cap"></i> {{ student.standard }}</span>
@@ -224,6 +236,10 @@
                 <span class="prof-stat-value">{{ attendance.early_outs }}</span>
                 <span class="prof-stat-label">Early Out</span>
               </div>
+              <div v-if="attendance.discontinued" class="prof-stat prof-tone-discontinued">
+                <span class="prof-stat-value">{{ attendance.discontinued }}</span>
+                <span class="prof-stat-label">Discontinued</span>
+              </div>
               <div class="prof-stat prof-tone-good">
                 <span class="prof-stat-value">{{ attendance.best_streak }}</span>
                 <span class="prof-stat-label">Best Streak</span>
@@ -248,7 +264,7 @@
         </div>
 
         <!-- Day-by-day calendar: the part parents read fastest -->
-        <div v-if="attendance.school_days || attendance.holidays.length" class="prof-calendars">
+        <div v-if="attendance.school_days || attendance.holidays.length || attendance.discontinued" class="prof-calendars">
           <div v-for="month in calendarMonths" :key="month.key" class="prof-calendar">
             <h4>{{ month.label }}</h4>
             <div class="prof-cal-grid">
@@ -264,8 +280,8 @@
           </div>
         </div>
 
-        <div v-if="attendance.school_days || attendance.holidays.length" class="prof-legend">
-          <span v-for="l in CALENDAR_LEGEND" :key="l.status">
+        <div v-if="attendance.school_days || attendance.holidays.length || attendance.discontinued" class="prof-legend">
+          <span v-for="l in calendarLegend" :key="l.status">
             <i class="prof-legend-dot" :data-status="l.status"></i>{{ l.label }}
           </span>
         </div>
@@ -474,6 +490,7 @@ const CALENDAR_LEGEND = [
   { status: 'Late', label: 'Late' },
   { status: 'Early Outs', label: 'Early Out' },
   { status: 'Holiday', label: 'Holiday' },
+  { status: 'Discontinued', label: 'Discontinued' },
   { status: '', label: 'No class / not marked' },
 ]
 
@@ -582,6 +599,13 @@ function bandKey(pct) {
   if (pct >= 75) return 'fair'
   return 'poor'
 }
+
+// The Discontinued swatch only means something for a student who has left.
+const calendarLegend = computed(() =>
+  CALENDAR_LEGEND.filter((l) => l.status !== 'Discontinued' || attendance.value?.discontinued)
+)
+
+const discontinueHistory = computed(() => profile.value?.discontinue_history || [])
 
 function cellTitle(cell) {
   if (!cell.status || cell.status === 'out') return cell.date
@@ -794,6 +818,9 @@ watch([fromDate, toDate], () => {
   --prof-warn: var(--orange-500, #f97316);
   --prof-bad: var(--red-600, #dc2626);
   --prof-info: var(--blue-600, #2563eb);
+  /* Discontinued: a muted purple-slate, striped, so it never reads as Absent red. */
+  --prof-discontinued: #6d28d9;
+  --prof-discontinued-2: #8b5cf6;
   color: var(--text-color);
   padding: 14px;
 }
@@ -1022,7 +1049,17 @@ watch([fromDate, toDate], () => {
 .student-profile .prof-status-badge[data-status='Active'] { background: var(--bg-green); color: var(--text-on-green); }
 .student-profile .prof-status-badge[data-status='Suspended'] { background: var(--bg-orange); color: var(--text-on-orange); }
 .student-profile .prof-status-badge[data-status='Discontinued'] { background: var(--bg-red); color: var(--text-on-red); }
-.student-profile .prof-discontinued-note { margin: 4px 0 0; color: var(--text-muted, #6b7280); font-size: 0.9em; }
+.student-profile .prof-discontinue-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.student-profile .prof-discontinue-item { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.88em; }
+.student-profile .prof-discontinue-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 999px; font-weight: 600;
+}
+.student-profile .prof-discontinue-left { background: color-mix(in srgb, var(--prof-discontinued) 14%, transparent); color: var(--prof-discontinued); }
+.student-profile .prof-discontinue-back { background: color-mix(in srgb, var(--prof-good) 14%, transparent); color: var(--prof-good); }
+.student-profile .prof-discontinue-open { background: var(--gray-100); color: var(--text-muted, #6b7280); }
+.student-profile .prof-discontinue-reason { color: var(--text-muted, #6b7280); }
+.student-profile .prof-stat.prof-tone-discontinued .prof-stat-value { color: var(--prof-discontinued); }
 
 .student-profile .prof-identity-line {
   display: flex;
@@ -1287,6 +1324,10 @@ watch([fromDate, toDate], () => {
 .student-profile .prof-cal-day[data-status='Late'] { background: var(--prof-warn); color: #fff; }
 .student-profile .prof-cal-day[data-status='Early Outs'] { background: var(--prof-info); color: #fff; }
 .student-profile .prof-cal-day[data-status='Holiday'] { background: var(--gray-300); color: var(--gray-700, #374151); }
+.student-profile .prof-cal-day[data-status='Discontinued'] {
+  background: repeating-linear-gradient(135deg, var(--prof-discontinued) 0 4px, var(--prof-discontinued-2) 4px 8px);
+  color: #fff;
+}
 
 .student-profile .prof-legend {
   display: flex;
@@ -1313,6 +1354,10 @@ watch([fromDate, toDate], () => {
 .student-profile .prof-legend-dot[data-status='Late'] { background: var(--prof-warn); border-color: var(--prof-warn); }
 .student-profile .prof-legend-dot[data-status='Early Outs'] { background: var(--prof-info); border-color: var(--prof-info); }
 .student-profile .prof-legend-dot[data-status='Holiday'] { background: var(--gray-300); border-color: var(--gray-300); }
+.student-profile .prof-legend-dot[data-status='Discontinued'] {
+  background: repeating-linear-gradient(135deg, var(--prof-discontinued) 0 2px, var(--prof-discontinued-2) 2px 4px);
+  border-color: var(--prof-discontinued);
+}
 .student-profile .prof-legend-dot[data-tone='good'] { background: var(--prof-good); border-color: var(--prof-good); }
 .student-profile .prof-legend-dot[data-tone='mid'] { background: var(--prof-warn); border-color: var(--prof-warn); }
 .student-profile .prof-legend-dot[data-tone='bad'] { background: var(--prof-bad); border-color: var(--prof-bad); }

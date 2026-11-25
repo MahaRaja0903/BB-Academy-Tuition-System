@@ -4,9 +4,11 @@ Call with a Frappe API key of a user that can read the doctypes:
 
 	GET /api/method/bb_tution_management.bb_academy.data_api.get_attendance_data
 	GET /api/method/bb_tution_management.bb_academy.data_api.get_performance_data
+	GET /api/method/bb_tution_management.bb_academy.data_api.get_student_data
+	GET /api/method/bb_tution_management.bb_academy.data_api.get_student_filter_options
 	Authorization: token <api_key>:<api_secret>
 
-Both are paginated with `start` / `page_length` and return
+The data feeds are paginated with `start` / `page_length` and return
 `{"total": n, "start": s, "page_length": p, "data": [...]}`.
 """
 
@@ -170,4 +172,99 @@ def get_performance_data(
 		"start": start,
 		"page_length": page_length,
 		"data": data,
+	}
+
+
+STUDENT_FIELDS = [
+	"name",
+	"admission_number",
+	"student_name",
+	"status",
+	"gender",
+	"standard",
+	"current_batch",
+	"`group`",
+	"academic_year",
+	"admission_date",
+	"image",
+	"modified",
+]
+
+
+def _student_filters(status, standard, batch, gender, student=None):
+	filters = {}
+	if student:
+		filters["name"] = student
+	if status:
+		filters["status"] = status
+	if standard:
+		filters["standard"] = standard
+	if batch:
+		filters["current_batch"] = batch
+	if gender:
+		filters["gender"] = gender
+	return filters
+
+
+@frappe.whitelist(methods=["GET", "POST"])
+def get_student_data(
+	status="Active", standard=None, batch=None, gender=None, search=None, student=None, start=0, page_length=1000
+):
+	"""Students matching the filters, by name. Identity and class only; fees and
+	contact details are not exposed.
+
+	`status` defaults to Active; pass `status=` (empty) for every status.
+	`batch` matches the student's current batch; `gender` is Boys / Girls.
+	`search` matches student name or admission number; `student` is an exact
+	admission number (Student ID).
+	"""
+	if not frappe.has_permission("Student", "read"):
+		frappe.throw("No permission to read student records", frappe.PermissionError)
+
+	filters = _student_filters(status, standard, batch, gender, student)
+	or_filters = None
+	if search:
+		like = f"%{search}%"
+		or_filters = {"student_name": ["like", like], "name": ["like", like], "admission_number": ["like", like]}
+	start, page_length = _page(start, page_length)
+
+	data = frappe.get_list(
+		"Student",
+		filters=filters,
+		or_filters=or_filters,
+		fields=STUDENT_FIELDS,
+		order_by="student_name asc, name asc",
+		limit_start=start,
+		limit_page_length=page_length,
+	)
+	total = (
+		len(frappe.get_list("Student", filters=filters, or_filters=or_filters, pluck="name", limit_page_length=0))
+		if or_filters
+		else frappe.db.count("Student", filters)
+	)
+	return {"total": total, "start": start, "page_length": page_length, "data": data}
+
+
+@frappe.whitelist(methods=["GET", "POST"])
+def get_student_filter_options(status="Active"):
+	"""Distinct standards, batches and genders in use, for building filter dropdowns."""
+	if not frappe.has_permission("Student", "read"):
+		frappe.throw("No permission to read student records", frappe.PermissionError)
+
+	filters = _student_filters(status, None, None, None)
+
+	def distinct(field):
+		return frappe.get_list(
+			"Student",
+			filters={**filters, field: ["is", "set"]},
+			pluck=field,
+			distinct=True,
+			order_by=f"{field} asc",
+			limit_page_length=0,
+		)
+
+	return {
+		"standards": distinct("standard"),
+		"batches": distinct("current_batch"),
+		"genders": distinct("gender"),
 	}

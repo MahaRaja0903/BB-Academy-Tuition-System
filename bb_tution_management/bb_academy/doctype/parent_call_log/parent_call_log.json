@@ -13,6 +13,8 @@
   "standard",
   "batch",
   "column_break_head",
+  "call_status",
+  "call_for",
   "called_on",
   "called_by",
   "spoken_to",
@@ -65,6 +67,22 @@
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "call_status",
+   "fieldtype": "Select",
+   "label": "Call Status",
+   "options": "Attended\nNot Attended\nClosed",
+   "default": "Attended",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "call_for",
+   "fieldtype": "Select",
+   "label": "Call For",
+   "options": "\nAttendance\nPending Calls\nMistakes",
+   "in_standard_filter": 1
+  },
+  {
    "default": "Now",
    "fieldname": "called_on",
    "fieldtype": "Datetime",
@@ -78,14 +96,16 @@
    "in_standard_filter": 1,
    "label": "Called By",
    "options": "Staff",
-   "reqd": 1
+   "reqd": 0,
+   "mandatory_depends_on": "eval:doc.call_status!=\"Closed\""
   },
   {
    "fieldname": "spoken_to",
    "fieldtype": "Select",
    "label": "Spoken To",
    "options": "\nFather\nMother\nGuardian\nStudent\nOther",
-   "reqd": 1
+   "reqd": 0,
+   "mandatory_depends_on": "eval:doc.call_status==\"Attended\""
   },
   {
    "fieldname": "spoken_to_name",
@@ -119,7 +139,8 @@
    "fieldname": "call_notes",
    "fieldtype": "Small Text",
    "label": "What Was Spoken",
-   "reqd": 1
+   "reqd": 0,
+   "mandatory_depends_on": "eval:doc.call_status==\"Attended\""
   },
   {
    "fieldname": "section_break_mistakes",
@@ -137,7 +158,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-15 10:00:00.000000",
+ "modified": "2026-11-11 14:32:19.435443",
  "modified_by": "Administrator",
  "module": "BB Academy",
  "name": "Parent Call Log",

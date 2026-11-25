@@ -15,7 +15,12 @@ import json
 import frappe
 from frappe.utils import cint, flt, get_first_day, get_last_day, getdate, today
 
-from bb_tution_management.bb_academy.attendance import get_day_context, get_holiday_details
+from bb_tution_management.bb_academy.attendance import (
+	_student_batch_on,
+	batch_on_date_sql,
+	get_day_context,
+	get_holiday_details,
+)
 from bb_tution_management.bb_academy.late_permission import permitted_reasons_map
 from bb_tution_management.bb_academy.syllabus import (
 	blocks_for_group,
@@ -434,15 +439,14 @@ def get_performance_students(standard, batch, category, performance_date, gender
 	group_rules = group_subject_rules(standard) if cfg["uses_syllabus"] else {}
 	group_filter = _group_filter(standard, session, group_rules, params)
 
-	# The batch a student is counted under is the temporary attendance_batch when
-	# one is set, exactly as the attendance register resolves it.
+	# The batch a student is counted under is the one they sat in on this date,
+	# exactly as the attendance register resolves it: a student moved from
+	# Batch II to Batch I today still belongs to Batch II on earlier days, so
+	# they must not show up as Pending in Batch I's past performance.
 	roster_filter = f"""
 		s.status = 'Active'
 		AND s.standard = %(standard)s
-		AND (
-			(IFNULL(s.attendance_batch_set, 0) = 1 AND s.attendance_batch = %(batch)s)
-			OR (IFNULL(s.attendance_batch_set, 0) = 0 AND s.current_batch = %(batch)s)
-		)
+		AND {batch_on_date_sql("s", "date")} = %(batch)s
 		AND s.admission_date <= %(date)s
 		{gender_filter}
 		{group_filter}
@@ -1074,7 +1078,7 @@ def save_student_performance(
 		frappe.throw(f"Student {student} not found")
 
 	standard = standard or stu.standard
-	batch = batch or (stu.attendance_batch if stu.attendance_batch_set else stu.current_batch)
+	batch = batch or _student_batch_on(stu, performance_date)
 
 	_guard_writable(performance_date, standard, batch)
 
@@ -1180,7 +1184,7 @@ def clear_student_performance(
 		frappe.throw(f"Student {student} not found")
 
 	standard = standard or stu.standard
-	batch = batch or (stu.attendance_batch if stu.attendance_batch_set else stu.current_batch)
+	batch = batch or _student_batch_on(stu, performance_date)
 	_guard_writable(performance_date, standard, batch)
 
 	session = _get_session(performance_date, standard, batch, category, session_name)
@@ -1284,7 +1288,7 @@ def get_student_entry(
 		frappe.throw(f"Student {student} not found")
 
 	standard = standard or stu.standard
-	batch = batch or (stu.attendance_batch if stu.attendance_batch_set else stu.current_batch)
+	batch = batch or _student_batch_on(stu, performance_date)
 
 	# A Test sat instead has to be one of the day's Tests — the modal lists them
 	# and opens on the first unless one is picked.

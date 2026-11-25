@@ -67,6 +67,7 @@ class Student(Document):
 	def before_save(self):
 		self.track_batch_change()
 		self.track_rejoin()
+		self.tag_absences_while_discontinued()
 
 	def update_scholarship_payment_details(self):
 		"""When scholarship_student is checked, set all 'Not Paid' statuses in payment_details to 'Paid'."""
@@ -402,10 +403,56 @@ class Student(Document):
 			rejoin_log.insert(ignore_permissions=True)
 			
 			frappe.msgprint(_("Student Rejoin Log created successfully."))
-			
-			self.discontinued__date = None
+
+			# The days in between show as "Discontinued", not Absent.
+			if doc_before.discontinued__date:
+				from bb_tution_management.bb_academy.discontinue import tag_discontinued_absences
+
+				tag_discontinued_absences(
+					self.name,
+					doc_before.discontinued__date,
+					frappe.utils.add_days(self.rejoined_date, -1),
+				)
+
+			# The Discontinued Date stays on the Student so it still shows after
+			# the rejoin; the reason is cleared for the next spell (both are in
+			# the Rejoin Log). Nothing reads the date unless status is Discontinued.
 			self.discontinue_reason_category = None
 			self.discontinued_reason = None
+
+		elif doc_before.status != "Discontinued" and self.status == "Discontinued":
+			# Discontinued again after a rejoin: the old date is still on the
+			# form and must be replaced by the new one.
+			if (
+				self.rejoined_date
+				and self.discontinued__date
+				and frappe.utils.getdate(self.discontinued__date) <= frappe.utils.getdate(self.rejoined_date)
+			):
+				frappe.throw(
+					_("Discontinued Date ({0}) must be after the Rejoined Date ({1}).").format(
+						frappe.format(self.discontinued__date, {"fieldtype": "Date"}),
+						frappe.format(self.rejoined_date, {"fieldtype": "Date"}),
+					)
+				)
+
+	def tag_absences_while_discontinued(self):
+		"""Discontinuing (or moving the discontinued date earlier) re-tags the Absent
+		rows already marked from that date on as Discontinued."""
+		if self.status != "Discontinued" or not self.discontinued__date:
+			return
+
+		doc_before = None if self.is_new() else self.get_doc_before_save()
+		if (
+			doc_before
+			and doc_before.status == "Discontinued"
+			and doc_before.discontinued__date
+			and frappe.utils.getdate(doc_before.discontinued__date) <= frappe.utils.getdate(self.discontinued__date)
+		):
+			return
+
+		from bb_tution_management.bb_academy.discontinue import tag_discontinued_absences
+
+		tag_discontinued_absences(self.name, self.discontinued__date)
 
 	def set_preferred_whatsapp_number(self):
 		if self.preferred_mobile_number == "Father":

@@ -3,6 +3,112 @@ from frappe.utils import getdate, now, today, add_days, get_first_day, get_last_
 import json
 
 from bb_tution_management.bb_academy.late_permission import permitted_reasons
+from bb_tution_management.bb_academy.discontinue import get_discontinued_periods, is_discontinued_on
+
+
+def _drop_discontinued(students, date_obj):
+    """Remove the students who were discontinued on `date_obj`.
+
+    A student who left and later rejoined is Active again, but owes no
+    attendance for the days in between -- without this the attendance screen
+    listed them as pending and the previous-day guard blocked the batch.
+    """
+    periods = get_discontinued_periods([s.name for s in students], date_obj, date_obj)
+    if not periods:
+        return students
+    return [s for s in students if not is_discontinued_on(periods, s.name, date_obj)]
+
+def _batch_students_on(standard, batch, date_obj, fields, gender=None):
+    """Active students of this standard who sat in `batch` on `date_obj`.
+
+    A student's batch is read as of that date, not as of today: someone moved
+    from Batch II to Batch I today was still in Batch II yesterday. Filtering on
+    current_batch alone listed them as pending on Batch I's earlier days (and
+    blocked its previous-day guard) while dropping them from Batch II's.
+
+    Before a Student Batch Transition the student was in its previous batch, so
+    the batch on a date is the previous batch of the earliest move after it,
+    else the current batch. A temporary attendance batch still overrides both.
+    """
+    date_obj = getdate(date_obj)
+    gender_filter = " AND gender = %(gender)s" if gender else ""
+    candidates = frappe.db.sql("""
+        SELECT {fields}, attendance_batch_set, attendance_batch, current_batch
+        FROM `tabStudent`
+        WHERE status = 'Active'
+          AND standard = %(standard)s
+          AND admission_date <= %(date)s
+          {gender_filter}
+        ORDER BY TRIM(SUBSTRING_INDEX(student_name, '.', -1)) ASC
+    """.format(fields=fields, gender_filter=gender_filter),
+        {"standard": standard, "date": date_obj, "gender": gender}, as_dict=True)
+    if not candidates:
+        return []
+
+    later_moves = {}
+    for move in frappe.db.sql("""
+        SELECT student, previous_batch
+        FROM `tabStudent Batch Transition`
+        WHERE student IN %(students)s
+          AND docstatus < 2
+          AND effective_date > %(date)s
+          AND IFNULL(previous_batch, '') != ''
+        ORDER BY effective_date ASC, creation ASC
+    """, {"students": tuple(s.name for s in candidates), "date": date_obj}, as_dict=True):
+        later_moves.setdefault(move.student, move.previous_batch)
+
+    students = []
+    for s in candidates:
+        if s.attendance_batch_set:
+            on_date = s.attendance_batch
+        else:
+            on_date = later_moves.get(s.name, s.current_batch)
+        if on_date == batch:
+            students.append(s)
+    return _drop_discontinued(students, date_obj)
+
+
+def batch_on_date_sql(alias="s", date_param="date"):
+    """SQL for the batch student `alias` sat in on %(date_param)s.
+
+    The SQL twin of _batch_students_on / _student_batch_on, for screens that
+    filter their roster in a query: the temporary attendance batch when set,
+    else the previous batch of the earliest batch move after that date, else
+    the current batch.
+    """
+    return f"""IF(
+        IFNULL({alias}.attendance_batch_set, 0) = 1,
+        {alias}.attendance_batch,
+        COALESCE(
+            (SELECT bt.previous_batch
+             FROM `tabStudent Batch Transition` bt
+             WHERE bt.student = {alias}.name
+               AND bt.docstatus < 2
+               AND bt.effective_date > %({date_param})s
+               AND IFNULL(bt.previous_batch, '') != ''
+             ORDER BY bt.effective_date ASC, bt.creation ASC
+             LIMIT 1),
+            {alias}.current_batch
+        )
+    )"""
+
+
+def _student_batch_on(stu, date_obj):
+    """The batch one student sat in on `date_obj` (see _batch_students_on)."""
+    if stu.attendance_batch_set:
+        return stu.attendance_batch
+    previous = frappe.db.sql("""
+        SELECT previous_batch
+        FROM `tabStudent Batch Transition`
+        WHERE student = %(student)s
+          AND docstatus < 2
+          AND effective_date > %(date)s
+          AND IFNULL(previous_batch, '') != ''
+        ORDER BY effective_date ASC, creation ASC
+        LIMIT 1
+    """, {"student": stu.name, "date": getdate(date_obj)})
+    return previous[0][0] if previous else stu.current_batch
+
 
 @frappe.whitelist()
 def get_server_today():
@@ -35,26 +141,13 @@ def get_attendance_students(standard, batch, attendance_date, gender=None):
             "previous_day_pending": None,
         }
 
-    # 2. Get active students for the standard and batch, filtering by admission_date
-    gender_filter = " AND gender = %s" if gender else ""
-    params = [standard, batch, batch, date_obj]
-    if gender:
-        params.append(gender)
+    # 2. Students who were in this standard and batch on the date, by admission_date
+    students = _batch_students_on(
+        standard, batch, date_obj,
+        "name, student_name, admission_date, gender, date_of_birth, image",
+        gender=gender,
+    )
 
-    students = frappe.db.sql("""
-        SELECT name, student_name, admission_date, gender, date_of_birth, image, attendance_batch_set, current_batch
-        FROM `tabStudent`
-        WHERE status = 'Active'
-          AND standard = %s
-          AND (
-              (IFNULL(attendance_batch_set, 0) = 1 AND attendance_batch = %s)
-              OR (IFNULL(attendance_batch_set, 0) = 0 AND current_batch = %s)
-          )
-          AND admission_date <= %s
-          {gender_filter}
-        ORDER BY TRIM(SUBSTRING_INDEX(student_name, '.', -1)) ASC
-    """.format(gender_filter=gender_filter), tuple(params), as_dict=True)
-    
     student_ids = [s.name for s in students]
     if not student_ids:
         return {
@@ -223,18 +316,7 @@ def _get_batch_students(standard, batch, date_obj):
     Deliberately ignores the screen's gender filter: completeness of a day is a
     property of the whole batch, not of whichever slice is on screen.
     """
-    return frappe.db.sql("""
-        SELECT name, student_name
-        FROM `tabStudent`
-        WHERE status = 'Active'
-          AND standard = %s
-          AND (
-              (IFNULL(attendance_batch_set, 0) = 1 AND attendance_batch = %s)
-              OR (IFNULL(attendance_batch_set, 0) = 0 AND current_batch = %s)
-          )
-          AND admission_date <= %s
-        ORDER BY TRIM(SUBSTRING_INDEX(student_name, '.', -1)) ASC
-    """, (standard, batch, batch, date_obj), as_dict=True)
+    return _batch_students_on(standard, batch, date_obj, "name, student_name")
 
 
 def _previous_day_pending(standard, batch, attendance_date):
@@ -362,7 +444,9 @@ def _validate_status(status, fieldname="status"):
     was silently written whenever the row already existed.
     """
     options = frappe.get_meta("Student Attendance").get_field(fieldname).options or ""
-    allowed = [o.strip() for o in options.split("\n") if o.strip()]
+    # "Discontinued" is set by the system for a student who had left, never
+    # marked by hand.
+    allowed = [o.strip() for o in options.split("\n") if o.strip() and o.strip() != "Discontinued"]
     if status not in allowed:
         frappe.throw(
             f"Invalid attendance status: {status}. Must be one of {', '.join(allowed)}.",
@@ -587,7 +671,9 @@ def save_student_attendance(student, attendance_date, status, late_reason=None, 
     stu = frappe.get_doc("Student", student)
 
     # Check if holiday
-    batch = stu.attendance_batch if stu.attendance_batch_set else stu.current_batch
+    # The batch the student sat in on that day, which differs from today's
+    # after a batch change.
+    batch = _student_batch_on(stu, attendance_date)
     holiday = get_holiday_details(attendance_date, stu.standard, batch)
     if holiday:
         frappe.throw("Cannot mark attendance on a holiday")
@@ -1107,11 +1193,13 @@ def get_attendance_dashboard_data(academic_year=None, standard=None, batch=None,
         elif row.status == "Absent": today_summary["absent"] = row.cnt
         elif row.status == "Late": today_summary["late"] = row.cnt
         
-    total_active = frappe.db.sql(f"""
-        SELECT COUNT(name) FROM `tabStudent`
+    active_students = frappe.db.sql(f"""
+        SELECT name FROM `tabStudent`
         WHERE status = 'Active' AND admission_date <= %(date)s
         {std_filter} {batch_filter}
-    """, {"date": date, "standard": standard, "batch": batch})[0][0]
+    """, {"date": date, "standard": standard, "batch": batch}, as_dict=True)
+    # A rejoined student owes nothing for the days they were discontinued.
+    total_active = len(_drop_discontinued(active_students, date_obj))
     
     today_summary["pending"] = total_active - (today_summary["present"] + today_summary["absent"] + today_summary["late"])
     today_summary["total"] = total_active
